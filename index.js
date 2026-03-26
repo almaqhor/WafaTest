@@ -2455,59 +2455,63 @@ app.post('/api/update-activity', (req, res) => {
         res.json({ success: false });
     }
 });
-// ==================== 📡 رادار النواقص (Missing Attendance Radar) ====================
 app.post('/api/missing-attendance', (req, res) => {
     try {
-        const { managerName, lookbackDays = 7 } = req.body; // الافتراضي فحص آخر 7 أيام
+        const { managerName, lookbackDays = 7 } = req.body;
 
         if (!managerName) {
-            return res.json({ success: false, message: 'اسم المدير مطلوب.' });
+            return res.json({ success: false, message: 'معرف المستخدم مطلوب.' });
         }
 
-       // 1. جلب فريق العمل (النسخة المدرعة ضد أخطاء الإدخال وحالة الأحرف)
+        // 💡 الذكاء الاستخباراتي: استخراج الاسم الحقيقي والصلاحية للمستخدم الذي فتح الشاشة
+        const requestingUser = usersDB.find(u => String(u.username) === String(managerName) || String(u.name) === String(managerName));
+        const actualManagerName = requestingUser ? requestingUser.name : managerName; // تحويل الرقم إلى الاسم العربي الصريح
+        
+        // هل هذا المستخدم أدمن؟ (إذا كان أدمن، نعطيه صلاحية رؤية جميع الموظفين)
+        const isSuperAdmin = requestingUser && (requestingUser.role === 'admin' || requestingUser.roleArabic === 'ادمن');
+
+        // 1. جلب فريق العمل (النسخة المدرعة فائقة الذكاء)
         const team = usersDB.filter(u => {
-            // أ. التحقق من المدير (مع تجاهل المسافات الزائدة بالخطأ)
-            const isMyEmp = u.directManager && String(u.directManager).trim() === String(managerName).trim();
+            // أ. التحقق من المدير (إما أن يكون أدمن، أو يكون مديره المباشر فعلاً)
+            const isMyEmp = isSuperAdmin || (u.directManager && String(u.directManager).trim() === String(actualManagerName).trim());
             
-            // ب. التحقق من الحالة (توحيد الأحرف للتعرف على In Duty بأي شكل كُتبت)
+            // ب. التحقق من الحالة الوظيفية
             const statusStr = (u.status || '').trim().toLowerCase();
             const isInDuty = statusStr === 'in duty' || statusStr === 'نشط' || statusStr === 'على رأس العمل' || statusStr === 'active';
             
             return isMyEmp && u.isActive !== false && isInDuty;
         });
 
-        // 🎯 الموضع الصحيح للطباعة: بعد أن أصبح الفريق جاهزاً!
+        // طباعة للتأكد من نجاح الفلترة
         console.log("Team found:", team.map(u => u.username));
 
         const missingRecords = [];
 
-        // 2. إعداد التواريخ (توقيت السعودية) لمعرفة "اليوم" و "أمس"
+        // 2. إعداد التواريخ (توقيت السعودية)
         const todayStr = new Date().toLocaleString('en-US', { timeZone: 'Asia/Riyadh' });
         const todayRiyadh = new Date(todayStr);
-        todayRiyadh.setHours(0,0,0,0); // تصفير الوقت للتركيز على التاريخ فقط
+        todayRiyadh.setHours(0,0,0,0);
 
-        // 3. المحرك الزمني: حلقة تدور للوراء لفحص الأيام السابقة (من أمس وحتى X أيام)
+        // 3. المحرك الزمني (الرجوع للخلف)
         for (let i = 1; i <= lookbackDays; i++) {
             const checkDate = new Date(todayRiyadh);
-            checkDate.setDate(checkDate.getDate() - i); // الرجوع للخلف يوم بيوم
+            checkDate.setDate(checkDate.getDate() - i);
             
-            // تحويل التاريخ لصيغة YYYY-MM-DD لتطابق قاعدة البيانات
             const dateString = checkDate.toLocaleDateString('en-CA', { timeZone: 'Asia/Riyadh' }); 
             const dayName = checkDate.toLocaleDateString('ar-SA', { weekday: 'long', timeZone: 'Asia/Riyadh' });
             
-            // 4. فحص كل موظف في هذا اليوم المفقود
+            // 4. فحص كل موظف
             team.forEach(emp => {
-                // حماية: إذا كان الموظف تعين "بعد" هذا التاريخ، لا نعتبره غائباً
+                // حماية تاريخ التعيين الدقيقة
                 if (emp.joinDate) {
                     const empJoinDate = new Date(emp.joinDate);
                     empJoinDate.setHours(0,0,0,0);
-                    if (empJoinDate > checkDate) return; // تخطي إذا كان اليوم المطلوب يسبق تاريخ تعيينه
+                    if (empJoinDate > checkDate) return; 
                 }
 
-                // البحث هل له تحضير في هذا اليوم؟
+                // هل يوجد له تحضير في هذا اليوم؟
                 const hasRecord = attendanceDB.find(a => a.date === dateString && a.username === emp.username);
 
-                // إذا لم نجد له تحضير، نلقي القبض عليه ونضعه في قائمة النواقص!
                 if (!hasRecord) {
                     missingRecords.push({
                         username: emp.username,
@@ -2519,7 +2523,7 @@ app.post('/api/missing-attendance', (req, res) => {
             });
         }
 
-        // 5. ترتيب النواقص من الأقدم للأحدث ليسهل على المدير تعبئتها
+        // 5. الترتيب من الأقدم للأحدث
         missingRecords.sort((a, b) => new Date(a.date) - new Date(b.date));
 
         res.json({ success: true, count: missingRecords.length, data: missingRecords });
