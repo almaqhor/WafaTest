@@ -2464,12 +2464,17 @@ app.post('/api/missing-attendance', (req, res) => {
             return res.json({ success: false, message: 'اسم المدير مطلوب.' });
         }
 
-        // 1. جلب فريق العمل التابع لهذا المدير (النشطين فقط وعلى رأس العمل)
-        const team = usersDB.filter(u => 
-            u.directManager === managerName && 
-            u.isActive !== false && 
-            (u.status === 'in Duty' || u.status === 'نشط')
-        );
+       // 1. جلب فريق العمل (النسخة المدرعة ضد أخطاء الإدخال وحالة الأحرف)
+        const team = usersDB.filter(u => {
+            // أ. التحقق من المدير (مع تجاهل المسافات الزائدة بالخطأ)
+            const isMyEmp = u.directManager && String(u.directManager).trim() === String(managerName).trim();
+            
+            // ب. التحقق من الحالة (توحيد الأحرف للتعرف على In Duty بأي شكل كُتبت)
+            const statusStr = (u.status || '').trim().toLowerCase();
+            const isInDuty = statusStr === 'in duty' || statusStr === 'نشط' || statusStr === 'على رأس العمل' || statusStr === 'active';
+            
+            return isMyEmp && u.isActive !== false && isInDuty;
+        });
 
         const missingRecords = [];
 
@@ -2486,11 +2491,15 @@ app.post('/api/missing-attendance', (req, res) => {
             // تحويل التاريخ لصيغة YYYY-MM-DD لتطابق قاعدة البيانات
             const dateString = checkDate.toLocaleDateString('en-CA', { timeZone: 'Asia/Riyadh' }); 
             const dayName = checkDate.toLocaleDateString('ar-SA', { weekday: 'long', timeZone: 'Asia/Riyadh' });
-
+            
             // 4. فحص كل موظف في هذا اليوم المفقود
             team.forEach(emp => {
                 // حماية: إذا كان الموظف تعين "بعد" هذا التاريخ، لا نعتبره غائباً
-                if (emp.joinDate && new Date(emp.joinDate) > checkDate) return;
+                if (emp.joinDate) {
+                    const empJoinDate = new Date(emp.joinDate);
+                    empJoinDate.setHours(0,0,0,0);
+                    if (empJoinDate > checkDate) return; // تخطي إذا كان اليوم المطلوب يسبق تاريخ تعيينه
+                }
 
                 // البحث هل له تحضير في هذا اليوم؟
                 const hasRecord = attendanceDB.find(a => a.date === dateString && a.username === emp.username);
