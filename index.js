@@ -50,6 +50,29 @@ app.post('/api/branch-targets', (req, res) => {
 });
 
 let usersDB = safeLoadDB(usersFile, [{ username: "admin", password: "123", role: "admin", roleArabic: "ادمن", name: "مدير النظام", gender: "ذكر", queryCount: 0, lastQueryDate: "", lastLogin: "لم يسجل دخوله بعد" }]);
+// ==================== 🛡️ حارس الأدمن (Admin Guardian) ====================
+// يضمن عدم ضياع حساب الإدارة أو إقفاله تحت أي ظرف
+(function ensureAdminExists() {
+    let adminIdx = usersDB.findIndex(u => u.username === 'admin');
+    if (adminIdx === -1) {
+        // إذا مسحه الباك أب بالخطأ، نزرعه من جديد بقوة النظام
+        usersDB.push({ 
+            username: "admin", 
+            password: "123", 
+            role: "admin", 
+            roleArabic: "ادمن", 
+            name: "مدير النظام", 
+            isActive: true 
+        });
+        console.log("🛡️ تم استعادة حساب الإدمن المفقود!");
+    } else {
+        // إذا كان موجوداً، نتأكد أنه مفعل 100% ونُصفر الرقم السري مؤقتاً لتدخل
+        usersDB[adminIdx].isActive = true;
+        usersDB[adminIdx].password = "123"; 
+    }
+    fs.writeFileSync(usersFile, JSON.stringify(usersDB, null, 2));
+})();
+// =========================================================================
 let reasonsDB = safeLoadDB(reasonsFile, ["استفسار عام", "طلب استئذان", "مشكلة في البصمة"]);
 let requestsDB = safeLoadDB(requestsFile, []);
 let formsDB = safeLoadDB(formsFile, [{ name: "نموذج طلب إجازة", link: "https://docs.google.com/" }]);
