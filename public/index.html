@@ -4501,38 +4501,39 @@ async function confirmTransferAction() {
 
 
         function switchAttTab(tab) {
-           
-    // 1. إخفاء جميع الأقسام أولاً (تأكد أن الـ IDs تطابق ما لديك في HTML)
-    const todaySection = document.getElementById('attendance-today-section'); // قسم تحضير اليوم
-    const pendingSection = document.getElementById('attendance-pending-section'); // قسم التحضير المعلق
-    const missingSection = document.getElementById('missing-attendance-section'); // 🔥 قسم النواقص الجديد
-
-    if (todaySection) todaySection.style.display = 'none';
-    if (pendingSection) pendingSection.style.display = 'none';
-    if (missingSection) missingSection.style.display = 'none';
-
-    // 2. إزالة تفعيل جميع الأزرار (تغيير اللون)
-    const btnToday = document.getElementById('btn-tab-today');
+    // 1. إزالة التفعيل (اللون) من جميع الأزرار
+    const btnDaily = document.getElementById('btn-tab-daily');
     const btnPending = document.getElementById('btn-tab-pending');
-    const btnMissing = document.getElementById('btn-tab-missing'); // 🔥 زر النواقص الجديد
+    const btnMissing = document.getElementById('btn-tab-missing');
 
-    if (btnToday) btnToday.classList.remove('active');
-    if (btnPending) btnPending.classList.remove('active');
-    if (btnMissing) btnMissing.classList.remove('active');
+    if(btnDaily) btnDaily.classList.remove('active');
+    if(btnPending) btnPending.classList.remove('active');
+    if(btnMissing) btnMissing.classList.remove('active');
 
-    // 3. إظهار القسم المطلوب وتفعيل زره بناءً على الكلمة القادمة
-    if (tab === 'today') {
-        if (todaySection) todaySection.style.display = 'block';
-        if (btnToday) btnToday.classList.add('active');
+    // 2. إخفاء جميع الجداول (التابات)
+    const tabDaily = document.getElementById('att-tab-daily');
+    const tabPending = document.getElementById('att-tab-pending');
+    const tabMissing = document.getElementById('missing-attendance-section');
+
+    if(tabDaily) tabDaily.style.display = 'none';
+    if(tabPending) tabPending.style.display = 'none';
+    if(tabMissing) tabMissing.style.display = 'none';
+
+    // 3. محرك التوجيه الذكي (إظهار القسم المطلوب فقط)
+    if(tab === 'daily') {
+        if(btnDaily) btnDaily.classList.add('active');
+        if(tabDaily) tabDaily.style.display = 'block';
+        loadTeamAttendance(); // دالتك الأصلية
     } 
-    else if (tab === 'pending') {
-        if (pendingSection) pendingSection.style.display = 'block';
-        if (btnPending) btnPending.classList.add('active');
+    else if(tab === 'pending') {
+        if(btnPending) btnPending.classList.add('active');
+        if(tabPending) tabPending.style.display = 'block';
+        loadPendingAttendance(); // دالتك الأصلية
     } 
-    else if (tab === 'missing') {
-        // 🔥 إظهار قسم النواقص وتفعيل زره
-        if (missingSection) missingSection.style.display = 'block';
-        if (btnMissing) btnMissing.classList.add('active');
+    else if(tab === 'missing') {
+        if(btnMissing) btnMissing.classList.add('active');
+        if(tabMissing) tabMissing.style.display = 'block';
+        loadMissingAttendance(); // دالة الرادار الجديدة
     }
 }
         async function loadTeamAttendance() {
