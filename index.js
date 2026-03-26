@@ -356,11 +356,14 @@ app.post('/api/user-delete', (req, res) => {
 });
 
 // ==================== رفع بيانات المستخدمين الشاملة (Excel) ====================
-app.post('/api/upload-users', (req, res) => {
+// 🔥 إضافة upload.single('excelFile')
+app.post('/api/upload-users', upload.single('excelFile'), (req, res) => {
     try {
-        if (!req.files || !req.files.excelFile) return res.json({ success: false, message: 'لم يتم العثور على الملف.' });
+        // 🛡️ استخدام req.file بدلاً من req.files
+        if (!req.file) return res.json({ success: false, message: 'لم يتم العثور على الملف.' });
         
-        const workbook = xlsx.read(req.files.excelFile.data, { type: 'buffer' });
+        // قراءة الملف من الـ buffer
+        const workbook = xlsx.read(req.file.buffer, { type: 'buffer' });
         const sheetName = workbook.SheetNames[0];
         const data = xlsx.utils.sheet_to_json(workbook.Sheets[sheetName]);
 
@@ -368,13 +371,12 @@ app.post('/api/upload-users', (req, res) => {
         let updatedCount = 0;
 
         data.forEach(row => {
-            // قراءة الحقول الأساسية (يدعم العربي والإنجليزي في الإكسيل)
+            // (باقي كود قراءة وتعبئة المستخدمين الخاص بك يبقى هنا كما هو بالضبط دون أي تغيير)
             const username = (row['الرقم الوظيفي'] || row['ID'] || row['username'])?.toString().trim();
             const name = row['الاسم'] || row['Name'] || row['name'];
             
-            if (!username || !name) return; // تخطي الصفوف الفارغة
+            if (!username || !name) return; 
 
-            // جلب الحالات والأرقام مع وضع قيم افتراضية
             const status = row['الحالة'] || row['Status'] || 'in Duty';
             const basicSalary = parseFloat(row['الراتب الاساسي'] || row['Basic Salary']) || 0;
             const housingAllowance = parseFloat(row['بدل السكن'] || row['Housing Allowance']) || 0;
@@ -383,16 +385,13 @@ app.post('/api/upload-users', (req, res) => {
             const leaveCredit = parseFloat(row['الرصيد المستحق'] || row['Leave Credit']) || 0;
             const usedLeaves = parseFloat(row['الاجازات المستخدمة'] || row['Used Leaves']) || 0;
 
-            // العمليات الحسابية الآلية
             const salaryE = basicSalary + housingAllowance + otherAllowance;
             let offDays = 7 - workingDays;
             if(offDays < 0) offDays = 0; if(offDays > 7) offDays = 7;
             const leaveBalance = leaveCredit - usedLeaves;
 
-            // 🔥 السحر هنا: حالة الحساب (مفعل فقط إذا كان in Duty) 🔥
             const isActive = (status === 'in Duty');
 
-            // تجميع البيانات الكاملة
             const userData = {
                 username: username,
                 name: name.toString().trim(),
@@ -449,7 +448,6 @@ app.post('/api/upload-users', (req, res) => {
 
             const existingIndex = usersDB.findIndex(u => u.username === username);
             if (existingIndex > -1) {
-                // لحماية مدير النظام من طرد نفسه بالخطأ لو رفع ملف فيه حسابه
                 if (usersDB[existingIndex].role === 'admin' || usersDB[existingIndex].roleArabic === 'ادمن') {
                     userData.roleArabic = 'ادمن';
                     userData.role = 'admin';
@@ -873,13 +871,19 @@ app.get('/api/backup', (req, res) => {
     }
 });
 
-app.post('/api/restore-backup', (req, res) => {
+// ==================== إدارة النسخ الاحتياطية الشاملة ====================
+// (مسار الجلب /api/backup يبقى كما هو عندك بدون تعديل)
+
+// 🔥 التعديل هنا: إضافة upload.single('backupFile') لفك تشفير الملف 
+app.post('/api/restore-backup', upload.single('backupFile'), (req, res) => {
     try {
-        if (!req.files || !req.files.backupFile) {
+        // 🛡️ استخدام req.file بدلاً من req.files
+        if (!req.file) {
             return res.json({ success: false, message: 'لم يتم إرفاق ملف!' });
         }
 
-        const backupData = JSON.parse(req.files.backupFile.data.toString('utf8'));
+        // قراءة الملف من الـ buffer الخاص بمكتبة multer
+        const backupData = JSON.parse(req.file.buffer.toString('utf8'));
 
         if (backupData.users) { usersDB = backupData.users; fs.writeFileSync(usersFile, JSON.stringify(usersDB, null, 2)); }
         if (backupData.requests) { requestsDB = backupData.requests; fs.writeFileSync(requestsFile, JSON.stringify(requestsDB, null, 2)); }
