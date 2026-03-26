@@ -390,7 +390,7 @@
                         <div class="tabs-header" style="border-bottom: 2px solid #27ae60;">
                             <button class="tab-btn active" id="btn-tab-daily" onclick="switchAttTab('daily')"><i class="fas fa-calendar-day"></i> التحضير اليومي</button>
                             <button class="tab-btn" id="btn-tab-pending" onclick="switchAttTab('pending')" style="color:#e74c3c;"><i class="fas fa-exclamation-circle"></i> معالجة الحالات المعلقة (T)</button>
-                            <button id="btn-tab-missing" class="tab-btn" onclick="switchAttendanceTab('missing'); loadMissingAttendance();" style="background-color: #f39c12; color: white;">    <i class="fas fa-radar"></i> رادار النواقص <span id="missing-badge" style="background: red; color: white; padding: 2px 6px; border-radius: 50%; font-size: 10px; margin-right: 5px;">0</span></button>
+                            <button id="btn-tab-missing" class="tab-btn" onclick="switchAttTab('missing'); loadMissingAttendance();" style="background-color: #f39c12; color: white;"><i class="fas fa-radar"></i> رادار النواقص <span id="missing-badge" style="background: red; color: white; padding: 2px 6px; border-radius: 50%; font-size: 10px; margin-right: 5px;">0</span></button>
                         </div>
 
                         <div id="att-tab-daily" style="display:block; padding-top:15px;">
@@ -4502,22 +4502,40 @@ async function confirmTransferAction() {
 
 
         function switchAttTab(tab) {
-            document.getElementById('btn-tab-daily').classList.remove('active');
-            document.getElementById('btn-tab-pending').classList.remove('active');
-            document.getElementById('att-tab-daily').style.display = 'none';
-            document.getElementById('att-tab-pending').style.display = 'none';
+            function switchAttendanceTab(tab) {
+    // 1. إخفاء جميع الأقسام أولاً (تأكد أن الـ IDs تطابق ما لديك في HTML)
+    const todaySection = document.getElementById('attendance-today-section'); // قسم تحضير اليوم
+    const pendingSection = document.getElementById('attendance-pending-section'); // قسم التحضير المعلق
+    const missingSection = document.getElementById('missing-attendance-section'); // 🔥 قسم النواقص الجديد
 
+    if (todaySection) todaySection.style.display = 'none';
+    if (pendingSection) pendingSection.style.display = 'none';
+    if (missingSection) missingSection.style.display = 'none';
 
-            if(tab === 'daily') {
-                document.getElementById('btn-tab-daily').classList.add('active');
-                document.getElementById('att-tab-daily').style.display = 'block';
-                loadTeamAttendance();
-            } else {
-                document.getElementById('btn-tab-pending').classList.add('active');
-                document.getElementById('att-tab-pending').style.display = 'block';
-                loadPendingAttendance();
-            }
-        }
+    // 2. إزالة تفعيل جميع الأزرار (تغيير اللون)
+    const btnToday = document.getElementById('btn-tab-today');
+    const btnPending = document.getElementById('btn-tab-pending');
+    const btnMissing = document.getElementById('btn-tab-missing'); // 🔥 زر النواقص الجديد
+
+    if (btnToday) btnToday.classList.remove('active');
+    if (btnPending) btnPending.classList.remove('active');
+    if (btnMissing) btnMissing.classList.remove('active');
+
+    // 3. إظهار القسم المطلوب وتفعيل زره بناءً على الكلمة القادمة
+    if (tab === 'today') {
+        if (todaySection) todaySection.style.display = 'block';
+        if (btnToday) btnToday.classList.add('active');
+    } 
+    else if (tab === 'pending') {
+        if (pendingSection) pendingSection.style.display = 'block';
+        if (btnPending) btnPending.classList.add('active');
+    } 
+    else if (tab === 'missing') {
+        // 🔥 إظهار قسم النواقص وتفعيل زره
+        if (missingSection) missingSection.style.display = 'block';
+        if (btnMissing) btnMissing.classList.add('active');
+    }
+}
         async function loadTeamAttendance() {
             const dateVal = document.getElementById('attendance-date').value;
             if(!dateVal) return;
