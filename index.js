@@ -2455,6 +2455,68 @@ app.post('/api/update-activity', (req, res) => {
         res.json({ success: false });
     }
 });
+// ==================== 📡 رادار النواقص (Missing Attendance Radar) ====================
+app.post('/api/missing-attendance', (req, res) => {
+    try {
+        const { managerName, lookbackDays = 7 } = req.body; // الافتراضي فحص آخر 7 أيام
+
+        if (!managerName) {
+            return res.json({ success: false, message: 'اسم المدير مطلوب.' });
+        }
+
+        // 1. جلب فريق العمل التابع لهذا المدير (النشطين فقط وعلى رأس العمل)
+        const team = usersDB.filter(u => 
+            u.directManager === managerName && 
+            u.isActive !== false && 
+            (u.status === 'in Duty' || u.status === 'نشط')
+        );
+
+        const missingRecords = [];
+
+        // 2. إعداد التواريخ (توقيت السعودية) لمعرفة "اليوم" و "أمس"
+        const todayStr = new Date().toLocaleString('en-US', { timeZone: 'Asia/Riyadh' });
+        const todayRiyadh = new Date(todayStr);
+        todayRiyadh.setHours(0,0,0,0); // تصفير الوقت للتركيز على التاريخ فقط
+
+        // 3. المحرك الزمني: حلقة تدور للوراء لفحص الأيام السابقة (من أمس وحتى X أيام)
+        for (let i = 1; i <= lookbackDays; i++) {
+            const checkDate = new Date(todayRiyadh);
+            checkDate.setDate(checkDate.getDate() - i); // الرجوع للخلف يوم بيوم
+            
+            // تحويل التاريخ لصيغة YYYY-MM-DD لتطابق قاعدة البيانات
+            const dateString = checkDate.toLocaleDateString('en-CA', { timeZone: 'Asia/Riyadh' }); 
+            const dayName = checkDate.toLocaleDateString('ar-SA', { weekday: 'long', timeZone: 'Asia/Riyadh' });
+
+            // 4. فحص كل موظف في هذا اليوم المفقود
+            team.forEach(emp => {
+                // حماية: إذا كان الموظف تعين "بعد" هذا التاريخ، لا نعتبره غائباً
+                if (emp.joinDate && new Date(emp.joinDate) > checkDate) return;
+
+                // البحث هل له تحضير في هذا اليوم؟
+                const hasRecord = attendanceDB.find(a => a.date === dateString && a.username === emp.username);
+
+                // إذا لم نجد له تحضير، نلقي القبض عليه ونضعه في قائمة النواقص!
+                if (!hasRecord) {
+                    missingRecords.push({
+                        username: emp.username,
+                        name: emp.name,
+                        date: dateString,
+                        dayName: dayName
+                    });
+                }
+            });
+        }
+
+        // 5. ترتيب النواقص من الأقدم للأحدث ليسهل على المدير تعبئتها
+        missingRecords.sort((a, b) => new Date(a.date) - new Date(b.date));
+
+        res.json({ success: true, count: missingRecords.length, data: missingRecords });
+
+    } catch (error) {
+        console.error("❌ خطأ في رادار النواقص:", error);
+        res.json({ success: false, message: 'حدث خطأ داخلي أثناء البحث عن النواقص.' });
+    }
+});
 
 
 app.listen(process.env.PORT || 3000, '0.0.0.0', () => console.log(`🚀 السيرفر يعمل بنظام الرقابة الذكي والآمن!`));
