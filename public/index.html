@@ -390,6 +390,7 @@
                         <div class="tabs-header" style="border-bottom: 2px solid #27ae60;">
                             <button class="tab-btn active" id="btn-tab-daily" onclick="switchAttTab('daily')"><i class="fas fa-calendar-day"></i> التحضير اليومي</button>
                             <button class="tab-btn" id="btn-tab-pending" onclick="switchAttTab('pending')" style="color:#e74c3c;"><i class="fas fa-exclamation-circle"></i> معالجة الحالات المعلقة (T)</button>
+                            <button id="btn-tab-missing" class="tab-btn" onclick="switchAttendanceTab('missing'); loadMissingAttendance();" style="background-color: #f39c12; color: white;">    <i class="fas fa-radar"></i> رادار النواقص <span id="missing-badge" style="background: red; color: white; padding: 2px 6px; border-radius: 50%; font-size: 10px; margin-right: 5px;">0</span></button>
                         </div>
 
                         <div id="att-tab-daily" style="display:block; padding-top:15px;">
@@ -424,6 +425,42 @@
                             
                             <button onclick="savePendingAttendance(event)" style="width:100%; background:#e74c3c; color:white; border:none; padding:12px; border-radius:5px; font-weight:bold; cursor:pointer; margin-top:15px;"><i class="fas fa-sync-alt"></i> اعتماد وتحديث الحالات</button>
                         </div>
+                        <div id="missing-attendance-section" style="display: none; margin-top: 20px;">
+    <div style="background: #fff3e0; padding: 15px; border-radius: 8px; border-right: 4px solid #f39c12; margin-bottom: 15px;">
+        <strong>⚠️ تنبيه النظام:</strong> هذه القائمة تعرض أيام العمل السابقة التي نُسي فيها تحضير هؤلاء الموظفين. يرجى معالجتها فوراً لتجنب الخصم الآلي.
+    </div>
+    
+    <table class="styled-table" style="width: 100%;">
+        <thead>
+            <tr>
+                <th>الموظف</th>
+                <th>اليوم</th>
+                <th>التاريخ المفقود</th>
+                <th>إجراء سريع</th>
+            </tr>
+        </thead>
+        <tbody id="missing-attendance-body">
+            </tbody>
+    </table>
+</div>
+
+<div id="resolve-missing-modal" class="modal" style="display:none;">
+    <div class="modal-content" style="max-width: 400px; text-align: center;">
+        <h3 style="color: #f39c12;">معالجة تحضير مفقود</h3>
+        <p id="missing-modal-info" style="font-weight: bold; margin-bottom: 15px;"></p>
+        
+        <select id="missing-resolve-code" class="form-input" style="width: 100%; margin-bottom: 15px;">
+            <option value="D">حاضر (In Duty)</option>
+            <option value="A">غياب (Absent)</option>
+            <option value="V">إجازة (Vacation)</option>
+            <option value="SL">إجازة مرضية (Sick Leave)</option>
+            <option value="Off">يوم راحة (Off Day)</option>
+        </select>
+        
+        <button onclick="submitMissingResolution()" style="background: #27ae60; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; width: 100%;">اعتماد وحفظ</button>
+        <button onclick="document.getElementById('resolve-missing-modal').style.display='none'" style="background: #ccc; color: #333; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; width: 100%; margin-top: 10px;">إلغاء</button>
+    </div>
+</div>
                     </div>
                 </div>
 
@@ -9967,6 +10004,103 @@ function pingLastActivity() {
         }).catch(e => console.log("تجاهل الخطأ إذا كان الاتصال ضعيفاً"));
     }
 }  
+        // متغيرات لحفظ بيانات الطلب النشط وقت المعالجة
+let currentMissingRecord = null;
+let missingRecordsData = [];
+
+// 1. دالة جلب النواقص من السيرفر
+async function loadMissingAttendance() {
+    try {
+        const tbody = document.getElementById('missing-attendance-body');
+        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;">جاري مسح السجلات بالرادار... ⏳</td></tr>';
+
+        // 💡 تأكد أن المتغير currentUsername يحمل اسم المدير المسجل دخوله
+        const response = await fetch('/api/missing-attendance', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ managerName: currentUsername, lookbackDays: 7 }) 
+        });
+
+        const data = await response.json();
+        if (data.success) {
+            missingRecordsData = data.data;
+            document.getElementById('missing-badge').innerText = data.count; // تحديث العداد الأحمر
+            renderMissingTable();
+        } else {
+            tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; color:red;">خطأ: ${data.message}</td></tr>`;
+        }
+    } catch (e) {
+        console.error("رادار النواقص معطل:", e);
+    }
+}
+
+// 2. دالة رسم الجدول
+function renderMissingTable() {
+    const tbody = document.getElementById('missing-attendance-body');
+    if (missingRecordsData.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; color:#27ae60; padding:20px;">🎉 أداء مثالي! لا توجد أي نواقص في تحضير فريقك للأيام السابقة.</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = missingRecordsData.map(r => `
+        <tr>
+            <td><strong>${r.name}</strong><br><small style="color:#777;">${r.username}</small></td>
+            <td>${r.dayName}</td>
+            <td style="color:#e74c3c; font-weight:bold; letter-spacing: 1px;">${r.date}</td>
+            <td>
+                <button onclick="openResolveMissingModal('${r.username}', '${r.name}', '${r.date}')" style="background:#f39c12; color:white; border:none; padding:6px 12px; border-radius:4px; cursor:pointer;">
+                    <i class="fas fa-wrench"></i> معالجة
+                </button>
+            </td>
+        </tr>
+    `).join('');
+}
+
+// 3. فتح نافذة المعالجة
+function openResolveMissingModal(username, name, date) {
+    currentMissingRecord = { username, name, date };
+    document.getElementById('missing-modal-info').innerHTML = `الموظف: <span style="color:#3498db;">${name}</span><br>التاريخ: <span style="color:#e74c3c;">${date}</span>`;
+    document.getElementById('missing-resolve-code').value = 'D'; // الافتراضي حاضر
+    document.getElementById('resolve-missing-modal').style.display = 'flex';
+}
+
+// 4. إرسال المعالجة للسيرفر
+async function submitMissingResolution() {
+    if (!currentMissingRecord) return;
+    
+    const selectedCode = document.getElementById('missing-resolve-code').value;
+    
+    try {
+        // نستخدم دالة التعديل الطارئ التي بنيناها سابقاً لأنها قوية ومناسبة هنا
+        const response = await fetch('/api/urgent-edit-attendance', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+                username: currentMissingRecord.username, 
+                date: currentMissingRecord.date, 
+                newCode: selectedCode, 
+                byUser: currentUsername // اسم المدير
+            })
+        });
+
+        const data = await response.json();
+        if (data.success) {
+            // إخفاء النافذة وإعادة تحميل الرادار لتختفي الحالة المعالجة
+            document.getElementById('resolve-missing-modal').style.display = 'none';
+            loadMissingAttendance(); 
+            // إذا كنت تستخدم مكتبة تنبيهات مثل alert أو Swal ضعها هنا
+            alert('تمت معالجة اليوم المفقود بنجاح! ✅');
+        } else {
+            alert('خطأ: ' + data.message);
+        }
+    } catch (e) {
+        alert('حدث خطأ في الاتصال بالسيرفر.');
+    }
+}
+
+// 🚨 ملاحظة: لا تنسَ إضافة case 'missing': في دالة switchAttendanceTab(tab) 
+// لكي تقوم بإخفاء الجداول الأخرى وإظهار document.getElementById('missing-attendance-section').style.display = 'block';
+        
 </script>
 </body>
 </html>
