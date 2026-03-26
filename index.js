@@ -2459,7 +2459,7 @@ app.post('/api/update-activity', (req, res) => {
 app.post('/api/missing-attendance', (req, res) => {
     try {
         const { managerName, lookbackDays = 7 } = req.body; // الافتراضي فحص آخر 7 أيام
-
+        console.log("Team found:", team.map(u => u.username));
         if (!managerName) {
             return res.json({ success: false, message: 'اسم المدير مطلوب.' });
         }
