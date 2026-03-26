@@ -1,0 +1,58 @@
+[
+  {
+    "id": "1772113277333",
+    "empUsername": "65922",
+    "empName": "سماهر يحيى الملحاوي",
+    "empPhone": "9.66509E+11",
+    "managerName": "ابراهيم حسن عتين",
+    "reason": "طلب استئذان",
+    "details": "",
+    "date": "٢٦‏/٢‏/٢٠٢٦، ٤:٤١:١٧ م",
+    "status": "completed",
+    "managerComment": "تم الرفض        3",
+    "resolveDate": "٢٦‏/٢‏/٢٠٢٦، ٤:٤١:٥٥ م",
+    "duration": "1 دقيقة"
+  },
+  {
+    "id": "1772116132704",
+    "empUsername": "65248",
+    "empName": "ابراهيم حسن عتين",
+    "empPhone": "9.66531E+11",
+    "managerName": "ابراهيم حسن عتين",
+    "reason": "طلب استئذان",
+    "details": ";jn;hv;sdvndhv;sdjvn",
+    "date": "٢٦‏/٢‏/٢٠٢٦، ٥:٢٨:٥٢ م",
+    "status": "resolved",
+    "managerComment": "2222222222222",
+    "resolveDate": "٢٦‏/٢‏/٢٠٢٦، ١١:٥١:٢٠ م",
+    "duration": "6 س و 22 د"
+  },
+  {
+    "id": "1772139055849",
+    "empUsername": "65922",
+    "empName": "سماهر يحيى الملحاوي",
+    "empPhone": "9.66509E+11",
+    "managerName": "ابراهيم حسن عتين",
+    "reason": "استفسار عام",
+    "details": "6666666666666666",
+    "date": "٢٦‏/٢‏/٢٠٢٦، ١١:٥٠:٥٥ م",
+    "status": "completed",
+    "managerComment": "1111111111111111",
+    "resolveDate": "٢٦‏/٢‏/٢٠٢٦، ١١:٥١:٢٥ م",
+    "duration": "0 دقيقة"
+  },
+  {
+    "id": "1772147064440",
+    "empUsername": "65922",
+    "empName": "سماهر يحيى الملحاوي",
+    "empPhone": "9.66509E+11",
+    "managerName": "ابراهيم حسن عتين",
+    "reason": "مشكلة في البصمة",
+    "details": "999999999999999",
+    "date": "٢٧‏/٢‏/٢٠٢٦، ٢:٠٤:٢٤ ص",
+    "status": "pending",
+    "managerComment": "",
+    "resolveDate": "",
+    "duration": ""
+  }
+]
