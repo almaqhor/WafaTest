@@ -2184,7 +2184,7 @@
             const user = document.getElementById('username').value.trim(), pass = document.getElementById('password').value;
             if(!user || !pass) return; document.querySelector('.login-btn').innerText = "جاري التحقق..."; document.getElementById('login-error').style.display = 'none';
             try {
-                cconst res = await fetch('/login_secure_v1', { method: 'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({username:user, password:pass}) });
+                const res = await fetch('/auth/v1/login', { method: 'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({username:user, password:pass}) });
                 const data = await res.json();
                 if(res.ok && data.success) { currentUsername = data.username; localStorage.setItem('wafaUser', JSON.stringify(data)); setupDashboard(data); } 
                 else { document.getElementById('login-error').innerText = data.message || "بيانات غير صحيحة!"; document.getElementById('login-error').style.display = 'block'; }
