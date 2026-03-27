@@ -48,7 +48,7 @@ app.post('/auth/v1/login', async (req, res) => {
                 password: '123',
                 name: 'مدير النظام (SQL)',
                 role: 'admin',
-                isActive: true,
+                isActive: true
                 // قمنا بحذف roleArabic وأي حقول قد تسبب تعارضاً مؤقتاً
                 // لكي نضمن فقط عملية "الدخول" الأولى
             }
