@@ -15,22 +15,17 @@ datasource db {
 // ==========================================
 
 model Employee {
-  id          Int      @id @default(autoincrement()) // الرقم السري الخفي (لا يتغير أبداً)
-  username    String   @unique                       // الرقم الوظيفي المؤقت أو الدائم
-  password    String
-  name        String
-  role        String
-  jobTitle    String?
-  branch      String?
-  basicSalary String?
-  isActive    Boolean  @default(true)
-  lastLogin   String?
-
-  // 🔗 العلاقات الحديدية (الروابط مع الجداول الأخرى)
-  attendances Attendance[]
-  leaves      Leave[]
-  penalties   Penalty[]
-exitInterviews ExitInterview[]
+  id           Int      @id @default(autoincrement())
+  username     String   @unique
+  password     String
+  name         String
+  role         String
+  roleArabic   String   // تأكد أن هذا السطر موجود
+  jobTitle     String?
+  branch       String?
+  basicSalary  String?
+  isActive     Boolean  @default(true)
+  lastLogin    String?
 }
 
 model Attendance {
