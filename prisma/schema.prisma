@@ -24,6 +24,7 @@ model Employee {
   branch      String?
   basicSalary String?
   isActive    Boolean  @default(true)
+  lastLogin   String?
 
   // 🔗 العلاقات الحديدية (الروابط مع الجداول الأخرى)
   attendances Attendance[]
