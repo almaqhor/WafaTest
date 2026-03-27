@@ -71,8 +71,11 @@ app.post('//auth/v1/login', async (req, res) => {
 const DATA_DIR = process.env.DATA_DIR || __dirname;
 const uploadsDir = path.join(DATA_DIR, 'uploads'); 
 app.use(express.static('public')); 
-app.use(express.static(__dirname));
-app.use('/uploads', express.static(uploadsDir));
+//app.use(express.static(__dirname));
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'index.html'));
+});
+app.use('/uploads', express.static(path.join(DATA_DIR, 'uploads')));
 if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true }); 
 
 const usersFile = path.join(DATA_DIR, 'users.json');
