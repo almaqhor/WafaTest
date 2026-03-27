@@ -30,31 +30,51 @@ app.post('/test-sql', async (req, res) => {
 });
 
 app.post('/auth/v1/login', async (req, res) => {
-    try {
-        const { username, password } = req.body;
-        const user = await prisma.employee.findUnique({
-            where: { username: username.toString().toLowerCase() }
+  try {
+    const { username, password } = req.body;
+    const lowerUser = username.toString().toLowerCase();
+
+    // 🕵️‍♂️ محاولة البحث في SQL
+    let user = await prisma.employee.findUnique({
+      where: { username: lowerUser }
+    });
+
+    // 🚨 حركة إنقاذ: إذا لم يجد المستخدم وكان هو الـ admin، نزرعه فوراً في الـ SQL
+    if (!user && lowerUser === 'admin') {
+        console.log("🛠️ زرع حساب الأدمن في قاعدة الـ SQL لأول مرة...");
+        user = await prisma.employee.create({
+            data: {
+                username: 'admin',
+                password: '123', // أو باسووردك الحالي
+                name: 'مدير النظام (SQL)',
+                role: 'admin',
+                roleArabic: 'ادمن',
+                isActive: true
+            }
         });
-
-        if (user && user.password === password.toString()) {
-            if (user.isActive === false) return res.status(403).json({ success: false, message: "الحساب موقوف" });
-
-            const lastLoginTime = new Date().toLocaleString('en-CA', { 
-                timeZone: 'Asia/Riyadh', hour12: true, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' 
-            });
-
-            const updatedUser = await prisma.employee.update({
-                where: { id: user.id },
-                data: { lastLogin: lastLoginTime }
-            });
-
-            res.json({ success: true, ...updatedUser });
-        } else {
-            res.status(401).json({ success: false, message: "بيانات غير صحيحة" });
-        }
-    } catch (error) {
-        res.status(500).json({ success: false, message: "خطأ اتصال" });
     }
+
+    // التحقق من البيانات
+    if (user && user.password === password.toString()) {
+      if (user.isActive === false) return res.status(403).json({ success: false, message: "الحساب موقوف" });
+
+      const lastLoginTime = new Date().toLocaleString('en-CA', { 
+        timeZone: 'Asia/Riyadh', hour12: true, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' 
+      });
+
+      const updatedUser = await prisma.employee.update({
+        where: { id: user.id },
+        data: { lastLogin: lastLoginTime }
+      });
+
+      res.json({ success: true, ...updatedUser });
+    } else {
+      res.status(401).json({ success: false, message: "بيانات غير صحيحة" });
+    }
+  } catch (error) {
+    console.error('❌ SQL Login Error Detail:', error); // هذا السطر سيطبع لنا السبب الحقيقي في الـ Logs
+    res.status(500).json({ success: false, message: "خطأ في قاعدة البيانات: " + error.message });
+  }
 });
 
 // 📁 3. تعريف الملفات الثابتة (بعد المسارات البرمجية)
