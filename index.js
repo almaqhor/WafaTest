@@ -41,7 +41,7 @@ app.post('/auth/v1/login', async (req, res) => {
 
     // 🚨 حركة إنقاذ مطورة: زرع الأدمن ببيانات كاملة لتجنب رفض القاعدة
    if (!user && lowerUser === 'admin') {
-        console.log("🛠️ محاولة زرع حساب الأدمن بالحد الأدنى من البيانات...");
+        console.log("🛠️ محاولة زرع حساب الأدمن بالحد الأدنى المتوافق...");
         user = await prisma.employee.create({
             data: {
                 username: 'admin',
@@ -49,8 +49,8 @@ app.post('/auth/v1/login', async (req, res) => {
                 name: 'مدير النظام (SQL)',
                 role: 'admin',
                 isActive: true
-                // قمنا بحذف roleArabic وأي حقول قد تسبب تعارضاً مؤقتاً
-                // لكي نضمن فقط عملية "الدخول" الأولى
+                // 🛑 تم حذف roleArabic وكل ما يسبب ValidationError
+                // لكي يوافق Prisma على الطلب فوراً
             }
         });
     }
