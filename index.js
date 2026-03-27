@@ -7,6 +7,8 @@ const path = require('path');
 const fs = require('fs');
 const xlsx = require('xlsx'); 
 const app = express(); //===
+const { PrismaClient } = require('@prisma/client');
+const prisma = new PrismaClient();
 
 // 🌟 تحديد مسار حفظ البيانات والملفات (ليدعم القرص الدائم في السحابة) 🌟
 const DATA_DIR = process.env.DATA_DIR || __dirname;
@@ -168,40 +170,52 @@ const getSystemInstruction = () => {
 const getRiyadhTime = () => new Date().toLocaleString('ar-SA', { timeZone: 'Asia/Riyadh' });
 const getRiyadhDateOnly = () => new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Riyadh' });
 
-app.post('/api/login', (req, res) => {
+app.post('/api/login', async (req, res) => {
+  try {
     const { username, password } = req.body;
     
-    // البحث عن الموظف باستخدام الرقم الوظيفي وكلمة المرور
-    let userIndex = usersDB.findIndex(u => u.username === username.toString().toLowerCase() && u.password === password.toString());
-    
-    if (userIndex > -1) {
-        // التحقق إذا كان الحساب موقوف
-        if (usersDB[userIndex].isActive === false) {
-            return res.status(403).json({ success: false, message: "هذا الحساب موقوف، راجع الموارد البشرية." });
-        }
+    // 1. البحث عن الموظف (استخدمنا toString و toLowerCase لضمان تطابق المدخلات كما كان في كودك)
+    const user = await prisma.employee.findUnique({
+      where: { username: username.toString().toLowerCase() }
+    });
 
-        // 🔥 تحديث وقت الدخول بتوقيت السعودية وحفظه
-        usersDB[userIndex].lastLogin = new Date().toLocaleString('en-CA', { 
-            timeZone: 'Asia/Riyadh', 
-            hour12: true, 
-            year: 'numeric', 
-            month: '2-digit', 
-            day: '2-digit', 
-            hour: '2-digit', 
-            minute: '2-digit' 
-        });
-        
-        // حفظ التغييرات في ملف قاعدة البيانات
-        fs.writeFileSync(usersFile, JSON.stringify(usersDB, null, 2));
-        
-        // إرسال رد النجاح مع بيانات الموظف
-        res.json({ success: true, ...usersDB[userIndex] });
+    // 2. التحقق من وجود المستخدم وتطابق كلمة المرور
+    if (user && user.password === password.toString()) {
+      
+      // 3. التحقق إذا كان الحساب موقوفاً
+      if (user.isActive === false) {
+        return res.status(403).json({ success: false, message: "هذا الحساب موقوف، راجع الموارد البشرية." });
+      }
+
+      // 4. 🔥 تحديث وقت الدخول بتوقيت السعودية وحفظه
+      const lastLoginTime = new Date().toLocaleString('en-CA', { 
+        timeZone: 'Asia/Riyadh', 
+        hour12: true, 
+        year: 'numeric', 
+        month: '2-digit', 
+        day: '2-digit', 
+        hour: '2-digit', 
+        minute: '2-digit' 
+      });
+
+      // 💾 حفظ وقت الدخول في قاعدة البيانات SQL
+      const updatedUser = await prisma.employee.update({
+        where: { id: user.id },
+        data: { lastLogin: lastLoginTime }
+      });
+
+      // 5. إرسال رد النجاح مع بيانات الموظف (مفرودة تماماً كما كان في السابق)
+      res.json({ success: true, ...updatedUser });
+
     } else {
-        // في حال كانت البيانات غير صحيحة
-        res.status(401).json({ success: false, message: "بيانات الدخول غير صحيحة" });
+      // في حال كانت البيانات غير صحيحة
+      res.status(401).json({ success: false, message: "بيانات الدخول غير صحيحة" });
     }
+  } catch (error) {
+    console.error('❌ خطأ في أنبوب تسجيل الدخول:', error);
+    res.status(500).json({ success: false, message: "حدث خطأ في الخادم أثناء الاتصال بقاعدة البيانات" });
+  }
 });
-
 app.get('/api/users', (req, res) => { res.json(usersDB.filter(u => u.username !== 'admin')); });
 
 app.get('/api/managers', (req, res) => { 
