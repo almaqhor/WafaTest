@@ -21,7 +21,7 @@ app.post('/test-sql', async (req, res) => {
     }
 });
 
-app.post('/auth/v1/login', async (req, res) => {
+app.post('/login_secure_v1', async (req, res) => {
   try {
     const { username, password } = req.body;
     
