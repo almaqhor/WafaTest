@@ -1,27 +1,25 @@
 {
-  "name": "nodejs",
+  "name": "wafa-system-sql",
   "version": "1.0.0",
-  "description": "",
+  "description": "Hyper Al-Wafa HR System",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
-    "postinstall": "prisma generate && prisma db push",
-    "start": "node migrate.js && node index.js"
-    },
+    "start": "node index.js",
+    "postinstall": "prisma generate"
+  },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
-    "@types/node": "^22.13.11",
+    "@prisma/client": "^5.10.0",
     "cors": "^2.8.6",
     "dotenv": "^17.3.1",
     "express": "^5.2.1",
-    "prisma": "^5.10.0",
-    "@prisma/client": "^5.10.0",
     "mammoth": "^1.11.0",
     "multer": "^2.0.2",
     "node-fetch": "^3.3.2",
-    "xlsx": "^0.18.5"    
+    "prisma": "^5.10.0",
+    "xlsx": "^0.18.5"
   }
 }
