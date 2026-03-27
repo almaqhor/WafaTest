@@ -42,7 +42,7 @@ model Attendance {
   id          Int      @id @default(autoincrement())
   date        DateTime // التاريخ بصيغة صارمة
   code        String   // حالة التحضير (D, A, etc)
-  timestemp   String
+  timestamp   String
   note        String  
   // 🔗 الرابط مع الموظف
   employeeId  Int
@@ -54,7 +54,8 @@ model Leave {
   type        String
   startDate   DateTime
   endDate     DateTime
-  
+  durration   String
+  entryDate   DateTime
   // 🔗 الرابط مع الموظف
   employeeId  Int
   employee    Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
@@ -65,7 +66,19 @@ model Penalty {
   violationName  String
   category       String
   displayPenalty String
-  
+  managerName    String
+  violationDate  DateTime
+  managerComment String
+  isAdmit        Boolean
+  requestLessPunishment  Boolean
+  actualOccurrence  Int
+  appliedPenalty    String
+  displayPenalty    String
+  status            String
+  attachment        String
+  hrComment         String
+  hrName            String
+  timestamp         DateTime
   // 🔗 الرابط مع الموظف
   employeeId     Int
   employee       Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
