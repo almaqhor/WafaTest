@@ -42,7 +42,7 @@ model Attendance {
   id          Int      @id @default(autoincrement())
   date        DateTime // التاريخ بصيغة صارمة
   code        String   // حالة التحضير (D, A, etc)
-  timestamp   String
+  timestamp   DateTime
   note        String  
   // 🔗 الرابط مع الموظف
   employeeId  Int
