@@ -261,48 +261,47 @@ app.get('/api/managers', (req, res) => {
 });
 
 // ==================== إضافة مستخدم جديد (نسخة ذكية تقرأ حالة الموظف) ====================
-app.post('/api/user-add', (req, res) => {
+// ==================== إضافة مستخدم جديد (النسخة الاحترافية لـ SQL) ====================
+app.post('/api/user-add', async (req, res) => { // ⬅️ أضفنا async هنا
     try {
         const data = req.body;
-        if (usersDB.some(u => u.username === data.username)) {
-            return res.json({ success: false, message: 'رقم الموظف موجود مسبقاً' });
+
+        // 🕵️ 1. البحث في SQL بدلاً من المصفوفة
+        const existingUser = await prisma.employee.findUnique({
+            where: { username: data.username.toString() }
+        });
+
+        if (existingUser) {
+            return res.json({ success: false, message: 'رقم الموظف موجود مسبقاً في SQL' });
         }
 
-        const newUser = {
-            username: data.username,
-            name: data.name,
-            password: data.password || '123456',
-            idNumber: data.idNumber || '',
-            city: data.city || '',
-            branch: data.branch || '',
-            jobTitle: data.jobTitle || '',
-            roleArabic: data.roleArabic || 'موظف',
-            directManager: data.directManager || '',
-            basicSalary: data.basicSalary || 0,
-            housingAllowance: data.housingAllowance || 0,
-            otherAllowance: data.otherAllowance || 0,
-            workingDays: data.workingDays || 6,
-            offDays: data.offDays || 1,
-            phone: data.phone || '',
-            email: data.email || '',
-            
-            // 🔥 السر هنا: السيرفر أصبح يحترم البيانات القادمة من نموذج العرض الوظيفي
-            status: data.status || 'in Duty', 
-            isActive: data.isActive !== undefined ? data.isActive : true,
-            
-            policyConfirmed: data.policyConfirmed || false
-        };
+        // 💾 2. الحفظ المباشر في قاعدة البيانات SQL
+        const newUser = await prisma.employee.create({
+            data: {
+                username: data.username.toString(),
+                name: data.name,
+                password: data.password || '123456',
+                idNumber: data.idNumber || '',
+                city: data.city || '',
+                branch: data.branch || '',
+                jobTitle: data.jobTitle || '',
+                role: data.roleArabic === 'ادمن' ? 'admin' : 'user', // تحديد الدور برمجياً
+                roleArabic: data.roleArabic || 'موظف',
+                basicSalary: (data.basicSalary || 0).toString(),
+                isActive: data.isActive !== undefined ? data.isActive : true,
+                lastLogin: 'لم يسجل دخول بعد'
+                // ملاحظة: تأكد أن هذه الحقول موجودة في ملف schema.prisma الخاص بك
+            }
+        });
 
-        usersDB.push(newUser);
-        fs.writeFileSync(usersFile, JSON.stringify(usersDB, null, 2));
+        // 📝 3. تسجيل الحدث في سجل الرقابة (Audit Log)
+        safeLogAudit(data.byUser, 'إضافة موظف جديد', `${data.name} (${data.username})`, `SQL Storage`);
 
-        // تسجيل الحدث بشكل آمن بعد نجاح الإضافة
-        safeLogAudit(req.body.byUser, 'إضافة مستخدم/عرض', `${data.name} (${data.username})`, `المسمى: ${data.jobTitle}`);
+        res.json({ success: true, message: 'تم حفظ الموظف في قاعدة البيانات بنجاح' });
 
-        res.json({ success: true });
     } catch (error) {
-        console.error('خطأ في إضافة المستخدم:', error);
-        res.json({ success: false, message: 'حدث خطأ في السيرفر' });
+        console.error('❌ خطأ في إضافة المستخدم لـ SQL:', error);
+        res.status(500).json({ success: false, message: 'حدث خطأ في السيرفر أثناء الكتابة في SQL: ' + error.message });
     }
 });
 
