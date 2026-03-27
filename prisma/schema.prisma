@@ -73,7 +73,6 @@ model Penalty {
   requestLessPunishment  Boolean
   actualOccurrence  Int
   appliedPenalty    String
-  displayPenalty    String
   status            String
   attachment        String
   hrComment         String
