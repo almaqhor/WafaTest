@@ -40,21 +40,20 @@ app.post('/auth/v1/login', async (req, res) => {
     });
 
     // 🚨 حركة إنقاذ مطورة: زرع الأدمن ببيانات كاملة لتجنب رفض القاعدة
-    if (!user && lowerUser === 'admin') {
-        console.log("🛠️ زرع حساب الأدمن المكتمل في SQL...");
+   if (!user && lowerUser === 'admin') {
+        console.log("🛠️ محاولة زرع حساب الأدمن في SQL...");
         user = await prisma.employee.create({
             data: {
                 username: 'admin',
                 password: '123',
                 name: 'مدير النظام (SQL)',
                 role: 'admin',
-                roleArabic: 'ادمن',
+                roleArabic: 'ادمن', // هذا هو الحقل الذي اشتكى منه الخطأ
                 isActive: true,
                 jobTitle: 'مدير نظام',
                 branch: 'المركز الرئيسي',
                 basicSalary: '0',
                 lastLogin: 'لم يسجل دخول بعد'
-                // أضف أي حقول أخرى يشتكي منها الخطأ هنا بنفس الطريقة
             }
         });
     }
