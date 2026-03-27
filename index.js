@@ -281,7 +281,7 @@ app.post('/api/user-add', async (req, res) => { // ⬅️ أضفنا async هن�
                 username: data.username.toString(),
                 name: data.name,
                 password: data.password || '123456',
-                idNumber: data.idNumber || '',
+               ؟؟ idNumber: data.idNumber || '',
                 city: data.city || '',
                 branch: data.branch || '',
                 jobTitle: data.jobTitle || '',
