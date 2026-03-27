@@ -23,6 +23,7 @@ model Employee {
   roleArabic   String   // تأكد من وجوده هنا لأنه كان يسبب خطأ سابقاً
   jobTitle     String?
   branch       String?
+  city         String?
   basicSalary  String?
   isActive     Boolean  @default(true)
   lastLogin    String?
