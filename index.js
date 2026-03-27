@@ -40,7 +40,7 @@ app.post('/auth/v1/login', async (req, res) => {
     });
 
     // 🚨 حركة إنقاذ مطورة: زرع الأدمن ببيانات كاملة لتجنب رفض القاعدة
-   if (!user && lowerUser === 'admin') {
+  if (!user && lowerUser === 'admin') {
         console.log("🛠️ محاولة زرع حساب الأدمن بالحد الأدنى المتوافق...");
         user = await prisma.employee.create({
             data: {
@@ -53,7 +53,7 @@ app.post('/auth/v1/login', async (req, res) => {
                 // لكي يوافق Prisma على الطلب فوراً
             }
         });
-    }
+    }}
 
     // التحقق من البيانات
     if (user && user.password === password.toString()) {
