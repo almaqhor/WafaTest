@@ -10,6 +10,8 @@ const path = require('path');
 const fs = require('fs');
 const xlsx = require('xlsx'); 
 app.use(cors());
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
 app.post('/test-sql', async (req, res) => {
     try {
         const count = await prisma.employee.count();
@@ -18,9 +20,8 @@ app.post('/test-sql', async (req, res) => {
         res.status(500).json({ success: false, error: err.message });
     }
 });
-app.use(express.json({ limit: '50mb' }));
-app.use(express.urlencoded({ limit: '50mb', extended: true }));
-app.post('//auth/v1/login', async (req, res) => {
+
+app.post('/auth/v1/login', async (req, res) => {
   try {
     const { username, password } = req.body;
     
