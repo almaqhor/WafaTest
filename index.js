@@ -30,19 +30,19 @@ app.post('/test-sql', async (req, res) => {
 });
 
 // 🚀 مسار سري لتهجير سجلات التحضير (Attendance) من JSON إلى SQL
+// 🚀 مسار سري لتهجير سجلات التحضير (مفصل خصيصاً لهيكلة هايبر الوفاء)
 app.get('/api/secret-migrate-attendance', async (req, res) => {
     try {
-        console.log("⏳ بدء عملية تهجير التحضيرات...");
+        console.log("⏳ بدء عملية تهجير التحضيرات المحدثة...");
         
-        // افتراض: لديك مصفوفة attendanceDB تقرأ من ملف attendance.json
         let successCount = 0;
         let failCount = 0;
         let missingUsers = [];
+        let errorDetails = [];
 
         for (const record of attendanceDB) {
             try {
-                // 🕵️ 1. البحث عن الموظف لمعرفة الـ ID الخاص به
-                // (تأكد أن record.username هو الحقل المستخدم في الجيسون للربط)
+                // 🕵️ 1. البحث عن الموظف باستخدام رقم الموظف (username) القادم من الجيسون
                 const employee = await prisma.employee.findFirst({
                     where: { 
                         username: { equals: record.username.toString(), mode: 'insensitive' }
@@ -50,27 +50,28 @@ app.get('/api/secret-migrate-attendance', async (req, res) => {
                 });
 
                 if (employee) {
-                    // 💾 2. ربط التحضير بالموظف وحفظه في SQL
+                    // 💾 2. زرع التحضير في SQL بالمتغيرات الدقيقة
                     await prisma.attendance.create({
                         data: {
-                            employeeId: employee.id, // 🔥 السحر هنا: نربطه برقم الموظف في القاعدة
-                            date: record.date || new Date().toISOString().split('T')[0],
-                            status: record.status || 'حاضر',
-                            timeIn: record.timeIn || '',
-                            timeOut: record.timeOut || '',
-                            notes: record.notes || ''
-                            // قم بتعديل هذه الحقول لتطابق schema.prisma الخاص بك
+                            employeeId: employee.id, // الرقم التسلسلي الداخلي في القاعدة
+                            date: record.date, // التاريخ
+                            note: record.managerName || '', // تخزين اسم المدير أو الملاحظة في حقل note
+                            code: record.code || '', // كود التحضير (مثل D)
+                            timestamp: record.timestamp || new Date().toISOString() // وقت التسجيل
                         }
                     });
                     successCount++;
                 } else {
-                    // الموظف غير موجود في القاعدة الجديدة!
+                    // إذا لم يجد رقم الموظف في جدول الموظفين الجديد
                     failCount++;
                     if (!missingUsers.includes(record.username)) missingUsers.push(record.username);
                 }
             } catch (err) {
                 failCount++;
-                console.error(`خطأ في السجل: ${err.message}`);
+                // تسجيل أول 10 أخطاء فقط لكي لا ينفجر المتصفح بالنصوص
+                if (errorDetails.length < 10) {
+                    errorDetails.push(`خطأ مع الموظف ${record.username}: ${err.message}`);
+                }
             }
         }
 
@@ -78,17 +79,18 @@ app.get('/api/secret-migrate-attendance', async (req, res) => {
         
         res.json({
             success: true,
-            message: "🏁 تمت هجرة التحضيرات بنجاح!",
+            message: "🏁 تمت هجرة التحضيرات بالخريطة الجديدة بنجاح!",
             stats: {
                 totalInJson: attendanceDB.length,
                 successCount: successCount,
                 failCount: failCount,
-                missingUsersInSQL: missingUsers // سيعطيك أسماء الموظفين الذين لم يجدهم
+                missingUsersInSQL: missingUsers,
+                sampleErrors: errorDetails // لكي تقرأ سبب الفشل إن وجد
             }
         });
 
     } catch (error) {
-        console.error('❌ حدث انهيار:', error);
+        console.error('❌ حدث انهيار عام:', error);
         res.status(500).json({ success: false, message: error.message });
     }
 });
