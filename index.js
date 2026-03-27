@@ -29,68 +29,77 @@ app.post('/test-sql', async (req, res) => {
     }
 });
 
-// 🚀 مسار سري لتهجير سجلات التحضير (Attendance) من JSON إلى SQL
-// 🚀 مسار سري لتهجير سجلات التحضير (مفصل خصيصاً لهيكلة هايبر الوفاء)
-app.get('/api/secret-migrate-attendance', async (req, res) => {
+// 🚀 مسار الهجرة الصاروخية (مخصص للبيانات الضخمة +100 ألف)
+app.get('/api/secret-migrate-attendance-bulk', async (req, res) => {
     try {
-        console.log("⏳ بدء عملية تهجير التحضيرات المحدثة...");
-        
-        let successCount = 0;
-        let failCount = 0;
-        let missingUsers = [];
-        let errorDetails = [];
+        console.log("🚀 بدء عملية الهجرة الصاروخية للتحضيرات...");
+
+        // 🕵️ 1. جلب كل الموظفين مرة واحدة فقط (لتجنب 100 ألف استعلام)
+        const allEmployees = await prisma.employee.findMany({
+            select: { id: true, username: true } // نجلب الـ ID والرقم فقط لتخفيف الضغط
+        });
+
+        // 🧠 2. صنع "خريطة ذاكرة" سريعة للبحث (أجزاء من الملي ثانية)
+        const empMap = new Map();
+        allEmployees.forEach(emp => {
+            empMap.set(emp.username.toLowerCase(), emp.id);
+        });
+
+        console.log(`✅ تم تحميل ${allEmployees.length} موظف في الذاكرة. جاري تجهيز السجلات...`);
+
+        // 📦 3. تجهيز البيانات للحقن
+        let readyData = [];
+        let missingUsers = new Set(); // نستخدم Set لمنع تكرار أسماء المفقودين
 
         for (const record of attendanceDB) {
-            try {
-                // 🕵️ 1. البحث عن الموظف باستخدام رقم الموظف (username) القادم من الجيسون
-                const employee = await prisma.employee.findFirst({
-                    where: { 
-                        username: { equals: record.username.toString(), mode: 'insensitive' }
-                    }
-                });
+            const lowerUser = record.username ? record.username.toString().toLowerCase() : '';
+            const empId = empMap.get(lowerUser);
 
-                if (employee) {
-                    // 💾 2. زرع التحضير في SQL بالمتغيرات الدقيقة
-                    await prisma.attendance.create({
-                        data: {
-                            employeeId: employee.id, // الرقم التسلسلي الداخلي في القاعدة
-                            date: record.date, // التاريخ
-                            note: record.managerName || '', // تخزين اسم المدير أو الملاحظة في حقل note
-                            code: record.code || '', // كود التحضير (مثل D)
-                            timestamp: record.timestamp || new Date().toISOString() // وقت التسجيل
-                        }
-                    });
-                    successCount++;
-                } else {
-                    // إذا لم يجد رقم الموظف في جدول الموظفين الجديد
-                    failCount++;
-                    if (!missingUsers.includes(record.username)) missingUsers.push(record.username);
-                }
-            } catch (err) {
-                failCount++;
-                // تسجيل أول 10 أخطاء فقط لكي لا ينفجر المتصفح بالنصوص
-                if (errorDetails.length < 10) {
-                    errorDetails.push(`خطأ مع الموظف ${record.username}: ${err.message}`);
-                }
+            if (empId) {
+                readyData.push({
+                    employeeId: empId,
+                    date: record.date || new Date().toISOString().split('T')[0],
+                    note: record.managerName || '',
+                    code: record.code || '',
+                    timestamp: record.timestamp || new Date().toISOString()
+                });
+            } else {
+                if (record.username) missingUsers.add(record.username);
             }
         }
 
-        console.log(`✅ انتهى تهجير التحضير: نجح ${successCount}، فشل ${failCount}`);
-        
+        console.log(`🚛 تم تجهيز ${readyData.length} سجل للحقن. بدء الإرسال لـ SQL...`);
+
+        // ⚡ 4. الحقن الشامل (createMany) مقسم لدفعات (Chunks)
+        // سنرسل كل 10 آلاف سجل معاً لكي لا نختنق قاعدة البيانات
+        const chunkSize = 10000;
+        let insertedCount = 0;
+
+        for (let i = 0; i < readyData.length; i += chunkSize) {
+            const chunk = readyData.slice(i, i + chunkSize);
+            await prisma.attendance.createMany({
+                data: chunk,
+                skipDuplicates: true // لتجاوز أي أخطاء مفاجئة
+            });
+            insertedCount += chunk.length;
+            console.log(`✅ تم حقن الدفعة... المجموع حتى الآن: ${insertedCount}`);
+        }
+
+        console.log(`🎉 انتهت الهجرة الصاروخية بالكامل!`);
+
         res.json({
             success: true,
-            message: "🏁 تمت هجرة التحضيرات بالخريطة الجديدة بنجاح!",
+            message: "🏁 تمت الهجرة الصاروخية بنجاح مبهر!",
             stats: {
                 totalInJson: attendanceDB.length,
-                successCount: successCount,
-                failCount: failCount,
-                missingUsersInSQL: missingUsers,
-                sampleErrors: errorDetails // لكي تقرأ سبب الفشل إن وجد
+                successfullyInserted: insertedCount,
+                missingUsersCount: missingUsers.size,
+                missingUsersList: Array.from(missingUsers) // قائمة الموظفين الذين ليس لهم حسابات
             }
         });
 
     } catch (error) {
-        console.error('❌ حدث انهيار عام:', error);
+        console.error('❌ خطأ قاتل في الهجرة الصاروخية:', error);
         res.status(500).json({ success: false, message: error.message });
     }
 });
