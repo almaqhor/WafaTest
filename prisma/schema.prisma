@@ -10,5 +10,56 @@ datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
+// ==========================================
+// 🏛️ جداول إمبراطورية (Hyper Al-Wafa)
+// ==========================================
 
+model Employee {
+  id          Int      @id @default(autoincrement()) // الرقم السري الخفي (لا يتغير أبداً)
+  username    String   @unique                       // الرقم الوظيفي المؤقت أو الدائم
+  password    String
+  name        String
+  role        String
+  jobTitle    String?
+  branch      String?
+  basicSalary String?
+  isActive    Boolean  @default(true)
+
+  // 🔗 العلاقات الحديدية (الروابط مع الجداول الأخرى)
+  attendances Attendance[]
+  leaves      Leave[]
+  penalties   Penalty[]
+}
+
+model Attendance {
+  id          Int      @id @default(autoincrement())
+  date        DateTime // التاريخ بصيغة صارمة
+  code        String   // حالة التحضير (D, A, etc)
+  
+  // 🔗 الرابط مع الموظف
+  employeeId  Int
+  employee    Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+}
+
+model Leave {
+  id          Int      @id @default(autoincrement())
+  type        String
+  startDate   DateTime
+  endDate     DateTime
+  
+  // 🔗 الرابط مع الموظف
+  employeeId  Int
+  employee    Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+}
+
+model Penalty {
+  id             Int      @id @default(autoincrement())
+  violationName  String
+  category       String
+  displayPenalty String
+  
+  // 🔗 الرابط مع الموظف
+  employeeId     Int
+  employee       Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+}
 // هنا سنقوم برسم الجداول لاحقاً...
