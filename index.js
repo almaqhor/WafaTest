@@ -28,6 +28,118 @@ app.post('/test-sql', async (req, res) => {
         res.status(500).json({ success: false, error: err.message });
     }
 });
+// 🚀 مسار الهجرة الصاروخية للإجازات (Leaves)
+app.get('/api/secret-migrate-leaves-bulk', async (req, res) => {
+    try {
+        console.log("🚀 بدء عملية الهجرة الصاروخية للإجازات...");
+        
+        // افتراض: مصفوفة الإجازات من الجيسون اسمها leavesDB
+        const allEmployees = await prisma.employee.findMany({ select: { id: true, username: true } });
+        const empMap = new Map();
+        allEmployees.forEach(emp => empMap.set(emp.username.toLowerCase(), emp.id));
+
+        const safeIsoDate = (dateString) => {
+            if (!dateString) return new Date().toISOString();
+            try { const d = new Date(dateString); return isNaN(d.getTime()) ? new Date().toISOString() : d.toISOString(); } 
+            catch (e) { return new Date().toISOString(); }
+        };
+
+        let readyData = [];
+        let missingUsers = new Set();
+
+        for (const record of leavesDB) { // ⬅️ تأكد من اسم المصفوفة هنا
+            const lowerUser = record.username ? record.username.toString().toLowerCase() : '';
+            const empId = empMap.get(lowerUser);
+
+            if (empId) {
+                readyData.push({
+                    employeeId: empId,
+                    type: record.type || 'سنوية',
+                    startDate: safeIsoDate(record.startDate),
+                    duration: parseInt(record.duration) || 0, // تحويل لنوع رقمي
+                    endDate: safeIsoDate(record.endDate),
+                    returnDate: safeIsoDate(record.returnDate),
+                    enteryDate: safeIsoDate(record.entryDate) // ⬅️ كتبتها كما طلبت enteryDate
+                    // id: record.id  <-- تجاهلناه لنسمح للـ SQL بتوليد رقم متسلسل نظيف
+                });
+            } else {
+                if (record.username) missingUsers.add(record.username);
+            }
+        }
+
+        console.log(`🚛 تم تجهيز ${readyData.length} إجازة. بدء الحقن...`);
+        const chunkSize = 10000;
+        let insertedCount = 0;
+
+        for (let i = 0; i < readyData.length; i += chunkSize) {
+            const chunk = readyData.slice(i, i + chunkSize);
+            await prisma.leave.createMany({ data: chunk, skipDuplicates: true });
+            insertedCount += chunk.length;
+        }
+
+        res.json({ success: true, message: "🏁 تمت هجرة الإجازات بنجاح!", stats: { totalInJson: leavesDB.length, successfullyInserted: insertedCount, missingUsersCount: missingUsers.size }});
+    } catch (error) { console.error('❌ خطأ في هجرة الإجازات:', error); res.status(500).json({ success: false, message: error.message }); }
+});
+// 🚀 مسار الهجرة الصاروخية للعقوبات (Penalties)
+app.get('/api/secret-migrate-penalties-bulk', async (req, res) => {
+    try {
+        console.log("🚀 بدء عملية الهجرة الصاروخية للعقوبات...");
+        
+        // افتراض: مصفوفة العقوبات من الجيسون اسمها penaltiesDB
+        const allEmployees = await prisma.employee.findMany({ select: { id: true, username: true } });
+        const empMap = new Map();
+        allEmployees.forEach(emp => empMap.set(emp.username.toLowerCase(), emp.id));
+
+        const safeIsoDate = (dateString) => {
+            if (!dateString) return new Date().toISOString();
+            try { const d = new Date(dateString); return isNaN(d.getTime()) ? new Date().toISOString() : d.toISOString(); } 
+            catch (e) { return new Date().toISOString(); }
+        };
+
+        let readyData = [];
+        let missingUsers = new Set();
+
+        for (const record of penaltiesDB) { // ⬅️ تأكد من اسم المصفوفة هنا
+            const lowerUser = record.empUsername ? record.empUsername.toString().toLowerCase() : '';
+            const empId = empMap.get(lowerUser);
+
+            if (empId) {
+                readyData.push({
+                    employeeId: empId,
+                    managerName: record.managerName || '',
+                    violationDate: safeIsoDate(record.violationDate),
+                    category: record.category || '',
+                    violationName: record.violationName || '',
+                    managerComment: record.managerComment || '',
+                    isAdmit: record.isAdmit === true || record.isAdmit === "true", // ضمان أنها Boolean
+                    requestLessPunishment: record.requestLessPunishment === true || record.requestLessPunishment === "true",
+                    actualOccurrence: parseInt(record.actualOccurrence) || 1, // تحويل لرقم
+                    appliedPenalty: record.appliedPenalty ? record.appliedPenalty.toString() : '',
+                    displayPenalty: record.displayPenalty || '',
+                    status: record.status || '',
+                    attachment: record.attachment || '',
+                    hrComment: record.hrComment || '',
+                    hrName: record.hrName || '',
+                    timestamp: safeIsoDate(record.timestamp)
+                });
+            } else {
+                if (record.empUsername) missingUsers.add(record.empUsername);
+            }
+        }
+
+        console.log(`🚛 تم تجهيز ${readyData.length} عقوبة. بدء الحقن...`);
+        const chunkSize = 10000;
+        let insertedCount = 0;
+
+        for (let i = 0; i < readyData.length; i += chunkSize) {
+            const chunk = readyData.slice(i, i + chunkSize);
+            await prisma.penalty.createMany({ data: chunk, skipDuplicates: true });
+            insertedCount += chunk.length;
+        }
+
+        res.json({ success: true, message: "🏁 تمت هجرة العقوبات بنجاح!", stats: { totalInJson: penaltiesDB.length, successfullyInserted: insertedCount, missingUsersCount: missingUsers.size }});
+    } catch (error) { console.error('❌ خطأ في هجرة العقوبات:', error); res.status(500).json({ success: false, message: error.message }); }
+});
 
 // 🚀 مسار الهجرة الصاروخية (مخصص للبيانات الضخمة +100 ألف)
 // 🚀 مسار الهجرة الصاروخية (مع معالج التواريخ الذكي)
