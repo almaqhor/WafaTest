@@ -39,17 +39,22 @@ app.post('/auth/v1/login', async (req, res) => {
       where: { username: lowerUser }
     });
 
-    // 🚨 حركة إنقاذ: إذا لم يجد المستخدم وكان هو الـ admin، نزرعه فوراً في الـ SQL
+    // 🚨 حركة إنقاذ مطورة: زرع الأدمن ببيانات كاملة لتجنب رفض القاعدة
     if (!user && lowerUser === 'admin') {
-        console.log("🛠️ زرع حساب الأدمن في قاعدة الـ SQL لأول مرة...");
+        console.log("🛠️ زرع حساب الأدمن المكتمل في SQL...");
         user = await prisma.employee.create({
             data: {
                 username: 'admin',
-                password: '123', // أو باسووردك الحالي
+                password: '123',
                 name: 'مدير النظام (SQL)',
                 role: 'admin',
                 roleArabic: 'ادمن',
-                isActive: true
+                isActive: true,
+                jobTitle: 'مدير نظام',
+                branch: 'المركز الرئيسي',
+                basicSalary: '0',
+                lastLogin: 'لم يسجل دخول بعد'
+                // أضف أي حقول أخرى يشتكي منها الخطأ هنا بنفس الطريقة
             }
         });
     }
