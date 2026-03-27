@@ -45,53 +45,63 @@ app.get('/api/debug/employees', async (req, res) => {
 app.post('/auth/v1/login', async (req, res) => {
   try {
     const { username, password } = req.body;
-    const inputUser = username.toString(); // نأخذ الاسم كما هو بالضبط
-    const lowerUser = inputUser.toLowerCase(); // نحتفظ بالصيغة الصغيرة من أجل فحص الأدمن فقط
+    
+    // 🧹 1. تنظيف المدخلات (حذف أي مسافة مخفية في البداية أو النهاية)
+    const cleanUsername = username ? username.toString().trim() : '';
+    const cleanPassword = password ? password.toString().trim() : '';
 
-    // 🕵️‍♂️ محاولة البحث في SQL بطريقة ذكية تتجاهل حالة الأحرف
+    console.log(`\n🔍 [محاولة دخول] المستخدم: '${cleanUsername}', الباسوورد: '${cleanPassword}'`);
+
+    // 🕵️‍♂️ 2. البحث في SQL متجاهلاً حالة الأحرف (Case Insensitive)
     let user = await prisma.employee.findFirst({
       where: { 
         username: {
-          equals: inputUser,
-          mode: 'insensitive' // 🔥 السحر هنا: سيجد Ahmad أو ahmad بدون مشاكل
+          equals: cleanUsername,
+          mode: 'insensitive'
         }
       }
     });
 
-    // 🚨 حركة إنقاذ مطورة: زرع الأدمن ببيانات كاملة لتجنب رفض القاعدة
-    if (!user && lowerUser === 'admin') {
-        console.log("🛠️ محاولة زرع حساب الأدمن بالحد الأدنى المتوافق...");
+    console.log(`📦 [نتيجة البحث في القاعدة] هل وجدنا المستخدم؟`, user ? `نعم (اسمه: ${user.username})` : 'لا');
+
+    // 🚨 3. حركة زرع الأدمن (فقط إذا كان يحاول الدخول كـ admin ولم يجده)
+    if (!user && cleanUsername.toLowerCase() === 'admin') {
+        console.log("🛠️ زرع حساب الأدمن في SQL...");
         user = await prisma.employee.create({
-            data: {
-                username: 'admin',
-                password: '123',
-                name: 'مدير النظام (SQL)',
-                role: 'admin',
-                isActive: true
-            }
+            data: { username: 'admin', password: '123', name: 'مدير النظام (SQL)', role: 'admin', isActive: true }
         });
     }
 
-    // التحقق من البيانات
-    if (user && user.password === password.toString()) {
-      if (user.isActive === false) return res.status(403).json({ success: false, message: "الحساب موقوف" });
+    // 🔐 4. التحقق النهائي من كلمة المرور
+    if (user) {
+        console.log(`🔑 [مقارنة الباسوورد] في القاعدة: '${user.password}', المدخل: '${cleanPassword}'`);
+        
+        if (user.password === cleanPassword) {
+            if (user.isActive === false) return res.status(403).json({ success: false, message: "الحساب موقوف" });
 
-      const lastLoginTime = new Date().toLocaleString('en-CA', { 
-        timeZone: 'Asia/Riyadh', hour12: true, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' 
-      });
+            console.log(`✅ [نجاح] تمت المطابقة بنجاح للمستخدم: ${user.username}`);
+            
+            const lastLoginTime = new Date().toLocaleString('en-CA', { 
+                timeZone: 'Asia/Riyadh', hour12: true, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' 
+            });
 
-      // تحديث وقت الدخول
-      const updatedUser = await prisma.employee.update({
-        where: { id: user.id }, // نستخدم ID لتحديث دقيق
-        data: { lastLogin: lastLoginTime }
-      });
+            const updatedUser = await prisma.employee.update({
+                where: { id: user.id },
+                data: { lastLogin: lastLoginTime }
+            });
 
-      res.json({ success: true, ...updatedUser });
+            return res.json({ success: true, ...updatedUser });
+        } else {
+            console.log(`❌ [فشل] الباسوورد غير متطابق!`);
+            return res.status(401).json({ success: false, message: "كلمة المرور غير صحيحة" });
+        }
     } else {
-      res.status(401).json({ success: false, message: "بيانات غير صحيحة" });
+        console.log(`❌ [فشل] اسم المستخدم غير موجود نهائياً!`);
+        return res.status(401).json({ success: false, message: "اسم المستخدم غير موجود" });
     }
+
   } catch (error) {
-    console.error('❌ SQL Login Error Detail:', error);
+    console.error('❌ [انهيار داخلي] SQL Login Error Detail:', error);
     res.status(500).json({ success: false, message: "خطأ في قاعدة البيانات: " + error.message });
   }
 });
