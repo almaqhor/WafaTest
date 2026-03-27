@@ -30,26 +30,36 @@ app.post('/test-sql', async (req, res) => {
 });
 
 // 🚀 مسار الهجرة الصاروخية (مخصص للبيانات الضخمة +100 ألف)
+// 🚀 مسار الهجرة الصاروخية (مع معالج التواريخ الذكي)
 app.get('/api/secret-migrate-attendance-bulk', async (req, res) => {
     try {
         console.log("🚀 بدء عملية الهجرة الصاروخية للتحضيرات...");
 
-        // 🕵️ 1. جلب كل الموظفين مرة واحدة فقط (لتجنب 100 ألف استعلام)
         const allEmployees = await prisma.employee.findMany({
-            select: { id: true, username: true } // نجلب الـ ID والرقم فقط لتخفيف الضغط
+            select: { id: true, username: true }
         });
 
-        // 🧠 2. صنع "خريطة ذاكرة" سريعة للبحث (أجزاء من الملي ثانية)
         const empMap = new Map();
         allEmployees.forEach(emp => {
             empMap.set(emp.username.toLowerCase(), emp.id);
         });
 
-        console.log(`✅ تم تحميل ${allEmployees.length} موظف في الذاكرة. جاري تجهيز السجلات...`);
+        console.log(`✅ تم تحميل ${allEmployees.length} موظف في الذاكرة.`);
 
-        // 📦 3. تجهيز البيانات للحقن
         let readyData = [];
-        let missingUsers = new Set(); // نستخدم Set لمنع تكرار أسماء المفقودين
+        let missingUsers = new Set(); 
+
+        // 🧠 دالة صغيرة لتحويل أي تاريخ لصيغة Prisma الصارمة
+        const safeIsoDate = (dateString) => {
+            if (!dateString) return new Date().toISOString();
+            try {
+                const d = new Date(dateString);
+                if (isNaN(d.getTime())) return new Date().toISOString();
+                return d.toISOString(); // سيحول 2025-01-01 إلى 2025-01-01T00:00:00.000Z
+            } catch (e) {
+                return new Date().toISOString();
+            }
+        };
 
         for (const record of attendanceDB) {
             const lowerUser = record.username ? record.username.toString().toLowerCase() : '';
@@ -58,10 +68,11 @@ app.get('/api/secret-migrate-attendance-bulk', async (req, res) => {
             if (empId) {
                 readyData.push({
                     employeeId: empId,
-                    date: record.date || new Date().toISOString().split('T')[0],
+                    // 🔥 السحر هنا: تمرير التواريخ عبر المحول الذكي
+                    date: safeIsoDate(record.date), 
                     note: record.managerName || '',
                     code: record.code || '',
-                    timestamp: record.timestamp || new Date().toISOString()
+                    timestamp: safeIsoDate(record.timestamp)
                 });
             } else {
                 if (record.username) missingUsers.add(record.username);
@@ -70,8 +81,6 @@ app.get('/api/secret-migrate-attendance-bulk', async (req, res) => {
 
         console.log(`🚛 تم تجهيز ${readyData.length} سجل للحقن. بدء الإرسال لـ SQL...`);
 
-        // ⚡ 4. الحقن الشامل (createMany) مقسم لدفعات (Chunks)
-        // سنرسل كل 10 آلاف سجل معاً لكي لا نختنق قاعدة البيانات
         const chunkSize = 10000;
         let insertedCount = 0;
 
@@ -79,7 +88,7 @@ app.get('/api/secret-migrate-attendance-bulk', async (req, res) => {
             const chunk = readyData.slice(i, i + chunkSize);
             await prisma.attendance.createMany({
                 data: chunk,
-                skipDuplicates: true // لتجاوز أي أخطاء مفاجئة
+                skipDuplicates: true
             });
             insertedCount += chunk.length;
             console.log(`✅ تم حقن الدفعة... المجموع حتى الآن: ${insertedCount}`);
@@ -94,7 +103,7 @@ app.get('/api/secret-migrate-attendance-bulk', async (req, res) => {
                 totalInJson: attendanceDB.length,
                 successfullyInserted: insertedCount,
                 missingUsersCount: missingUsers.size,
-                missingUsersList: Array.from(missingUsers) // قائمة الموظفين الذين ليس لهم حسابات
+                missingUsersList: Array.from(missingUsers)
             }
         });
 
