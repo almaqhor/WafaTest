@@ -21,8 +21,8 @@ app.post('/test-sql', async (req, res) => {
     }
 });
 
-app.post('/auth/v1/login', async (req, res) => {
-  try {
+app.post('/v1_secure_gate', async (req, res) => {
+    try {
     const { username, password } = req.body;
     
     // 1. البحث عن الموظف (استخدمنا toString و toLowerCase لضمان تطابق المدخلات كما كان في كودك)
