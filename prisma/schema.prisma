@@ -20,13 +20,22 @@ model Employee {
   password     String
   name         String
   role         String
-  roleArabic   String   // تأكد أن هذا السطر موجود
+  roleArabic   String   // تأكد من وجوده هنا لأنه كان يسبب خطأ سابقاً
   jobTitle     String?
   branch       String?
   basicSalary  String?
   isActive     Boolean  @default(true)
   lastLogin    String?
+
+  // 🔥 الأسطر السحرية التي ستحل مشكلة الـ Deploy الآن:
+  attendances   Attendance[]
+  leaves        Leave[]
+  penalties     Penalty[]
+  exitInterviews ExitInterview[]
 }
+
+// تأكد أن الموديلات الأخرى (Attendance, Leave...) 
+// تشير إلى "Employee" بنفس الطريقة التي ظهرت في الخطأ
 
 model Attendance {
   id          Int      @id @default(autoincrement())
