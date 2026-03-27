@@ -41,7 +41,62 @@ app.get('/api/debug/employees', async (req, res) => {
         res.status(500).json({ success: false, error: err.message });
     }
 });
+// 🚀 مسار سري لتهجير الموظفين من JSON إلى SQL دفعة واحدة
+app.get('/api/secret-migrate-users', async (req, res) => {
+    try {
+        console.log("⏳ بدء عملية التهجير الكبرى...");
+        
+        // ملاحظة: نستخدم usersDB وهي المصفوفة التي تُقرأ من ملف الجيسون لديك
+        let successCount = 0;
+        let failCount = 0;
+        let errorDetails = [];
 
+        for (const user of usersDB) {
+            try {
+                // نستخدم upsert: إذا كان الموظف موجوداً يتجاهله، وإذا لم يكن موجوداً يزرعه
+                await prisma.employee.upsert({
+                    where: { username: user.username.toString() },
+                    update: {}, // لا تقم بتحديث الموجودين مسبقاً (مثل الأدمن وأحمد)
+                    create: {
+                        username: user.username.toString(),
+                        name: user.name || 'بدون اسم',
+                        password: user.password || '123456',
+                        role: user.role || (user.roleArabic === 'ادمن' ? 'admin' : 'user'),
+                        roleArabic: user.roleArabic || 'موظف',
+                        jobTitle: user.jobTitle || '',
+                        branch: user.branch || '',
+                        city: user.city || '',
+                        basicSalary: (user.basicSalary || 0).toString(),
+                        isActive: user.isActive !== undefined ? user.isActive : true,
+                        lastLogin: user.lastLogin || 'لم يسجل دخول بعد'
+                        // أضف أي حقول أخرى هنا إذا كانت في الـ Schema
+                    }
+                });
+                successCount++;
+            } catch (err) {
+                failCount++;
+                errorDetails.push(`الموظف ${user.username}: ${err.message}`);
+            }
+        }
+
+        console.log(`✅ انتهى التهجير: نجح ${successCount}، فشل ${failCount}`);
+        
+        res.json({
+            success: true,
+            message: "🏁 تمت عملية الهجرة العظمى بنجاح!",
+            stats: {
+                totalInJson: usersDB.length,
+                successCount: successCount,
+                failCount: failCount,
+                errors: errorDetails
+            }
+        });
+
+    } catch (error) {
+        console.error('❌ حدث انهيار أثناء التهجير:', error);
+        res.status(500).json({ success: false, message: "خطأ قاتل: " + error.message });
+    }
+});
 app.post('/auth/v1/login', async (req, res) => {
   try {
     const { username, password } = req.body;
