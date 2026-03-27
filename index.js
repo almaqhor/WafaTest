@@ -1,14 +1,16 @@
 require('dotenv').config();
 const express = require('express');
+const app = express(); //===
+const { PrismaClient } = require('@prisma/client');
+const prisma = new PrismaClient();
 const cors = require('cors');
 const multer = require('multer');
 const mammoth = require('mammoth');
 const path = require('path');
 const fs = require('fs');
 const xlsx = require('xlsx'); 
-const app = express(); //===
-const { PrismaClient } = require('@prisma/client');
-const prisma = new PrismaClient();
+
+
 
 // 🌟 تحديد مسار حفظ البيانات والملفات (ليدعم القرص الدائم في السحابة) 🌟
 const DATA_DIR = process.env.DATA_DIR || __dirname;
@@ -18,10 +20,10 @@ if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
 
 app.use(cors());
 app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
 app.use(express.static('public')); 
 app.use(express.static(__dirname));
 app.use('/uploads', express.static(uploadsDir));
-app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
 const usersFile = path.join(DATA_DIR, 'users.json');
 const reasonsFile = path.join(DATA_DIR, 'reasons.json');
