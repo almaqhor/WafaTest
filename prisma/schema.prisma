@@ -29,6 +29,7 @@ model Employee {
   attendances Attendance[]
   leaves      Leave[]
   penalties   Penalty[]
+exitInterviews ExitInterview[]
 }
 
 model Attendance {
@@ -62,4 +63,44 @@ model Penalty {
   employeeId     Int
   employee       Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
 }
-// هنا سنقوم برسم الجداول لاحقاً...
+model ExitInterview {
+  id                    Int      @id @default(autoincrement())
+  interviewDate         DateTime @default(now())
+  
+  // 🔗 الرابط مع الموظف المغادر
+  employeeId            Int
+  employee              Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  // 1. تفاصيل القرار
+  decisionTime          String?
+  reasons               String?
+  
+  // 2. الأحداث الخاصة
+  specificEvent         Boolean  @default(false)
+  eventDescription      String?
+  discussedWithManager  Boolean  @default(false)
+  discussionDetails     String?
+  
+  // 3. التقييمات (من 1 إلى 5)
+  ratingTraining        Int?
+  ratingManager         Int?
+  ratingColleagues      Int?
+  ratingSalary          Int?
+  ratingBenefits        Int?
+  ratingWorkload        Int?
+  ratingSatisfaction    Int?
+  
+  // 4. المشاكل والإيجابيات
+  encounteredProblems   Boolean  @default(false)
+  problemsDescription   String?
+  mostEnjoyed           String?
+  leastEnjoyed          String?
+  
+  // 5. التوصيات المستقبلية
+  wouldRecommend        Boolean  @default(true)
+  recommendReason       String?
+  wouldReapply          Boolean  @default(true)
+  reapplyReason         String?
+  
+  additionalComments    String?
+}
