@@ -28,6 +28,19 @@ app.post('/test-sql', async (req, res) => {
         res.status(500).json({ success: false, error: err.message });
     }
 });
+// 🔍 نافذة سرية لرؤية جميع الموظفين في SQL عبر Postman
+app.get('/api/debug/employees', async (req, res) => {
+    try {
+        const allEmployees = await prisma.employee.findMany();
+        res.json({
+            success: true,
+            count: allEmployees.length,
+            data: allEmployees
+        });
+    } catch (err) {
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
 
 app.post('/auth/v1/login', async (req, res) => {
   try {
