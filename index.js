@@ -10,6 +10,14 @@ const path = require('path');
 const fs = require('fs');
 const xlsx = require('xlsx'); 
 app.use(cors());
+app.post('/test-sql', async (req, res) => {
+    try {
+        const count = await prisma.employee.count();
+        res.json({ success: true, message: `السيرفر متصل بالقاعدة، وعدد الموظفين هو: ${count}` });
+    } catch (err) {
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 app.post('//auth/v1/login', async (req, res) => {
