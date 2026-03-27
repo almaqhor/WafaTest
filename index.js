@@ -28,6 +28,70 @@ app.post('/test-sql', async (req, res) => {
         res.status(500).json({ success: false, error: err.message });
     }
 });
+
+// 🚀 مسار سري لتهجير سجلات التحضير (Attendance) من JSON إلى SQL
+app.get('/api/secret-migrate-attendance', async (req, res) => {
+    try {
+        console.log("⏳ بدء عملية تهجير التحضيرات...");
+        
+        // افتراض: لديك مصفوفة attendanceDB تقرأ من ملف attendance.json
+        let successCount = 0;
+        let failCount = 0;
+        let missingUsers = [];
+
+        for (const record of attendanceDB) {
+            try {
+                // 🕵️ 1. البحث عن الموظف لمعرفة الـ ID الخاص به
+                // (تأكد أن record.username هو الحقل المستخدم في الجيسون للربط)
+                const employee = await prisma.employee.findFirst({
+                    where: { 
+                        username: { equals: record.username.toString(), mode: 'insensitive' }
+                    }
+                });
+
+                if (employee) {
+                    // 💾 2. ربط التحضير بالموظف وحفظه في SQL
+                    await prisma.attendance.create({
+                        data: {
+                            employeeId: employee.id, // 🔥 السحر هنا: نربطه برقم الموظف في القاعدة
+                            date: record.date || new Date().toISOString().split('T')[0],
+                            status: record.status || 'حاضر',
+                            timeIn: record.timeIn || '',
+                            timeOut: record.timeOut || '',
+                            notes: record.notes || ''
+                            // قم بتعديل هذه الحقول لتطابق schema.prisma الخاص بك
+                        }
+                    });
+                    successCount++;
+                } else {
+                    // الموظف غير موجود في القاعدة الجديدة!
+                    failCount++;
+                    if (!missingUsers.includes(record.username)) missingUsers.push(record.username);
+                }
+            } catch (err) {
+                failCount++;
+                console.error(`خطأ في السجل: ${err.message}`);
+            }
+        }
+
+        console.log(`✅ انتهى تهجير التحضير: نجح ${successCount}، فشل ${failCount}`);
+        
+        res.json({
+            success: true,
+            message: "🏁 تمت هجرة التحضيرات بنجاح!",
+            stats: {
+                totalInJson: attendanceDB.length,
+                successCount: successCount,
+                failCount: failCount,
+                missingUsersInSQL: missingUsers // سيعطيك أسماء الموظفين الذين لم يجدهم
+            }
+        });
+
+    } catch (error) {
+        console.error('❌ حدث انهيار:', error);
+        res.status(500).json({ success: false, message: error.message });
+    }
+});
 // 🔍 نافذة سرية لرؤية جميع الموظفين في SQL عبر Postman
 app.get('/api/debug/employees', async (req, res) => {
     try {
