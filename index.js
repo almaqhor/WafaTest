@@ -45,15 +45,21 @@ app.get('/api/debug/employees', async (req, res) => {
 app.post('/auth/v1/login', async (req, res) => {
   try {
     const { username, password } = req.body;
-    const lowerUser = username.toString().toLowerCase();
+    const inputUser = username.toString(); // نأخذ الاسم كما هو بالضبط
+    const lowerUser = inputUser.toLowerCase(); // نحتفظ بالصيغة الصغيرة من أجل فحص الأدمن فقط
 
-    // 🕵️‍♂️ محاولة البحث في SQL
-    let user = await prisma.employee.findUnique({
-      where: { username: lowerUser }
+    // 🕵️‍♂️ محاولة البحث في SQL بطريقة ذكية تتجاهل حالة الأحرف
+    let user = await prisma.employee.findFirst({
+      where: { 
+        username: {
+          equals: inputUser,
+          mode: 'insensitive' // 🔥 السحر هنا: سيجد Ahmad أو ahmad بدون مشاكل
+        }
+      }
     });
 
     // 🚨 حركة إنقاذ مطورة: زرع الأدمن ببيانات كاملة لتجنب رفض القاعدة
- if (!user && lowerUser === 'admin') {
+    if (!user && lowerUser === 'admin') {
         console.log("🛠️ محاولة زرع حساب الأدمن بالحد الأدنى المتوافق...");
         user = await prisma.employee.create({
             data: {
@@ -62,11 +68,10 @@ app.post('/auth/v1/login', async (req, res) => {
                 name: 'مدير النظام (SQL)',
                 role: 'admin',
                 isActive: true
-                // 🛑 تم حذف roleArabic وكل ما يسبب ValidationError
-                // لكي يوافق Prisma على الطلب فوراً
             }
         });
     }
+
     // التحقق من البيانات
     if (user && user.password === password.toString()) {
       if (user.isActive === false) return res.status(403).json({ success: false, message: "الحساب موقوف" });
@@ -75,8 +80,9 @@ app.post('/auth/v1/login', async (req, res) => {
         timeZone: 'Asia/Riyadh', hour12: true, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' 
       });
 
+      // تحديث وقت الدخول
       const updatedUser = await prisma.employee.update({
-        where: { id: user.id },
+        where: { id: user.id }, // نستخدم ID لتحديث دقيق
         data: { lastLogin: lastLoginTime }
       });
 
@@ -85,7 +91,7 @@ app.post('/auth/v1/login', async (req, res) => {
       res.status(401).json({ success: false, message: "بيانات غير صحيحة" });
     }
   } catch (error) {
-    console.error('❌ SQL Login Error Detail:', error); // هذا السطر سيطبع لنا السبب الحقيقي في الـ Logs
+    console.error('❌ SQL Login Error Detail:', error);
     res.status(500).json({ success: false, message: "خطأ في قاعدة البيانات: " + error.message });
   }
 });
