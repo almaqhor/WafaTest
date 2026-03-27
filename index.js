@@ -1,6 +1,6 @@
 require('dotenv').config();
 const express = require('express');
-const app = express(); //===
+const app = express(); 
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 const cors = require('cors');
@@ -9,9 +9,13 @@ const mammoth = require('mammoth');
 const path = require('path');
 const fs = require('fs');
 const xlsx = require('xlsx'); 
+
+// 🛑 1. الإعدادات الأساسية (أعلى شيء دائماً)
 app.use(cors());
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
+
+// 🚀 2. مسارات الـ SQL والـ API (قبل أي Static وقبل أي ملفات)
 app.post('/test-sql', async (req, res) => {
     try {
         const count = await prisma.employee.count();
@@ -21,63 +25,46 @@ app.post('/test-sql', async (req, res) => {
     }
 });
 
-app.post('/v1_secure_gate', async (req, res) => {
+app.post('/auth/v1/login', async (req, res) => {
     try {
-    const { username, password } = req.body;
-    
-    // 1. البحث عن الموظف (استخدمنا toString و toLowerCase لضمان تطابق المدخلات كما كان في كودك)
-    const user = await prisma.employee.findUnique({
-      where: { username: username.toString().toLowerCase() }
-    });
+        const { username, password } = req.body;
+        const user = await prisma.employee.findUnique({
+            where: { username: username.toString().toLowerCase() }
+        });
 
-    // 2. التحقق من وجود المستخدم وتطابق كلمة المرور
-    if (user && user.password === password.toString()) {
-      
-      // 3. التحقق إذا كان الحساب موقوفاً
-      if (user.isActive === false) {
-        return res.status(403).json({ success: false, message: "هذا الحساب موقوف، راجع الموارد البشرية." });
-      }
+        if (user && user.password === password.toString()) {
+            if (user.isActive === false) return res.status(403).json({ success: false, message: "الحساب موقوف" });
 
-      // 4. 🔥 تحديث وقت الدخول بتوقيت السعودية وحفظه
-      const lastLoginTime = new Date().toLocaleString('en-CA', { 
-        timeZone: 'Asia/Riyadh', 
-        hour12: true, 
-        year: 'numeric', 
-        month: '2-digit', 
-        day: '2-digit', 
-        hour: '2-digit', 
-        minute: '2-digit' 
-      });
+            const lastLoginTime = new Date().toLocaleString('en-CA', { 
+                timeZone: 'Asia/Riyadh', hour12: true, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' 
+            });
 
-      // 💾 حفظ وقت الدخول في قاعدة البيانات SQL
-      const updatedUser = await prisma.employee.update({
-        where: { id: user.id },
-        data: { lastLogin: lastLoginTime }
-      });
+            const updatedUser = await prisma.employee.update({
+                where: { id: user.id },
+                data: { lastLogin: lastLoginTime }
+            });
 
-      // 5. إرسال رد النجاح مع بيانات الموظف (مفرودة تماماً كما كان في السابق)
-      res.json({ success: true, ...updatedUser });
-
-    } else {
-      // في حال كانت البيانات غير صحيحة
-      res.status(401).json({ success: false, message: "بيانات الدخول غير صحيحة" });
+            res.json({ success: true, ...updatedUser });
+        } else {
+            res.status(401).json({ success: false, message: "بيانات غير صحيحة" });
+        }
+    } catch (error) {
+        res.status(500).json({ success: false, message: "خطأ اتصال" });
     }
-  } catch (error) {
-    console.error('❌ خطأ في أنبوب تسجيل الدخول:', error);
-    res.status(500).json({ success: false, message: "حدث خطأ في الخادم أثناء الاتصال بقاعدة البيانات" });
-  }
 });
 
-// 🌟 تحديد مسار حفظ البيانات والملفات (ليدعم القرص الدائم في السحابة) 🌟
+// 📁 3. تعريف الملفات الثابتة (بعد المسارات البرمجية)
 const DATA_DIR = process.env.DATA_DIR || __dirname;
 const uploadsDir = path.join(DATA_DIR, 'uploads'); 
-app.use(express.static('public')); 
-//app.use(express.static(__dirname));
+
 app.use(express.static(path.join(__dirname, 'public')));
+app.use('/uploads', express.static(uploadsDir));
+
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));
 });
-app.use('/uploads', express.static(path.join(DATA_DIR, 'uploads')));
+
+// 🌟 الآن أكمل باقي كودك من (const usersFile = ...) 🌟
 if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true }); 
 
 const usersFile = path.join(DATA_DIR, 'users.json');
@@ -191,11 +178,11 @@ app.post('/api/offer-config', (req, res) => {
     res.json({ success: true });
 });
 
-app.get('/', (req, res) => {
-    const publicPath = path.join(__dirname, 'public', 'index.html');
-    if (fs.existsSync(publicPath)) res.sendFile(publicPath); else res.send("ملف index.html مفقود!");
-    res.status(200).send('OK');
-});
+//app.get('/', (req, res) => {
+  //  const publicPath = path.join(__dirname, 'public', 'index.html');
+    //if (fs.existsSync(publicPath)) res.sendFile(publicPath); else res.send("ملف index.html مفقود!");
+    //res.status(200).send('OK');
+//});
 
 // إعدادات نصوص نماذج الموارد البشرية (المباشرة والإقرار)
 const hrFormsConfigFile = path.join(DATA_DIR, 'hr_forms_config.json');
