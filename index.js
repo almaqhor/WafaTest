@@ -99,7 +99,7 @@ app.get('/api/secret-migrate-penalties-bulk', async (req, res) => {
         let readyData = [];
         let missingUsers = new Set();
 
-        for (const record of penaltiesDB) { // ⬅️ تأكد من اسم المصفوفة هنا
+        for (const record of penaltiesHistoryDB) { // ⬅️ تأكد من اسم المصفوفة هنا
             const lowerUser = record.empUsername ? record.empUsername.toString().toLowerCase() : '';
             const empId = empMap.get(lowerUser);
 
