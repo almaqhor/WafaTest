@@ -5,8 +5,7 @@
   "main": "index.js",
   "scripts": {
     "start": "node index.js",
-    "postinstall": "prisma generate"
-  },
+    "postinstall": "prisma generate && prisma db push"  },
   "keywords": [],
   "author": "",
   "license": "ISC",
