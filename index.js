@@ -1,12 +1,6 @@
 require('dotenv').config();
 const express = require('express');
-const app = express(); 
-app.use((req, res, next) => {
-    console.log(`📡 طلب قادم: [${req.method}] ${req.url}`);
-    next();
-});
 const { PrismaClient } = require('@prisma/client');
-const prisma = new PrismaClient();
 const cors = require('cors');
 const multer = require('multer');
 const mammoth = require('mammoth');
@@ -14,19 +8,32 @@ const path = require('path');
 const fs = require('fs');
 const xlsx = require('xlsx'); 
 
-// 🛑 1. الإعدادات الأساسية (أعلى شيء دائماً)
+const app = express();
+const prisma = new PrismaClient();
+
+app.use((req, res, next) => {
+    console.log(`📡 طلب قادم: [${req.method}] ${req.url}`);
+    next();
+});
+
+// 🛑 1. الإعدادات الأساسية ومسارات المجلدات (أعلى شيء دائماً لتجنب الانهيار)
 app.use(cors());
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
-const fs = require('fs');
-const path = require('path');
 
-// 📦 توصيل خزان الإجازات
+const DATA_DIR = process.env.DATA_DIR || __dirname;
+const uploadsDir = path.join(DATA_DIR, 'uploads'); 
+if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
+
+// 📦 توصيل خزان الإجازات (النسخة المصححة تقرأ المحتوى ولا تقرأ المسار)
 let leavesDB = [];
 try {
-    const leavesData = path.join(DATA_DIR, 'leaves.json');   
-    leavesDB = JSON.parse(leavesData);
-    console.log(`✅ تم تحميل ${leavesDB.length} إجازة من ملف الجيسون.`);
+    const leavesPath = path.join(DATA_DIR, 'leaves.json');   
+    if (fs.existsSync(leavesPath)) {
+        const leavesData = fs.readFileSync(leavesPath, 'utf8');
+        leavesDB = JSON.parse(leavesData);
+        console.log(`✅ تم تحميل ${leavesDB.length} إجازة من ملف الجيسون.`);
+    }
 } catch (error) {
     console.log("⚠️ لم يتم العثور على ملف leaves.json أو أنه فارغ.");
 }
@@ -34,11 +41,14 @@ try {
 // 📦 توصيل خزان العقوبات
 let penaltiesDB = [];
 try {
-    const penaltiesData = path.join(DATA_DIR, 'penaltiesHistoryDB.json');
-    penaltiesDB = JSON.parse(penaltiesData);
-    console.log(`✅ تم تحميل ${penaltiesDB.length} عقوبة من ملف الجيسون.`);
+    const penaltiesPath = path.join(DATA_DIR, 'penaltiesHistory.json');
+    if (fs.existsSync(penaltiesPath)) {
+        const penaltiesData = fs.readFileSync(penaltiesPath, 'utf8');
+        penaltiesDB = JSON.parse(penaltiesData);
+        console.log(`✅ تم تحميل ${penaltiesDB.length} عقوبة من ملف الجيسون.`);
+    }
 } catch (error) {
-    console.log("⚠️ لم يتم العثور على ملف penalties.json أو أنه فارغ.");
+    console.log("⚠️ لم يتم العثور على ملف penaltiesHistory.json أو أنه فارغ.");
 }
 
 // 🚀 2. مسارات الـ SQL والـ API (قبل أي Static وقبل أي ملفات)
@@ -50,12 +60,12 @@ app.post('/test-sql', async (req, res) => {
         res.status(500).json({ success: false, error: err.message });
     }
 });
+
 // 🚀 مسار الهجرة الصاروخية للإجازات (Leaves)
 app.get('/api/secret-migrate-leaves-bulk', async (req, res) => {
     try {
         console.log("🚀 بدء عملية الهجرة الصاروخية للإجازات...");
         
-        // افتراض: مصفوفة الإجازات من الجيسون اسمها leavesDB
         const allEmployees = await prisma.employee.findMany({ select: { id: true, username: true } });
         const empMap = new Map();
         allEmployees.forEach(emp => empMap.set(emp.username.toLowerCase(), emp.id));
@@ -69,7 +79,7 @@ app.get('/api/secret-migrate-leaves-bulk', async (req, res) => {
         let readyData = [];
         let missingUsers = new Set();
 
-        for (const record of leavesDB) { // ⬅️ تأكد من اسم المصفوفة هنا
+        for (const record of leavesDB) { 
             const lowerUser = record.username ? record.username.toString().toLowerCase() : '';
             const empId = empMap.get(lowerUser);
 
@@ -78,11 +88,10 @@ app.get('/api/secret-migrate-leaves-bulk', async (req, res) => {
                     employeeId: empId,
                     type: record.type || 'سنوية',
                     startDate: safeIsoDate(record.startDate),
-                    duration: parseInt(record.duration) || 0, // تحويل لنوع رقمي
+                    duration: parseInt(record.duration) || 0,
                     endDate: safeIsoDate(record.endDate),
                     returnDate: safeIsoDate(record.returnDate),
-                    enteryDate: safeIsoDate(record.entryDate) // ⬅️ كتبتها كما طلبت enteryDate
-                    // id: record.id  <-- تجاهلناه لنسمح للـ SQL بتوليد رقم متسلسل نظيف
+                    enteryDate: safeIsoDate(record.entryDate) 
                 });
             } else {
                 if (record.username) missingUsers.add(record.username);
@@ -102,12 +111,12 @@ app.get('/api/secret-migrate-leaves-bulk', async (req, res) => {
         res.json({ success: true, message: "🏁 تمت هجرة الإجازات بنجاح!", stats: { totalInJson: leavesDB.length, successfullyInserted: insertedCount, missingUsersCount: missingUsers.size }});
     } catch (error) { console.error('❌ خطأ في هجرة الإجازات:', error); res.status(500).json({ success: false, message: error.message }); }
 });
+
 // 🚀 مسار الهجرة الصاروخية للعقوبات (Penalties)
 app.get('/api/secret-migrate-penalties-bulk', async (req, res) => {
     try {
         console.log("🚀 بدء عملية الهجرة الصاروخية للعقوبات...");
         
-        // افتراض: مصفوفة العقوبات من الجيسون اسمها penaltiesDB
         const allEmployees = await prisma.employee.findMany({ select: { id: true, username: true } });
         const empMap = new Map();
         allEmployees.forEach(emp => empMap.set(emp.username.toLowerCase(), emp.id));
@@ -121,7 +130,7 @@ app.get('/api/secret-migrate-penalties-bulk', async (req, res) => {
         let readyData = [];
         let missingUsers = new Set();
 
-        for (const record of penaltiesHistoryDB) { // ⬅️ تأكد من اسم المصفوفة هنا
+        for (const record of penaltiesDB) { 
             const lowerUser = record.empUsername ? record.empUsername.toString().toLowerCase() : '';
             const empId = empMap.get(lowerUser);
 
@@ -133,9 +142,9 @@ app.get('/api/secret-migrate-penalties-bulk', async (req, res) => {
                     category: record.category || '',
                     violationName: record.violationName || '',
                     managerComment: record.managerComment || '',
-                    isAdmit: record.isAdmit === true || record.isAdmit === "true", // ضمان أنها Boolean
+                    isAdmit: record.isAdmit === true || record.isAdmit === "true",
                     requestLessPunishment: record.requestLessPunishment === true || record.requestLessPunishment === "true",
-                    actualOccurrence: parseInt(record.actualOccurrence) || 1, // تحويل لرقم
+                    actualOccurrence: parseInt(record.actualOccurrence) || 1,
                     appliedPenalty: record.appliedPenalty ? record.appliedPenalty.toString() : '',
                     displayPenalty: record.displayPenalty || '',
                     status: record.status || '',
@@ -159,9 +168,12 @@ app.get('/api/secret-migrate-penalties-bulk', async (req, res) => {
             insertedCount += chunk.length;
         }
 
-        res.json({ success: true, message: "🏁 تمت هجرة العقوبات بنجاح!", stats: { totalInJson: let penalty = penaltiesHistoryDB.length, successfullyInserted: insertedCount, missingUsersCount: missingUsers.size }});
+        // 🔥 تم إصلاح الخطأ القاتل هنا!
+        res.json({ success: true, message: "🏁 تمت هجرة العقوبات بنجاح!", stats: { totalInJson: penaltiesDB.length, successfullyInserted: insertedCount, missingUsersCount: missingUsers.size }});
     } catch (error) { console.error('❌ خطأ في هجرة العقوبات:', error); res.status(500).json({ success: false, message: error.message }); }
 });
+
+// 🚀 مسار الهجرة الصاروخية (مخصص للبيانات الضخمة +100 ألف)
 
 // 🚀 مسار الهجرة الصاروخية (مخصص للبيانات الضخمة +100 ألف)
 // 🚀 مسار الهجرة الصاروخية (مع معالج التواريخ الذكي)
