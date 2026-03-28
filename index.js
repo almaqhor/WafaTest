@@ -2610,27 +2610,37 @@ app.post('/api/urgent-edit-attendance', async (req, res) => {
 });
 
 // ======================================================================
-// 🏰 1. حصن التحضير اليومي (نسخة الأشعة السينية لكشف أخطاء Prisma)
+// 🏰 1. حصن التحضير اليومي (النسخة المتوافقة مع هيكل SQL الجديد)
 // ======================================================================
 app.post('/api/save-attendance', async (req, res) => {
     try {
         const { date, managerName, records } = req.body;
         
-        console.log(`\n================= 📅 بدء تحضير يوم ${date} =================`);
-        console.log(`المدير: ${managerName} | عدد الموظفين: ${records ? records.length : 0}`);
-
         if (!records || !Array.isArray(records)) {
-            return res.json({ success: false, message: 'سجلات الموظفين مفقودة من الطلب!' });
+            return res.json({ success: false, message: 'سجلات الموظفين مفقودة!' });
         }
 
+        // تحويل التاريخ النصي إلى صيغة DateTime صارمة يقبلها Prisma (UTC Midnight)
+        const strictDate = new Date(date + 'T00:00:00Z');
         let savedCount = 0;
 
         for (const rec of records) {
-            // البحث: هل الموظف محضر مسبقاً في هذا اليوم؟
+            // 🔍 1. البحث عن الـ ID الرقمي للموظف باستخدام رقمه الوظيفي (username)
+            const employee = await prisma.employee.findFirst({
+                where: { username: String(rec.username) }
+            });
+
+            // إذا الموظف غير موجود في جدول الموظفين، نتخطاه حتى لا ينهار النظام
+            if (!employee) {
+                console.warn(`⚠️ تم تخطي ${rec.username} - غير موجود في جدول الموظفين!`);
+                continue; 
+            }
+
+            // 🔍 2. البحث: هل الموظف محضر مسبقاً في هذا اليوم؟ (باستخدام employeeId)
             const existingRecord = await prisma.attendance.findFirst({
                 where: { 
-                    username: String(rec.username), 
-                    date: String(date) // إجبار المتغير ليكون نصاً
+                    employeeId: employee.id, 
+                    date: strictDate 
                 }
             });
 
@@ -2640,79 +2650,83 @@ app.post('/api/save-attendance', async (req, res) => {
                     where: { id: existingRecord.id },
                     data: { 
                         code: String(rec.code),
-                        managerName: String(managerName || 'النظام')
+                        timestamp: new Date(), // تحديث وقت التعديل
+                        note: `تم التعديل بواسطة: ${managerName || 'النظام'}` // استغلال حقل الملاحظة لاسم المدير
                     }
                 });
             } else {
                 // ➕ إنشاء جديد
                 await prisma.attendance.create({
                     data: {
-                        username: String(rec.username),
-                        name: String(rec.name || 'غير محدد'),
-                        date: String(date),
+                        employeeId: employee.id, // 🔗 الربط الصحيح بقاعدة البيانات
+                        date: strictDate,        // 📅 التاريخ الصارم
                         code: String(rec.code),
-                        managerName: String(managerName || 'النظام')
+                        timestamp: new Date(),   // ⏱️ الوقت الحالي
+                        note: `حُضر بواسطة: ${managerName || 'النظام'}`
                     }
                 });
             }
             savedCount++;
         }
 
-        console.log(`✅ تم حفظ ${savedCount} سجل تحضير بنجاح!`);
-        console.log("=========================================================\n");
         res.json({ success: true, count: savedCount });
 
     } catch (error) {
-        console.error("❌ انهيار في قاعدة البيانات أثناء التحضير:", error);
-        
-        // 🔥 السحر هنا: إرسال الخطأ الحقيقي القادم من SQL للواجهة لمعرفة الجاني!
-        res.json({ 
-            success: false, 
-            message: `خطأ Prisma الدقيق: ${error.message}` 
-        });
+        console.error("❌ انهيار في حفظ التحضير:", error);
+        res.json({ success: false, message: `خطأ قاعدة البيانات: ${error.message}` });
     }
 });
 
 // ======================================================================
-// 🏰 2. حصن الحالات المعلقة (تحويل الـ T إلى A أو V أو غيره في SQL)
+// 🏰 2. حصن الحالات المعلقة (تحويل الـ T إلى A أو V) متوافق مع SQL
 // ======================================================================
 app.post('/api/update-pending-attendance', async (req, res) => {
     try {
         const { records } = req.body;
-        console.log(`\n================= ⏳ معالجة حالات معلقة (${records.length} حالة) =================`);
-
         let updatedCount = 0;
 
         for (const rec of records) {
-            // البحث عن سجل التحضير المعلق للموظف في ذلك اليوم المحدد
+            // تحويل التاريخ النصي القادم من الواجهة إلى صيغة صارمة
+            const strictDate = new Date(rec.date + 'T00:00:00Z');
+
+            // 🔍 جلب الموظف أولاً للحصول على employeeId
+            const employee = await prisma.employee.findFirst({
+                where: { username: String(rec.username) }
+            });
+
+            if (!employee) continue;
+
+            // البحث عن سجل التحضير المعلق
             const existingRecord = await prisma.attendance.findFirst({
                 where: { 
-                    username: String(rec.username), 
-                    date: rec.date 
+                    employeeId: employee.id, 
+                    date: strictDate 
                 }
             });
 
             if (existingRecord) {
-                // تحديث الحالة المعلقة إلى الحالة النهائية
+                // تحديث الحالة المعلقة
                 await prisma.attendance.update({
                     where: { id: existingRecord.id },
-                    data: { code: rec.newCode }
+                    data: { 
+                        code: String(rec.newCode),
+                        timestamp: new Date(),
+                        note: `تمت معالجة المعلق (T) إلى (${rec.newCode})`
+                    }
                 });
                 updatedCount++;
-            } else {
-                console.warn(`⚠️ تحذير: لم يتم العثور على سجل معلق للموظف ${rec.username} في يوم ${rec.date}`);
             }
         }
 
-        console.log(`✅ تم تحديث ${updatedCount} حالة معلقة بنجاح!`);
-        console.log("=====================================================================\n");
         res.json({ success: true, count: updatedCount });
 
     } catch (error) {
-        console.error("❌ انهيار في حصن الحالات المعلقة:", error);
-        res.json({ success: false, message: 'حدث خطأ في السيرفر أثناء تحديث الحالات المعلقة.' });
+        console.error("❌ خطأ في معالجة المعلق:", error);
+        res.json({ success: false, message: `خطأ قاعدة البيانات: ${error.message}` });
     }
 });
+
+
 
 
 // مسار لحفظ المصفوفة المرفوعة من الإكسيل
