@@ -3193,7 +3193,6 @@ app.post('/api/sync-absences-to-penalties', async (req, res) => {
             if (!exists) {
                 await prisma.penalty.create({
                     data: {
-                        ticketId: 'REQ-' + Date.now() + Math.floor(Math.random() * 10000),
                         employeeId: att.employeeId, 
                         empUsername: String(att.employee.username),
                         empName: att.employee.name,
