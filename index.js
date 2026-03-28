@@ -1370,10 +1370,36 @@ app.post('/api/upload-historical-attendance', (req, res) => {
         res.json({ success: false, message: error.message });
     }
 });
+// ======================================================================
+// 🌟 6. مسار جلب أرشيف التحضير بالكامل (SQL)
+// ======================================================================
+app.get('/api/all-attendance', async (req, res) => {
+    try {
+        const records = await prisma.attendance.findMany({
+            include: { 
+                employee: { select: { username: true, name: true } } // جلب اسم الموظف ورقمه
+            },
+            orderBy: { date: 'desc' } // ترتيب من الأحدث للأقدم
+        });
+
+        // إعادة تشكيل البيانات لتطابق ما تتوقعه الواجهة الأمامية
+        const formattedRecords = records.map(r => ({
+            date: fromPrismaDate(r.date), // نستخدم المترجم الذي صنعناه سابقاً
+            username: r.employee.username,
+            name: r.employee.name,
+            code: r.code,
+            managerName: r.note || '', 
+            timestamp: r.timestamp
+        }));
+
+        res.json(formattedRecords);
+    } catch (error) {
+        console.error("❌ خطأ في جلب كل التحضيرات:", error);
+        res.json([]); // حماية الواجهة من الانهيار
+    }
+});
 
 
-
-app.get('/api/all-attendance', (req, res) => res.json(attendanceDB));
 
 
 
