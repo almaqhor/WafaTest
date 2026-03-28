@@ -1790,61 +1790,126 @@ app.post('/api/manager-requests', async (req, res) => {
     }
 });
 
-
-app.post('/api/hr-assign', (req, res) => {
-    const { ticketId, assignedTo, comment, byUser } = req.body;
-    const index = requestsDB.findIndex(r => r.id === ticketId);
-    if(index > -1) {
-        requestsDB[index].assignedHrEmp = assignedTo;
-        requestsDB[index].status = 'hr_assigned'; 
-        requestsDB[index].supervisorAssignComment = comment;
-        if(!requestsDB[index].history) requestsDB[index].history = [];
-        requestsDB[index].history.push({ action: `تم تعيين الطلب لـ (${assignedTo}) بواسطة المشرف ${byUser}`, date: new Date().toLocaleString('ar-SA') });
+// ======================================================================
+// 👨‍💼 1. مسار تعيين الطلب لموظف موارد بشرية محدد (SQL)
+// ======================================================================
+app.post('/api/hr-assign', async (req, res) => {
+    try {
+        const { ticketId, assignedTo, comment, byUser } = req.body;
         
-        fs.writeFileSync(requestsFile, JSON.stringify(requestsDB, null, 2));
-        res.json({success: true});
-    } else res.json({success: false, message: 'الطلب غير موجود'});
-});
+        // 🛡️ درع الحماية لرقم التذكرة
+        let safeId = String(ticketId).trim();
+        if (safeId && !safeId.startsWith('REQ-')) safeId = 'REQ-' + safeId;
 
-app.post('/api/hr-reject', (req, res) => {
-    const { ticketId, comment, byUser } = req.body;
-    const index = requestsDB.findIndex(r => r.id === ticketId);
-    if(index > -1) {
-        requestsDB[index].status = 'resolved'; 
-        requestsDB[index].supervisorRejectComment = comment;
-        requestsDB[index].managerComment = `(مرفوض من الموارد البشرية): ${comment}`; 
-        if(!requestsDB[index].history) requestsDB[index].history = [];
-        requestsDB[index].history.push({ action: `تم رفض الإحالة من قبل المشرف ${byUser}`, date: new Date().toLocaleString('ar-SA') });
-        
-        fs.writeFileSync(requestsFile, JSON.stringify(requestsDB, null, 2));
-        res.json({success: true});
-    } else res.json({success: false});
-});
+        const ticket = await prisma.requestTicket.findFirst({ where: { ticketId: safeId } });
+        if (!ticket) return res.json({ success: false, message: 'الطلب غير موجود في قاعدة البيانات' });
 
-app.post('/api/hr-resolve', (req, res) => {
-    const { ticketId, comment, byUser } = req.body;
+        const history = ticket.history ? JSON.parse(ticket.history) : [];
+        history.push({ 
+            action: `تم تعيين الطلب لـ (${assignedTo}) بواسطة المشرف ${byUser}`, 
+            date: new Date().toLocaleString('ar-SA') 
+        });
 
-    const index = requestsDB.findIndex(r => r.id === ticketId);
-    if (index === -1) {
-        return res.json({ success: false, message: "الطلب غير موجود" });
+        await prisma.requestTicket.update({
+            where: { id: ticket.id },
+            data: {
+                assignedHrEmp: assignedTo || '',
+                status: 'hr_assigned', 
+                supervisorAssignComment: comment || '',
+                history: JSON.stringify(history)
+            }
+        });
+
+        res.json({ success: true });
+    } catch (error) {
+        console.error("❌ خطأ في مسار hr-assign:", error);
+        res.json({ success: false, message: 'حدث خطأ بالسيرفر' });
     }
-
-    requestsDB[index].status = 'resolved'; 
-    requestsDB[index].hrComment = comment;
-    requestsDB[index].resolvedBy = byUser;
-    requestsDB[index].resolveDate = new Date().toLocaleString('ar-SA');
-
-    if(!requestsDB[index].history) requestsDB[index].history = [];
-    requestsDB[index].history.push({
-        action: `تم إنجاز الطلب من الموارد البشرية بواسطة: ${byUser}`,
-        comment: comment || "",
-        date: new Date().toLocaleString('ar-SA')
-    });
-
-    fs.writeFileSync(requestsFile, JSON.stringify(requestsDB, null, 2));
-
-    return res.json({ success: true });
 });
+
+// ======================================================================
+// ❌ 2. مسار رفض الطلب وإعادته (SQL)
+// ======================================================================
+app.post('/api/hr-reject', async (req, res) => {
+    try {
+        const { ticketId, comment, byUser } = req.body;
+        
+        let safeId = String(ticketId).trim();
+        if (safeId && !safeId.startsWith('REQ-')) safeId = 'REQ-' + safeId;
+
+        const ticket = await prisma.requestTicket.findFirst({ where: { ticketId: safeId } });
+        if (!ticket) return res.json({ success: false, message: 'الطلب غير موجود' });
+
+        const history = ticket.history ? JSON.parse(ticket.history) : [];
+        history.push({ 
+            action: `تم رفض الإحالة من قبل المشرف ${byUser}`, 
+            date: new Date().toLocaleString('ar-SA') 
+        });
+
+        await prisma.requestTicket.update({
+            where: { id: ticket.id },
+            data: {
+                status: 'resolved', 
+                supervisorRejectComment: comment || '',
+                managerComment: `(مرفوض من الموارد البشرية): ${comment || ''}`, 
+                history: JSON.stringify(history)
+            }
+        });
+
+        res.json({ success: true });
+    } catch (error) {
+        console.error("❌ خطأ في مسار hr-reject:", error);
+        res.json({ success: false, message: 'حدث خطأ بالسيرفر' });
+    }
+});
+
+// ======================================================================
+// ✅ 3. مسار إنجاز الطلب والرد النهائي من الموارد (SQL)
+// ======================================================================
+app.post('/api/hr-resolve', async (req, res) => {
+    try {
+        const { ticketId, comment, byUser } = req.body;
+
+        let safeId = String(ticketId).trim();
+        if (safeId && !safeId.startsWith('REQ-')) safeId = 'REQ-' + safeId;
+
+        const ticket = await prisma.requestTicket.findFirst({ where: { ticketId: safeId } });
+        if (!ticket) return res.json({ success: false, message: 'الطلب غير موجود' });
+
+        const history = ticket.history ? JSON.parse(ticket.history) : [];
+        history.push({
+            action: `تم إنجاز الطلب من الموارد البشرية بواسطة: ${byUser}`,
+            comment: comment || "", // إضافة التعليق بداخل الهيستوري كما كان في كودك
+            date: new Date().toLocaleString('ar-SA')
+        });
+
+        await prisma.requestTicket.update({
+            where: { id: ticket.id },
+            data: {
+                status: 'resolved', 
+                hrComment: comment || '',
+                resolvedBy: byUser || '',
+                resolveDate: new Date().toLocaleString('ar-SA'),
+                history: JSON.stringify(history)
+            }
+        });
+
+        // الرقابة (اختياري، إذا كنت تستخدم دالة Audit)
+        if (typeof safeLogAudit === 'function') {
+            safeLogAudit(byUser, 'إنجاز طلب', ticket.empName, `إنجاز (موارد) للطلب رقم: ${safeId}`);
+        }
+
+        res.json({ success: true });
+    } catch (error) {
+        console.error("❌ خطأ في مسار hr-resolve:", error);
+        res.json({ success: false, message: 'حدث خطأ بالسيرفر' });
+    }
+});
+
+
+
+
+
 
 // ==================== نظام إدارة الإجازات والربط الآلي بالتحضير ====================
 // ======================================================================
