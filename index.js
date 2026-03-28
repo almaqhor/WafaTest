@@ -3239,4 +3239,79 @@ app.get('/api/secret-migrate-users-full', async (req, res) => {
     }
 });
 
+// ======================================================================
+// 🚀 مسار الهجرة الصاروخية لنظام الطلبات والتذاكر (Requests)
+// ======================================================================
+app.get('/api/secret-migrate-requests', async (req, res) => {
+    try {
+        console.log("🚀 بدء هجرة الطلبات والتذاكر إلى SQL...");
+        
+        // جلب خريطة الموظفين لربط التذاكر بأصحابها
+        const allEmployees = await prisma.employee.findMany({ select: { id: true, username: true } });
+        const empMap = new Map();
+        allEmployees.forEach(emp => empMap.set(emp.username.toString().trim(), emp.id));
+
+        let readyData = [];
+        let missingUsersCount = 0;
+
+        for (const reqItem of requestsDB) {
+            const cleanUsername = reqItem.empUsername ? reqItem.empUsername.toString().trim() : '';
+            const empId = empMap.get(cleanUsername);
+
+            if (empId) {
+                readyData.push({
+                    id: reqItem.id.toString(),
+                    employeeId: empId,
+                    empUsername: cleanUsername,
+                    empName: reqItem.empName || '',
+                    senderId: reqItem.senderId ? reqItem.senderId.toString() : '',
+                    empPhone: reqItem.empPhone ? reqItem.empPhone.toString() : '',
+                    managerName: reqItem.managerName || '',
+                    hrSupervisor: reqItem.hrSupervisor || '',
+                    assignedHrEmp: reqItem.assignedHrEmp || '',
+                    type: reqItem.type || reqItem.reason || 'غير محدد',
+                    details: reqItem.details || '',
+                    attachment: reqItem.attachment || '',
+                    status: reqItem.status || 'pending',
+                    createdAt: reqItem.createdAt || reqItem.date || new Date().toLocaleString('ar-SA'),
+                    resolveDate: reqItem.resolveDate || '',
+                    duration: reqItem.duration || reqItem.processingTime || '',
+                    managerComment: reqItem.managerComment || '',
+                    hrComment: reqItem.hrComment || '',
+                    supervisorAssignComment: reqItem.supervisorAssignComment || '',
+                    supervisorRejectComment: reqItem.supervisorRejectComment || '',
+                    escalationComment: reqItem.escalationComment || '',
+                    empComment: reqItem.empComment || '',
+                    rating: reqItem.rating || reqItem.managerRating || '',
+                    resolvedBy: reqItem.resolvedBy || '',
+                    history: reqItem.history ? JSON.stringify(reqItem.history) : '[]'
+                });
+            } else {
+                missingUsersCount++;
+            }
+        }
+
+        console.log(`🚛 تم تجهيز ${readyData.length} تذكرة للحقن...`);
+        
+        // الحقن المباشر مع تجاهل المكرر
+        const inserted = await prisma.requestTicket.createMany({
+            data: readyData,
+            skipDuplicates: true
+        });
+
+        res.json({ 
+            success: true, 
+            message: "🏁 تمت هجرة التذاكر بنجاح!", 
+            stats: { 
+                totalInJson: requestsDB.length, 
+                successfullyInserted: inserted.count, 
+                missingUsersTickets: missingUsersCount 
+            }
+        });
+    } catch (error) {
+        console.error('❌ خطأ في هجرة التذاكر:', error);
+        res.status(500).json({ success: false, message: error.message });
+    }
+});
+
 app.listen(process.env.PORT || 3000, '0.0.0.0', () => console.log(`🚀 السيرفر يعمل بنظام الرقابة الذكي والآمن!`));
