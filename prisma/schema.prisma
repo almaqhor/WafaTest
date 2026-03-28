@@ -67,6 +67,7 @@ model Employee {
   attendances        Attendance[]
   leaves             Leave[]
   penalties          Penalty[]
+exitInterviews     ExitInterview[]
 }
 
 // تأكد أن الموديلات الأخرى (Attendance, Leave...) 
