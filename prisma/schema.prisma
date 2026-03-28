@@ -15,24 +15,58 @@ datasource db {
 // ==========================================
 
 model Employee {
-  id           Int      @id @default(autoincrement())
-  username     String   @unique
-  password     String
-  name         String
-  role         String
-  roleArabic   String   // تأكد من وجوده هنا لأنه كان يسبب خطأ سابقاً
-  jobTitle     String?
-  branch       String?
-  city         String?
-  basicSalary  String?
-  isActive     Boolean  @default(true)
-  lastLogin    String?
+  id                 Int      @id @default(autoincrement())
+  username           String   @unique
+  name               String
+  password           String
+  idNumber           String?  // الهوية
+  idExpiry           String?  // انتهاء الهوية
+  nationality        String?  // الجنسية
+  gender             String?  // الجنس
+  dobG               String?  // الميلاد ميلادي
+  dobHijri           String?  // الميلاد هجري
+  phone              String?  // الجوال
+  email              String?  // الإيميل
+  city               String?  // المدينة
+  region             String?  // المنطقة
+  splAddress         String?  // العنوان الوطني
+  joinDate           String?  // تاريخ الالتحاق
+  status             String?  // الحالة (in Duty, Resign...)
+  isActive           Boolean  @default(true)
+  branch             String?  // الفرع
+  primarySection     String?  // القسم الرئيسي
+  jobTitle           String?  // المسمى الوظيفي
+  role               String?  // admin, user
+  roleArabic         String?  // ادمن، موظف، مدير فرع
+  directManager      String?  // المدير المباشر (مهم جداً لفريق العمل)
+  workingDays        Int?     @default(6) // أيام العمل
+  offDays            Int?     @default(1) // أيام الراحة
+  lastWorkingDay     String?  // آخر يوم عمل
+  basicSalary        String?  // الراتب الأساسي
+  housingAllowance   String?  // بدل السكن
+  otherAllowance     String?  // بدلات أخرى
+  salaryE            String?  // إجمالي الراتب
+  gosiFees           String?  // التأمينات
+  bankName           String?  // اسم البنك
+  bankIban           String?  // الآيبان
+  leaveCredit        Float?   @default(0) // الرصيد المستحق
+  usedLeaves         Float?   @default(0) // الإجازات المستخدمة
+  leaveBalance       Float?   @default(0) // الرصيد المتبقي
+  medicalIns         String?  // شركة التأمين
+  insType            String?  // نوع التأمين
+  insExpiry          String?  // انتهاء التأمين
+  baladiyahCondition String?  // حالة البلدية
+  baladiyahValid     String?  // صلاحية البلدية
+  baladiyahFees      String?  // رسوم البلدية
+  emergencyName      String?  // اسم الطوارئ
+  emergencyNumber    String?  // رقم الطوارئ
+  emergencyRelation  String?  // صلة القرابة
+  lastLogin          String?  // آخر دخول
 
-  // 🔥 الأسطر السحرية التي ستحل مشكلة الـ Deploy الآن:
-  attendances   Attendance[]
-  leaves        Leave[]
-  penalties     Penalty[]
-  exitInterviews ExitInterview[]
+  // العلاقات (تأكد أنها موجودة لكي لا ينهار الربط)
+  attendances        Attendance[]
+  leaves             Leave[]
+  penalties          Penalty[]
 }
 
 // تأكد أن الموديلات الأخرى (Attendance, Leave...) 
