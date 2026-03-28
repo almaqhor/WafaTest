@@ -3089,53 +3089,72 @@ app.get('/api/analyze-absences', (req, res) => {
         res.json({ success: false, message: "حدث خطأ أثناء تحليل الغيابات." });
     }
 });
-// ==================== (HR & Payroll) مزامنة الغيابات التاريخية وتحويلها لخصميات معتمدة ====================
-app.post('/api/sync-absences-to-penalties', (req, res) => {
+// ======================================================================
+// ⚖️ (HR & Payroll) محرك المزامنة: تحويل الغيابات إلى إشعارات خصم قانونية
+// ======================================================================
+app.post('/api/sync-absences-to-penalties', async (req, res) => {
     try {
         let addedCount = 0;
-        
-        attendanceDB.forEach(att => {
-            // نبحث عن الغياب أو الإجازة بدون أجر
-            if (att.code === 'A' || att.code === 'LOP') {
-                // نتحقق لكي لا نكرر نفس الغياب إذا تم سحبه مسبقاً
-                const exists = penaltiesHistoryDB.find(p => p.empUsername === att.username && p.violationDate === att.date && p.category === 'تسوية غيابات للرواتب');
-                
-                if (!exists) {
-                    const user = usersDB.find(u => u.username === att.username);
-                    
-                    penaltiesHistoryDB.push({
-                        id: 'REQ-' + Date.now() + Math.floor(Math.random() * 10000),
-                        empUsername: att.username,
-                        empName: user ? user.name : 'غير معروف',
+        console.log("⏳ بدء تشغيل محرك المزامنة لإصدار إشعارات الغياب الآلية...");
+
+        // 1. جلب جميع سجلات الغياب (A أو LOP) من قاعدة بيانات التحضير مع بيانات الموظف
+        const absences = await prisma.attendance.findMany({
+            where: {
+                code: { in: ['A', 'LOP'] }
+            },
+            include: {
+                employee: true // 🔗 جلب بيانات الموظف المرتبطة بهذا التحضير
+            }
+        });
+
+        for (const att of absences) {
+            // تحويل تاريخ التحضير لصيغة نصية YYYY-MM-DD لسهولة المقارنة
+            const attDateStr = new Date(att.date).toISOString().split('T')[0];
+            const empUsername = String(att.employee.username);
+
+            // 2. التحقق الذكي: هل قمنا بإصدار إشعار لهذا الغياب في هذا اليوم مسبقاً؟
+            const exists = await prisma.penalty.findFirst({
+                where: {
+                    empUsername: empUsername,
+                    violationDate: attDateStr,
+                    category: 'تسوية غيابات للرواتب'
+                }
+            });
+
+            if (!exists) {
+                // 3. 🖨️ إصدار الإشعار الآلي وحفظه في جدول الجزاءات (SQL)
+                await prisma.penalty.create({
+                    data: {
+                        ticketId: 'REQ-' + Date.now() + Math.floor(Math.random() * 10000),
+                        empUsername: empUsername,
+                        empName: att.employee.name || 'غير معروف',
                         managerName: 'النظام الآلي (تسوية)',
-                        violationDate: att.date,
+                        violationDate: attDateStr,
                         category: 'تسوية غيابات للرواتب',
                         violationName: 'غياب 1 يوم',
-                        managerComment: 'تم سحب هذا الغياب آلياً من سجل التحضير التاريخي لإدراجه في مسير الرواتب.',
+                        managerComment: 'تم سحب هذا الغياب آلياً من سجل التحضير لإدراجه في مسير الرواتب وإصدار إشعار رسمي للخصم.',
                         isAdmit: false,
                         requestLessPunishment: false,
-                        actualOccurrence: 1,
+                        actualOccurrence: 1, 
                         appliedPenalty: '1', 
                         displayPenalty: 'خصم 1 يوم',
                         status: 'معتمدة آلياً',
                         attachment: '',
-                        hrComment: 'تسوية آلية لغرض تصدير الرواتب.',
+                        hrComment: 'تسوية آلية لغرض تصدير الرواتب وتوثيق الخصم.',
                         hrName: 'محرك المزامنة',
-                        timestamp: new Date().toISOString()
-                    });
-                    addedCount++;
-                }
+                        timestamp: new Date()
+                    }
+                });
+                addedCount++;
             }
-        });
-
-        if (addedCount > 0) {
-            fs.writeFileSync(penaltiesHistoryFile, JSON.stringify(penaltiesHistoryDB, null, 2));
         }
 
+        console.log(`✅ تمت المزامنة بنجاح! تم إصدار ${addedCount} إشعار خصم جديد.`);
         res.json({ success: true, count: addedCount });
+
     } catch (error) {
-        console.error("Sync Error:", error);
-        res.json({ success: false, message: "حدث خطأ أثناء المزامنة." });
+        console.error("❌ Sync Error:", error);
+        res.json({ success: false, message: "حدث خطأ أثناء المزامنة، تأكد من قاعدة البيانات: " + error.message });
     }
 });
 
