@@ -2571,91 +2571,8 @@ app.post('/api/get-pending-attendance', async (req, res) => {
     }
 });
 
-/// ======================================================================
-// 💾 3. مسار حفظ التحضير اليومي (بالطريقة الكلاسيكية الآمنة جداً 100%)
-// ======================================================================
-// ======================================================================
-// 💾 3. مسار حفظ التحضير اليومي (مزود بجهاز الأشعة السينية V2 🕵️‍♂️)
-// ======================================================================
-app.post('/api/save-attendance', async (req, res) => {
-    try {
-        console.log("\n================================================");
-        console.log("📥 1. بدء محاولة حفظ التحضير (X-Ray V2)");
-        const { date, managerName, records } = req.body;
-        
-        console.log(`📅 التاريخ المستلم من الواجهة: ${date}`);
-        console.log(`👨‍💼 المدير: ${managerName}`);
-        console.log(`👥 عدد السجلات: ${records ? records.length : 0}`);
 
-        if (!records || records.length === 0) {
-            console.log("⚠️ تم إيقاف العملية: لا توجد بيانات مرسلة!");
-            return res.json({ success: false, message: "لا توجد بيانات" });
-        }
 
-        let successCount = 0;
-        
-        // تحويل التاريخ بطريقة آمنة جداً لـ Prisma
-        let prismaDate;
-        if (date && date.includes('T')) {
-            prismaDate = date;
-        } else {
-            prismaDate = new Date(date).toISOString(); 
-        }
-        console.log(`🔄 التاريخ بعد الترجمة لـ Prisma: ${prismaDate}`);
-
-        const usernames = records.map(r => String(r.username).trim());
-        console.log(`🔍 2. جاري البحث عن الموظفين وعددهم (${usernames.length})...`);
-        
-        const employees = await prisma.employee.findMany({
-            where: { username: { in: usernames } },
-            select: { id: true, username: true }
-        });
-
-        console.log(`✅ تم العثور على ${employees.length} موظف في SQL من أصل ${usernames.length}`);
-
-        const empMap = new Map();
-        employees.forEach(emp => empMap.set(emp.username, emp.id));
-
-        for (const r of records) {
-            const cleanUsername = String(r.username).trim();
-            const empId = empMap.get(cleanUsername);
-            
-            if (!empId) {
-                console.log(`⚠️ الموظف ${cleanUsername} غير موجود، سيتم تجاوزه.`);
-                continue;
-            }
-
-            console.log(`⏳ 3. جاري حفظ تحضير الموظف ${cleanUsername} (ID: ${empId})...`);
-
-            const existingRecord = await prisma.attendance.findFirst({
-                where: { date: prismaDate, employeeId: empId }
-            });
-
-            if (existingRecord) {
-                console.log(`🔄 تحديث سجل موجود مسبقاً للموظف ${cleanUsername}`);
-                await prisma.attendance.update({
-                    where: { id: existingRecord.id },
-                    data: { code: r.code, note: managerName, timestamp: new Date().toISOString() }
-                });
-            } else {
-                console.log(`✨ إنشاء سجل تحضير جديد للموظف ${cleanUsername}`);
-                await prisma.attendance.create({
-                    data: { employeeId: empId, date: prismaDate, code: r.code, note: managerName, timestamp: new Date().toISOString() }
-                });
-            }
-            successCount++;
-        }
-        console.log(`🎉 4. اكتمل الحفظ بنجاح! السجلات المحفوظة: ${successCount}`);
-        console.log("================================================\n");
-        
-        res.json({ success: true, message: `تم حفظ تحضير ${successCount} موظف بنجاح.` });
-    } catch (error) {
-        console.error("❌❌ انهيار في الحفظ ❌❌");
-        console.error(error);
-        console.log("================================================\n");
-        res.json({ success: false, message: "حدث خطأ أثناء الحفظ." });
-    }
-});
 
 // ======================================================================
 // 💾 5. مسار التعديل الطارئ للتحضير (النسخة الآمنة)
@@ -2691,43 +2608,105 @@ app.post('/api/urgent-edit-attendance', async (req, res) => {
         res.json({ success: false, message: 'حدث خطأ أثناء التعديل.' });
     }
 });
+
 // ======================================================================
-// 💾 4. مسار اعتماد الحالات المعلقة (T)
+// 🏰 1. حصن التحضير اليومي (حفظ وتحديث ذكي في SQL)
 // ======================================================================
-app.post('/api/update-pending-attendance', async (req, res) => {
+app.post('/api/save-attendance', async (req, res) => {
     try {
-        const { records } = req.body; 
-        let updatedCount = 0;
+        const { date, managerName, records } = req.body;
+        
+        console.log(`\n================= 📅 بدء تحضير يوم ${date} =================`);
+        console.log(`المدير: ${managerName} | عدد الموظفين: ${records.length}`);
 
-        for (const update of records) {
-            if (update.newCode === 'T') continue;
+        let savedCount = 0;
 
-            const emp = await prisma.employee.findUnique({ where: { username: String(update.username) } });
-            if (!emp) continue;
-
-            const updated = await prisma.attendance.updateMany({
-                where: {
-                    employeeId: emp.id,
-                    date: toPrismaDate(update.date), // ترجمة التاريخ
-                    code: 'T' 
-                },
-                data: { code: update.newCode, timestamp: new Date().toISOString() }
+        // الدوران على كل موظف وحفظ تحضيره
+        for (const rec of records) {
+            // 🔍 البحث: هل تم تحضير هذا الموظف في هذا اليوم مسبقاً؟
+            const existingRecord = await prisma.attendance.findFirst({
+                where: { 
+                    username: String(rec.username), 
+                    date: date 
+                }
             });
 
-            if (updated.count > 0) updatedCount++;
+            if (existingRecord) {
+                // 🔄 تحديث: إذا كان موجوداً، نحدث الحالة فقط (تعديل طارئ أو إعادة تحضير)
+                await prisma.attendance.update({
+                    where: { id: existingRecord.id },
+                    data: { 
+                        code: rec.code,
+                        managerName: managerName || existingRecord.managerName
+                    }
+                });
+            } else {
+                // ➕ إنشاء: إذا لم يكن موجوداً، نصنع سجلاً جديداً
+                await prisma.attendance.create({
+                    data: {
+                        username: String(rec.username),
+                        name: rec.name || 'غير محدد',
+                        date: date,
+                        code: rec.code,
+                        managerName: managerName || 'النظام'
+                    }
+                });
+            }
+            savedCount++;
         }
-        res.json({ success: true, count: updatedCount });
+
+        console.log(`✅ تم حفظ ${savedCount} سجل تحضير بنجاح!`);
+        console.log("=========================================================\n");
+        res.json({ success: true, count: savedCount });
+
     } catch (error) {
-        console.error("❌ خطأ في تحديث المعلق:", error);
-        res.json({ success: false, message: "حدث خطأ أثناء الاعتماد." });
+        console.error("❌ انهيار في حصن التحضير:", error);
+        res.json({ success: false, message: 'حدث خطأ في السيرفر أثناء حفظ التحضير.' });
     }
 });
 
 // ======================================================================
-// 💾 5. مسار التعديل الطارئ للتحضير
+// 🏰 2. حصن الحالات المعلقة (تحويل الـ T إلى A أو V أو غيره في SQL)
+// ======================================================================
+app.post('/api/update-pending-attendance', async (req, res) => {
+    try {
+        const { records } = req.body;
+        console.log(`\n================= ⏳ معالجة حالات معلقة (${records.length} حالة) =================`);
+
+        let updatedCount = 0;
+
+        for (const rec of records) {
+            // البحث عن سجل التحضير المعلق للموظف في ذلك اليوم المحدد
+            const existingRecord = await prisma.attendance.findFirst({
+                where: { 
+                    username: String(rec.username), 
+                    date: rec.date 
+                }
+            });
+
+            if (existingRecord) {
+                // تحديث الحالة المعلقة إلى الحالة النهائية
+                await prisma.attendance.update({
+                    where: { id: existingRecord.id },
+                    data: { code: rec.newCode }
+                });
+                updatedCount++;
+            } else {
+                console.warn(`⚠️ تحذير: لم يتم العثور على سجل معلق للموظف ${rec.username} في يوم ${rec.date}`);
+            }
+        }
+
+        console.log(`✅ تم تحديث ${updatedCount} حالة معلقة بنجاح!`);
+        console.log("=====================================================================\n");
+        res.json({ success: true, count: updatedCount });
+
+    } catch (error) {
+        console.error("❌ انهيار في حصن الحالات المعلقة:", error);
+        res.json({ success: false, message: 'حدث خطأ في السيرفر أثناء تحديث الحالات المعلقة.' });
+    }
+});
 
 
-// ==================== مسارات مصفوفة الجزاءات ====================
 // مسار لحفظ المصفوفة المرفوعة من الإكسيل
 app.post('/api/save-penalty-matrix', (req, res) => {
     try {
