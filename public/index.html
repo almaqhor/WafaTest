@@ -5546,142 +5546,130 @@ async function renderPenaltiesDashboard(penalties) {
         }
         function setHrStatusFilter(status) { currentHrStatusFilter = status; renderHrTable(); }
 
-
-           async function renderHrTable() {
-if (typeof locationsArray === 'undefined' || locationsArray.length === 0) {
-                try {
-                    locationsArray = await (await fetch('/api/locations')).json();
-                } catch(e) { 
-                    console.error("تعذر جلب خريطة المواقع الجغرافية", e); 
-                }
+async function renderHrTable() {
+    try {
+        if (typeof locationsArray === 'undefined' || locationsArray.length === 0) {
+            try {
+                locationsArray = await (await fetch('/api/locations')).json();
+            } catch(e) { 
+                console.error("تعذر جلب خريطة المواقع الجغرافية", e); 
             }
+        }
 
-            let filtered = hrAllRequests || [];
+        let filtered = hrAllRequests || [];
 
-            // 2. 🛡️ البوابة الجغرافية (Geo-Routing Checkpoint)
-            // 2. 🛡️ البوابة الجغرافية (Geo-Routing Checkpoint)
-            if (typeof globalIsAdmin !== 'undefined' && !globalIsAdmin) { 
-                // أ. استخراج أسماء الفروع التي يشرف عليها هذا الموظف (HR)
-                const mySupervisedBranches = locationsArray
-                    .filter(loc => String(loc.hrUsername) === String(currentUsername))
-                    .map(loc => loc.branch);
+        // 2. 🛡️ البوابة الجغرافية (Geo-Routing Checkpoint)
+        if (typeof globalIsAdmin !== 'undefined' && !globalIsAdmin) { 
+            const mySupervisedBranches = locationsArray
+                .filter(loc => String(loc.hrUsername) === String(currentUsername))
+                .map(loc => loc.branch);
 
-                // ب. فلترة الطلبات (مع إضافة تصريح الـ VIP للطلبات المعينة)
-                filtered = filtered.filter(r => {
-                    // 🔥 تصريح المرور الذهبي: إذا كان الطلب مُعيناً لي شخصياً، اعرضه فوراً وتجاهل الفرع!
-                    if (String(r.assignedHrEmp) === String(currentUsername)) {
-                        return true;
-                    }
+            filtered = filtered.filter(r => {
+                if (String(r.assignedHrEmp) === String(currentUsername)) return true;
 
-                    // للطلبات العامة: هل صاحب الطلب في فرع أشرف عليه؟
-                    const reqUser = allUsersData.find(x => String(x.username) === String(r.empUsername));
-                    return reqUser && mySupervisedBranches.includes(reqUser.branch);
-                });
-            }
+                // 🌟 الحل هنا: استخدام empUsername أو username (أيهما متوفر من السيرفر)
+                const targetUsername = String(r.empUsername || r.username); 
+                const reqUser = allUsersData.find(x => String(x.username) === targetUsername);
+                return reqUser && mySupervisedBranches.includes(reqUser.branch);
+            });
+        }
 
-            // 3. 🔍 قراءة الفلاتر المعتادة من الشاشة (شريط البحث، الفروع، نوع الطلب)
-            const empQ = document.getElementById('hr-filter-emp') ? document.getElementById('hr-filter-emp').value.trim().toLowerCase() : '';
-            const branchQ = document.getElementById('hr-filter-branch') ? document.getElementById('hr-filter-branch').value : '';
-            const typeQ = document.getElementById('hr-filter-type') ? document.getElementById('hr-filter-type').value : '';
+        // 3. 🔍 قراءة الفلاتر المعتادة
+        const empQ = document.getElementById('hr-filter-emp') ? document.getElementById('hr-filter-emp').value.trim().toLowerCase() : '';
+        const branchQ = document.getElementById('hr-filter-branch') ? document.getElementById('hr-filter-branch').value : '';
+        const typeQ = document.getElementById('hr-filter-type') ? document.getElementById('hr-filter-type').value : '';
 
-            // 4. تطبيق الفلاتر على المصفوفة
-            if (typeof currentHrTab !== 'undefined' && currentHrTab === 'mine') {
-                filtered = filtered.filter(r => String(r.assignedHrEmp) === String(currentUsername));
-            }
-            if (typeof currentHrStatusFilter !== 'undefined' && currentHrStatusFilter) {
-                filtered = filtered.filter(r => r.status === currentHrStatusFilter);
-            }
-            if(empQ) {
-                filtered = filtered.filter(r => r.empUsername.toLowerCase().includes(empQ) || r.empName.toLowerCase().includes(empQ));
-            }
-            if(typeQ) {
-                filtered = filtered.filter(r => r.reason === typeQ);
-            }
-            if(branchQ) { 
-                filtered = filtered.filter(r => { 
-                    const u = allUsersData.find(x => String(x.username) === String(r.empUsername)); 
-                    return u && u.branch === branchQ; 
-                }); 
-            }
+        // 4. تطبيق الفلاتر
+        if (typeof currentHrTab !== 'undefined' && currentHrTab === 'mine') {
+            filtered = filtered.filter(r => String(r.assignedHrEmp) === String(currentUsername));
+        }
+        if (typeof currentHrStatusFilter !== 'undefined' && currentHrStatusFilter) {
+            filtered = filtered.filter(r => r.status === currentHrStatusFilter);
+        }
+        if(empQ) {
+            filtered = filtered.filter(r => {
+                const searchUsername = r.empUsername || r.username || '';
+                return searchUsername.toLowerCase().includes(empQ) || (r.empName && r.empName.toLowerCase().includes(empQ));
+            });
+        }
+        if(typeQ) {
+            filtered = filtered.filter(r => r.reason === typeQ || r.type === typeQ); // دعم كلا الاسمين
+        }
+        if(branchQ) { 
+            filtered = filtered.filter(r => { 
+                const targetUsername = String(r.empUsername || r.username);
+                const u = allUsersData.find(x => String(x.username) === targetUsername); 
+                return u && u.branch === branchQ; 
+            }); 
+        }
 
-            // 5. 📊 رسم الجدول (Rendering)
-            const tbody = document.getElementById('hr-requests-table');
-            if(!tbody) return;
+        // 5. 📊 رسم الجدول
+        const tbody = document.getElementById('hr-requests-table');
+        if(!tbody) return;
+        
+        if(filtered.length === 0) { 
+            tbody.innerHTML = '<tr><td colspan="9" style="text-align:center; padding: 20px; font-weight: bold; color: #777;"><i class="fas fa-inbox fa-2x" style="color:#ddd; margin-bottom:10px; display:block;"></i>لا توجد طلبات مطابقة في نطاق إشرافك أو حسب الفلاتر المحددة</td></tr>'; 
+            return; 
+        }
+
+        tbody.innerHTML = filtered.map(r => {
+            const targetUsername = String(r.empUsername || r.username || '');
+            const u = allUsersData.find(x => String(x.username) === targetUsername) || {};
+            const safeDate = (r.date || r.createdAt || "").split(',')[0]; // دعم كلا الاسمين للتاريخ
+            const safeReason = r.reason || r.type || ''; // دعم كلا الاسمين للسبب
             
-            // حالة عدم وجود طلبات
-            if(filtered.length === 0) { 
-                tbody.innerHTML = '<tr><td colspan="9" style="text-align:center; padding: 20px; font-weight: bold; color: #777;"><i class="fas fa-inbox fa-2x" style="color:#ddd; margin-bottom:10px; display:block;"></i>لا توجد طلبات مطابقة في نطاق إشرافك أو حسب الفلاتر المحددة</td></tr>'; 
-                return; 
-            }
+            const attachmentLink = r.attachment ? `<a href="${r.attachment}" target="_blank" style="color:#2980b9; font-weight:bold; font-size:12px;"><i class="fas fa-paperclip"></i> المرفق</a>` : '<span style="color:#ccc; font-size:11px;">لا يوجد</span>';
+            
+            let badge = '';
+            if(r.status === 'escalated') badge = '<span class="status-badge" style="background:#e74c3c;">جديد لم يُعين 🔴</span>';
+            else if(r.status === 'hr_assigned') badge = '<span class="status-badge" style="background:#f39c12;">تحت الإجراء ⏳</span>';
+            else if(r.status === 'resolved') badge = '<span class="status-badge" style="background:#3498db;">بانتظار التقييم 🔄</span>';
+            else if(r.status === 'completed') badge = '<span class="status-badge" style="background:#27ae60;">مغلق نهائياً ✅</span>';
+            else badge = `<span class="status-badge" style="background:#9b59b6;">${r.status}</span>`;
 
-            // رسم الصفوف
-            tbody.innerHTML = filtered.map(r => {
-                const u = allUsersData.find(x => String(x.username) === String(r.empUsername)) || {};
-                const safeDate = (r.date || "").split(',')[0];
-                const attachmentLink = r.attachment ? `<a href="${r.attachment}" target="_blank" style="color:#2980b9; font-weight:bold; font-size:12px;"><i class="fas fa-paperclip"></i> المرفق</a>` : '<span style="color:#ccc; font-size:11px;">لا يوجد</span>';
-                
-                // تصميم حالات الطلب (Badges)
-                let badge = '';
-                if(r.status === 'escalated') badge = '<span class="status-badge" style="background:#e74c3c;">جديد لم يُعين 🔴</span>';
-                else if(r.status === 'hr_assigned') badge = '<span class="status-badge" style="background:#f39c12;">تحت الإجراء ⏳</span>';
-                else if(r.status === 'resolved') badge = '<span class="status-badge" style="background:#3498db;">بانتظار التقييم 🔄</span>';
-                else if(r.status === 'completed') badge = '<span class="status-badge" style="background:#27ae60;">مغلق نهائياً ✅</span>';
-                else badge = `<span class="status-badge" style="background:#9b59b6;">${r.status}</span>`;
+            const eyeBtn = `<button onclick="viewRequestDetails('${r.id}')" style="background:#3498db; color:white; border:none; padding:5px 10px; border-radius:4px; cursor:pointer; font-size:11px;"><i class="fas fa-eye"></i> التفاصيل</button>`;
 
-                // 👁️ زر التفاصيل المشترك
-                const eyeBtn = `<button onclick="viewRequestDetails('${r.id}')" style="background:#3498db; color:white; border:none; padding:5px 10px; border-radius:4px; cursor:pointer; font-size:11px;">
-    <i class="fas fa-eye"></i> التفاصيل
-</button>`;
-
-                let actionsInner = '';
-
-                // أزرار الإجراءات بناءً على حالة الطلب
-                if(r.status === 'escalated') {
+            let actionsInner = '';
+            if(r.status === 'escalated') {
+                actionsInner = `
+                    ${eyeBtn}
+                    <button onclick="openHrAssignModal('${r.id}')" style="flex:1; background:#27ae60; color:white; border:none; padding:6px 8px; border-radius:4px; cursor:pointer; font-size:11px; white-space:nowrap;"><i class="fas fa-user-check"></i> تعيين</button>
+                    <button onclick="openHrRejectModal('${r.id}')" style="flex:1; background:#e74c3c; color:white; border:none; padding:6px 8px; border-radius:4px; cursor:pointer; font-size:11px; white-space:nowrap;"><i class="fas fa-times"></i> رفض</button>
+                `;
+            } else if(r.status === 'hr_assigned') {
+                if (String(r.assignedHrEmp) === String(currentUsername)) {
                     actionsInner = `
                         ${eyeBtn}
-                        <button onclick="openHrAssignModal('${r.id}')" style="flex:1; background:#27ae60; color:white; border:none; padding:6px 8px; border-radius:4px; cursor:pointer; font-size:11px; white-space:nowrap;"><i class="fas fa-user-check"></i> تعيين</button>
-                        <button onclick="openHrRejectModal('${r.id}')" style="flex:1; background:#e74c3c; color:white; border:none; padding:6px 8px; border-radius:4px; cursor:pointer; font-size:11px; white-space:nowrap;"><i class="fas fa-times"></i> رفض</button>
-                    `;
-                } else if(r.status === 'hr_assigned') {
-                    if (String(r.assignedHrEmp) === String(currentUsername)) {
-                        actionsInner = `
-                            ${eyeBtn}
-                            <button onclick="window.openHrResolveModal('${r.id}')" style="flex:1; background:#27ae60; color:white; border:none; padding:6px 8px; border-radius:4px; cursor:pointer; font-size:11px; white-space:nowrap;"><i class="fas fa-check-double"></i> إنجاز الطلب</button>
-                        `;
-                    } else {
-                        actionsInner = `
-                            ${eyeBtn}
-                            <span style="flex:1; font-size:11px; color:#f39c12; font-weight:bold; display:flex; align-items:center; justify-content:center;">يُعالج بواسطة زميل</span>
-                        `;
-                    }
-                } else if(r.status === 'completed' || r.status === 'resolved') {
-                    actionsInner = `
-                        ${eyeBtn}
-                        <span style="flex:1; font-size:11px; color:#27ae60; font-weight:bold; display:flex; align-items:center; justify-content:center;"><i class="fas fa-lock"></i> تم الرد</span>
+                        <button onclick="window.openHrResolveModal('${r.id}')" style="flex:1; background:#27ae60; color:white; border:none; padding:6px 8px; border-radius:4px; cursor:pointer; font-size:11px; white-space:nowrap;"><i class="fas fa-check-double"></i> إنجاز الطلب</button>
                     `;
                 } else {
-                    actionsInner = eyeBtn;
+                    actionsInner = `${eyeBtn}<span style="flex:1; font-size:11px; color:#f39c12; font-weight:bold; display:flex; align-items:center; justify-content:center;">يُعالج بواسطة زميل</span>`;
                 }
+            } else if(r.status === 'completed' || r.status === 'resolved') {
+                actionsInner = `${eyeBtn}<span style="flex:1; font-size:11px; color:#27ae60; font-weight:bold; display:flex; align-items:center; justify-content:center;"><i class="fas fa-lock"></i> تم الرد</span>`;
+            } else {
+                actionsInner = eyeBtn;
+            }
 
-                // 📦 تغليف الأزرار بصندوق مرن (Flexbox) لترتيبها بأناقة
-                const actions = `<div style="display:flex; gap:5px; justify-content:center; min-width:180px;">${actionsInner}</div>`;
+            const actions = `<div style="display:flex; gap:5px; justify-content:center; min-width:180px;">${actionsInner}</div>`;
+            const assignedName = r.assignedHrEmp ? (allUsersData.find(x => String(x.username) === String(r.assignedHrEmp))?.name || r.assignedHrEmp) : '<span style="color:#e74c3c; font-size:11px;">لم يُعين</span>';
 
-                const assignedName = r.assignedHrEmp ? (allUsersData.find(x => String(x.username) === String(r.assignedHrEmp))?.name || r.assignedHrEmp) : '<span style="color:#e74c3c; font-size:11px;">لم يُعين</span>';
-
-                // رسم الصف النهائي
-                return `<tr>
-                    <td style="font-size:11px; font-weight:bold; color:#555;">${r.id.replace('REQ-','')}</td>
-                    <td style="font-size:12px;">${safeDate}</td>
-                    <td><strong>${r.empName}</strong><br><span style="font-size:10px; color:#888;">${r.empUsername}</span></td>
-                    <td style="font-size:12px;">${u.branch || '-'}</td>
-                    <td style="font-size:12px; color:#27ae60; font-weight:bold;">${r.reason}</td>
-                    <td>${attachmentLink}</td>
-                    <td>${badge}</td>
-                    <td style="font-size:12px; font-weight:bold;">${assignedName}</td>
-                    <td style="text-align:center;">${actions}</td> 
-                </tr>`;
-            }).join('');
-        }
+            return `<tr>
+                <td style="font-size:11px; font-weight:bold; color:#555;">${String(r.id).replace('REQ-','')}</td>
+                <td style="font-size:12px;">${safeDate}</td>
+                <td><strong>${r.empName || 'غير متوفر'}</strong><br><span style="font-size:10px; color:#888;">${targetUsername}</span></td>
+                <td style="font-size:12px;">${u.branch || '-'}</td>
+                <td style="font-size:12px; color:#27ae60; font-weight:bold;">${safeReason}</td>
+                <td>${attachmentLink}</td>
+                <td>${badge}</td>
+                <td style="font-size:12px; font-weight:bold;">${assignedName}</td>
+                <td style="text-align:center;">${actions}</td> 
+            </tr>`;
+        }).join('');
+    } catch(e) {
+        console.error("❌ حدث خطأ أثناء رسم الجدول:", e);
+    }
+}
         function openHrAssignModal(ticketId) {
             document.getElementById('assign-ticket-id').value = ticketId; document.getElementById('assign-comment').value = '';
             const hrStaff = allUsersData.filter(u => u.roleArabic === 'موظف ادارة' || u.role === 'admin');
