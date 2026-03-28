@@ -1688,59 +1688,100 @@ app.post('/api/hr-resolve', (req, res) => {
 });
 
 // ==================== نظام إدارة الإجازات والربط الآلي بالتحضير ====================
-const leavesFile = path.join(DATA_DIR, 'leaves.json');
-let leavesDB = safeLoadDB(leavesFile, []);
-
-app.get('/api/leaves', (req, res) => res.json(leavesDB));
-
-app.post('/api/leaves', (req, res) => {
+// ======================================================================
+// 🌴 1. مسار جلب كل الإجازات (SQL)
+// ======================================================================
+app.get('/api/leaves', async (req, res) => {
     try {
-        const leaveData = req.body; 
-        leaveData.id = Date.now().toString();
-        leaveData.entryDate = new Date().toISOString().split('T')[0];
+        const leaves = await prisma.leave.findMany({
+            include: { 
+                employee: { select: { username: true, name: true } } // جلب بيانات الموظف
+            },
+            orderBy: { id: 'desc' } // الأحدث أولاً
+        });
+
+        // تشكيل البيانات لتناسب الواجهة الأمامية
+        const formattedLeaves = leaves.map(l => ({
+            id: l.id.toString(), // الواجهة تتوقع ID كنص
+            username: l.employee.username,
+            name: l.employee.name,
+            type: l.type,
+            startDate: fromPrismaDate(l.startDate),
+            duration: l.duration,
+            endDate: fromPrismaDate(l.endDate),
+            returnDate: fromPrismaDate(l.returnDate),
+            entryDate: fromPrismaDate(l.enteryDate)
+        }));
+
+        res.json(formattedLeaves);
+    } catch (error) {
+        console.error("❌ خطأ في جلب الإجازات من SQL:", error);
+        res.json([]);
+    }
+});
+
+// ======================================================================
+// 🌴 2. مسار إدخال إجازة جديدة (SQL + تحديث التحضير آلياً)
+// ======================================================================
+app.post('/api/leaves', async (req, res) => {
+    try {
+        const leaveData = req.body;
         
-        const user = usersDB.find(u => u.username === leaveData.username);
-        if(user) leaveData.name = user.name;
-        else return res.json({success: false, message: 'الموظف غير موجود'});
+        // 1. البحث عن الموظف
+        const emp = await prisma.employee.findUnique({ 
+            where: { username: String(leaveData.username).trim() } 
+        });
+        
+        if (!emp) return res.json({ success: false, message: 'الموظف غير موجود في قاعدة البيانات' });
 
-        leavesDB.push(leaveData);
-        fs.writeFileSync(leavesFile, JSON.stringify(leavesDB, null, 2));
+        // 2. إنشاء سجل الإجازة في SQL
+        const newLeave = await prisma.leave.create({
+            data: {
+                employeeId: emp.id,
+                type: leaveData.type,
+                startDate: toPrismaDate(leaveData.startDate),
+                duration: parseInt(leaveData.duration),
+                endDate: toPrismaDate(leaveData.endDate),
+                returnDate: toPrismaDate(leaveData.returnDate),
+                enteryDate: toPrismaDate(new Date().toISOString())
+            }
+        });
 
+        // 3. السحر الآلي: انعكاس الإجازة على أيام التحضير (تغييرها إلى V)
         let start = new Date(leaveData.startDate);
-        let systemLabel = `إجازة (${leaveData.type}) مدخلة بالنظام`; 
-        let currentTime = new Date().toISOString(); 
+        let systemLabel = `إجازة (${leaveData.type}) مدخلة بالنظام`;
 
-        for(let i = 0; i < parseInt(leaveData.duration); i++) {
+        for (let i = 0; i < parseInt(leaveData.duration); i++) {
             let currentDate = new Date(start);
             currentDate.setDate(currentDate.getDate() + i);
-            let dateStr = currentDate.toISOString().split('T')[0];
+            let prismaDate = toPrismaDate(currentDate.toISOString()); // المترجم الذكي
 
-            let attIndex = attendanceDB.findIndex(a => a.date === dateStr && a.username === leaveData.username);
-            if(attIndex !== -1) {
-                attendanceDB[attIndex].code = 'V'; 
-                attendanceDB[attIndex].managerName = systemLabel;
-                attendanceDB[attIndex].timestamp = currentTime;
+            // نبحث بالطريقة الآمنة (بدون Upsert) لنتجنب مشاكل Railway
+            const existingRecord = await prisma.attendance.findFirst({
+                where: { date: prismaDate, employeeId: emp.id }
+            });
+
+            if (existingRecord) {
+                await prisma.attendance.update({
+                    where: { id: existingRecord.id },
+                    data: { code: 'V', note: systemLabel, timestamp: new Date().toISOString() }
+                });
             } else {
-                attendanceDB.push({ 
-                    date: dateStr,
-                    username: user.username,
-                    name: user.name,
-                    branch: user.branch || '',
-                    code: 'V',
-                    managerName: systemLabel, 
-                    timestamp: currentTime    
+                await prisma.attendance.create({
+                    data: { employeeId: emp.id, date: prismaDate, code: 'V', note: systemLabel, timestamp: new Date().toISOString() }
                 });
             }
         }
-        fs.writeFileSync(attendanceFile, JSON.stringify(attendanceDB, null, 2));
 
-        // تسجيل الحدث بشكل آمن
-        safeLogAudit(req.body.byUser, 'إدخال إجازة', leaveData.username, `نوع الإجازة: ${leaveData.type} لمدة ${leaveData.duration} يوم`);
+        // 4. توثيق الرقابة
+        if (typeof safeLogAudit === 'function') {
+            safeLogAudit(leaveData.byUser, 'إدخال إجازة', leaveData.username, `نوع الإجازة: ${leaveData.type} لمدة ${leaveData.duration} يوم`);
+        }
 
         res.json({ success: true });
     } catch (error) {
-        console.error("خطأ في حفظ الإجازة:", error);
-        res.json({ success: false, message: 'حدث خطأ في السيرفر' });
+        console.error("❌ خطأ في حفظ الإجازة:", error);
+        res.json({ success: false, message: 'حدث خطأ في السيرفر أثناء تسجيل الإجازة' });
     }
 });
 
