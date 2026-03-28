@@ -1072,6 +1072,7 @@ app.post('/api/chat', async (req, res) => {
 });
 
 // ==================== إدارة النسخ الاحتياطية الشاملة ====================
+// ==================== إدارة النسخ الاحتياطية الشاملة (المحدثة 🚀) ====================
 app.get('/api/backup', (req, res) => {
     try {
         const fullBackup = {
@@ -1085,7 +1086,10 @@ app.get('/api/backup', (req, res) => {
             branches: branchesDB,
             jobs: jobsDB,
             shiftsConfig: shiftsConfigDB,
-            locations: locationsDB
+            locations: locationsDB,
+            // 🔥 تمت إضافة الغرف المفقودة للباك أب
+            leaves: leavesDB, 
+            penaltiesHistory: penaltiesHistoryDB 
         };
         
         const backupJson = JSON.stringify(fullBackup, null, 2);
@@ -1098,43 +1102,37 @@ app.get('/api/backup', (req, res) => {
     }
 });
 
-// ==================== إدارة النسخ الاحتياطية الشاملة ====================
-// (مسار الجلب /api/backup يبقى كما هو عندك بدون تعديل)
-
-// 🔥 التعديل هنا: إضافة upload.single('backupFile') لفك تشفير الملف 
+// 🔥 مسار الاستعادة المحدث (ليستقبل الإجازات والعقوبات)
 app.post('/api/restore-backup', upload.single('backupFile'), (req, res) => {
     try {
-        // 🛡️ استخدام req.file بدلاً من req.files
-        if (!req.file) {
-            return res.json({ success: false, message: 'لم يتم إرفاق ملف!' });
-        }
+        if (!req.file) return res.json({ success: false, message: 'لم يتم إرفاق ملف!' });
 
-        // قراءة الملف من الـ buffer الخاص بمكتبة multer
         const backupData = JSON.parse(req.file.buffer.toString('utf8'));
 
         if (backupData.users) { usersDB = backupData.users; fs.writeFileSync(usersFile, JSON.stringify(usersDB, null, 2)); }
         if (backupData.requests) { requestsDB = backupData.requests; fs.writeFileSync(requestsFile, JSON.stringify(requestsDB, null, 2)); }
         if (backupData.announcements) { announcementsDB = backupData.announcements; fs.writeFileSync(announcementsFile, JSON.stringify(announcementsDB, null, 2)); }
         if (backupData.attendance) { attendanceDB = backupData.attendance; fs.writeFileSync(attendanceFile, JSON.stringify(attendanceDB, null, 2)); }
+        
+        // 🔥 تمت إضافة أنابيب الاستقبال الجديدة
+        if (backupData.leaves) { leavesDB = backupData.leaves; fs.writeFileSync(leavesFile, JSON.stringify(leavesDB, null, 2)); }
+        if (backupData.penaltiesHistory) { penaltiesHistoryDB = backupData.penaltiesHistory; fs.writeFileSync(penaltiesHistoryFile, JSON.stringify(penaltiesHistoryDB, null, 2)); }
+
+        // باقي الجداول...
         if (backupData.reasons) { reasonsDB = backupData.reasons; fs.writeFileSync(reasonsFile, JSON.stringify(reasonsDB, null, 2)); }
         if (backupData.forms) { formsDB = backupData.forms; fs.writeFileSync(formsFile, JSON.stringify(formsDB, null, 2)); }
         if (backupData.policies) { policiesDB = backupData.policies; fs.writeFileSync(policiesFile, JSON.stringify(policiesDB, null, 2)); }
         if (backupData.branches) { branchesDB = backupData.branches; fs.writeFileSync(branchesFile, JSON.stringify(branchesDB, null, 2)); }
         if (backupData.jobs) { jobsDB = backupData.jobs; fs.writeFileSync(jobsFile, JSON.stringify(jobsDB, null, 2)); }
-        if (backupData.shiftsConfig) { shiftsConfigDB = backupData.shiftsConfig; fs.writeFileSync(path.join(__dirname, 'data', 'shiftsConfig.json'), JSON.stringify(shiftsConfigDB, null, 2)); }
-        if (backupData.shifts) { shiftsDB = backupData.shifts; fs.writeFileSync(path.join(__dirname, 'data', 'shifts.json'), JSON.stringify(shiftsDB, null, 2)); }
-        if (backupData.locations) { 
-            locationsDB = backupData.locations; 
-            fs.writeFileSync(locationsFile, JSON.stringify(locationsDB, null, 2)); 
-        }
+        if (backupData.shiftsConfig) { shiftsConfigDB = backupData.shiftsConfig; fs.writeFileSync(shiftsConfigFile, JSON.stringify(shiftsConfigDB, null, 2)); }
+        if (backupData.locations) { locationsDB = backupData.locations; fs.writeFileSync(locationsFile, JSON.stringify(locationsDB, null, 2)); }
 
-        res.json({ success: true, message: 'تمت استعادة النسخة بنجاح!' });
+        res.json({ success: true, message: 'تمت استعادة النسخة (مع الإجازات والعقوبات) بنجاح!' });
     } catch (e) {
         console.error('خطأ في الاستعادة:', e);
         res.json({ success: false, message: 'ملف النسخة الاحتياطية تالف أو غير مدعوم.' });
     }
 });
-
 app.get('/api/shifts-config', (req, res) => res.json(shiftsConfigDB));
 
 app.post('/api/shifts-config', (req, res) => {
