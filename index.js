@@ -1895,106 +1895,154 @@ app.post('/api/recalculate-leaves', (req, res) => {
         res.json({ success: false, message: "حدث خطأ أثناء عملية الحساب." });
     }
 });
-// ====================================================================================================
-
-// ==================== 1. محرك حذف الإجازة (والتراجع الآلي عن التحضير والرصيد) ====================
-app.post('/api/leave-delete', (req, res) => {
+// ======================================================================
+// 🗑️ 3. مسار حذف الإجازة (SQL) - مع التراجع الآلي عن التحضير والرصيد
+// ======================================================================
+app.post('/api/leave-delete', async (req, res) => {
     try {
         const { id, byUser } = req.body;
-        const leaveIndex = leavesDB.findIndex(l => l.id === id);
-        if (leaveIndex === -1) return res.json({ success: false, message: 'الإجازة غير موجودة' });
+        const leaveId = parseInt(id); // تحويل الـ ID إلى رقم لأن SQL يتعامل بالأرقام
+        
+        // 1. جلب الإجازة مع بيانات الموظف
+        const leave = await prisma.leave.findUnique({ 
+            where: { id: leaveId },
+            include: { employee: true }
+        });
+        
+        if (!leave) return res.json({ success: false, message: 'الإجازة غير موجودة في قاعدة البيانات' });
 
-        const leave = leavesDB[leaveIndex];
-        const user = usersDB.find(u => u.username === leave.username);
+        const emp = leave.employee;
 
-        // أ. التراجع عن التحضير (إرجاع الأيام من V إلى D)
+        // 2. التراجع عن التحضير (إرجاع الأيام من V إلى D)
         let start = new Date(leave.startDate);
-        for (let i = 0; i < parseInt(leave.duration); i++) {
-            let curr = new Date(start); curr.setDate(curr.getDate() + i);
-            let dateStr = curr.toISOString().split('T')[0];
+        for (let i = 0; i < leave.duration; i++) {
+            let curr = new Date(start); 
+            curr.setDate(curr.getDate() + i);
+            let prismaDate = toPrismaDate(curr.toISOString()); // المترجم الذكي
             
-            let attIdx = attendanceDB.findIndex(a => a.date === dateStr && a.username === leave.username);
-            if (attIdx > -1 && attendanceDB[attIdx].code === 'V') {
-                attendanceDB[attIdx].code = 'D'; // إعادته للدوام
-                attendanceDB[attIdx].managerName = 'نظام (تراجع عن إجازة)';
-                attendanceDB[attIdx].timestamp = new Date().toISOString();
+            const attRecord = await prisma.attendance.findFirst({
+                where: { date: prismaDate, employeeId: emp.id }
+            });
+
+            if (attRecord && attRecord.code === 'V') {
+                await prisma.attendance.update({
+                    where: { id: attRecord.id },
+                    data: { code: 'D', note: 'نظام (تراجع عن إجازة)', timestamp: new Date().toISOString() }
+                });
             }
         }
 
-        // ب. التراجع عن الرصيد المستخدم (فقط إذا كانت إجازة سنوية)
-        if (user && leave.type === 'سنوية') {
-            user.usedLeaves = Math.max(0, (user.usedLeaves || 0) - parseInt(leave.duration));
-            user.leaveBalance = parseFloat(((user.leaveCredit || 0) - user.usedLeaves).toFixed(3));
+        // 3. التراجع عن الرصيد المستخدم (فقط إذا كانت إجازة سنوية)
+        if (leave.type === 'سنوية') {
+            const newUsed = Math.max(0, (emp.usedLeaves || 0) - leave.duration);
+            const newBalance = parseFloat(((emp.leaveCredit || 0) - newUsed).toFixed(3));
+            
+            await prisma.employee.update({
+                where: { id: emp.id },
+                data: { usedLeaves: newUsed, leaveBalance: newBalance }
+            });
         }
 
-        // ج. حذف سجل الإجازة وتسجيل الرقابة
-        leavesDB.splice(leaveIndex, 1);
-        safeLogAudit(byUser, 'حذف إجازة', leave.username, `إلغاء إجازة ${leave.type} (${leave.duration} أيام)`);
+        // 4. حذف سجل الإجازة نهائياً وتسجيل الرقابة
+        await prisma.leave.delete({ where: { id: leaveId } });
 
-        fs.writeFileSync(attendanceFile, JSON.stringify(attendanceDB, null, 2));
-        fs.writeFileSync(usersFile, JSON.stringify(usersDB, null, 2));
-        fs.writeFileSync(leavesFile, JSON.stringify(leavesDB, null, 2));
+        if (typeof safeLogAudit === 'function') {
+            safeLogAudit(byUser, 'حذف إجازة', emp.username, `إلغاء إجازة ${leave.type} (${leave.duration} أيام)`);
+        }
 
         res.json({ success: true });
     } catch (error) {
-        console.error(error); res.json({ success: false });
+        console.error("❌ خطأ في حذف الإجازة:", error);
+        res.json({ success: false, message: "حدث خطأ أثناء الحذف." });
     }
 });
 
-// ==================== 2. محرك تعديل الإجازة (Undo القديم + Redo الجديد) ====================
-app.post('/api/leave-edit', (req, res) => {
+// ======================================================================
+// ✏️ 4. مسار تعديل الإجازة (SQL) - يمسح الأيام القديمة ويطبق الجديدة
+// ======================================================================
+app.post('/api/leave-edit', async (req, res) => {
     try {
         const { id, type, startDate, duration, endDate, returnDate, byUser } = req.body;
-        const leaveIndex = leavesDB.findIndex(l => l.id === id);
-        if (leaveIndex === -1) return res.json({ success: false });
+        const leaveId = parseInt(id);
+        const newDuration = parseInt(duration);
 
-        const oldLeave = leavesDB[leaveIndex];
-        const user = usersDB.find(u => u.username === oldLeave.username);
+        // جلب الإجازة القديمة
+        const oldLeave = await prisma.leave.findUnique({ 
+            where: { id: leaveId }, include: { employee: true } 
+        });
+        
+        if (!oldLeave) return res.json({ success: false });
+        const emp = oldLeave.employee;
 
-        // --- الخطوة 1: مسح تأثير الإجازة القديمة ---
+        // --- الخطوة 1: مسح تأثير الإجازة القديمة (من التحضير والرصيد) ---
         let oldStart = new Date(oldLeave.startDate);
-        for (let i = 0; i < parseInt(oldLeave.duration); i++) {
+        for (let i = 0; i < oldLeave.duration; i++) {
             let curr = new Date(oldStart); curr.setDate(curr.getDate() + i);
-            let dateStr = curr.toISOString().split('T')[0];
-            let attIdx = attendanceDB.findIndex(a => a.date === dateStr && a.username === oldLeave.username);
-            if (attIdx > -1 && attendanceDB[attIdx].code === 'V') { attendanceDB.splice(attIdx, 1); } // نحذف التحضير القديم
-        }
-        if (user && oldLeave.type === 'سنوية') { user.usedLeaves = Math.max(0, (user.usedLeaves || 0) - parseInt(oldLeave.duration)); }
-
-        // --- الخطوة 2: تطبيق تأثير الإجازة الجديدة ---
-        let newStart = new Date(startDate);
-        let systemLabel = `تعديل إجازة (${type})`;
-        let currentTime = new Date().toISOString();
-
-        for (let i = 0; i < parseInt(duration); i++) {
-            let curr = new Date(newStart); curr.setDate(curr.getDate() + i);
-            let dateStr = curr.toISOString().split('T')[0];
+            let prismaDate = toPrismaDate(curr.toISOString());
             
-            let attIdx = attendanceDB.findIndex(a => a.date === dateStr && a.username === oldLeave.username);
-            if (attIdx !== -1) {
-                attendanceDB[attIdx].code = 'V'; attendanceDB[attIdx].managerName = systemLabel; attendanceDB[attIdx].timestamp = currentTime;
-            } else {
-                attendanceDB.push({ date: dateStr, username: oldLeave.username, name: oldLeave.name, branch: user ? user.branch : '', code: 'V', managerName: systemLabel, timestamp: currentTime });
+            const attRecord = await prisma.attendance.findFirst({ where: { date: prismaDate, employeeId: emp.id } });
+            if (attRecord && attRecord.code === 'V') {
+                await prisma.attendance.delete({ where: { id: attRecord.id } }); // مسح التحضير القديم لتجنب التداخل
             }
         }
-        if (user && type === 'سنوية') {
-            user.usedLeaves = (user.usedLeaves || 0) + parseInt(duration);
-            user.leaveBalance = parseFloat(((user.leaveCredit || 0) - user.usedLeaves).toFixed(3));
+        
+        let currentUsed = emp.usedLeaves || 0;
+        if (oldLeave.type === 'سنوية') currentUsed = Math.max(0, currentUsed - oldLeave.duration);
+
+        // --- الخطوة 2: تطبيق تأثير الإجازة الجديدة (على التحضير والرصيد) ---
+        let newStart = new Date(startDate);
+        let systemLabel = `تعديل إجازة (${type})`;
+
+        for (let i = 0; i < newDuration; i++) {
+            let curr = new Date(newStart); curr.setDate(curr.getDate() + i);
+            let prismaDate = toPrismaDate(curr.toISOString());
+            
+            const attRecord = await prisma.attendance.findFirst({ where: { date: prismaDate, employeeId: emp.id } });
+            if (attRecord) {
+                await prisma.attendance.update({
+                    where: { id: attRecord.id },
+                    data: { code: 'V', note: systemLabel, timestamp: new Date().toISOString() }
+                });
+            } else {
+                await prisma.attendance.create({
+                    data: { employeeId: emp.id, date: prismaDate, code: 'V', note: systemLabel, timestamp: new Date().toISOString() }
+                });
+            }
         }
 
-        // --- الخطوة 3: تحديث سجل الإجازة ---
-        leavesDB[leaveIndex] = { ...oldLeave, type, startDate, duration, endDate, returnDate };
-        safeLogAudit(byUser, 'تعديل إجازة', oldLeave.username, `تعديل إلى ${type} لمدة ${duration} أيام`);
+        if (type === 'سنوية') currentUsed += newDuration;
+        const newBalance = parseFloat(((emp.leaveCredit || 0) - currentUsed).toFixed(3));
 
-        fs.writeFileSync(attendanceFile, JSON.stringify(attendanceDB, null, 2));
-        fs.writeFileSync(usersFile, JSON.stringify(usersDB, null, 2));
-        fs.writeFileSync(leavesFile, JSON.stringify(leavesDB, null, 2));
+        // --- الخطوة 3: حفظ التعديلات النهائية في SQL ---
+        await prisma.employee.update({
+            where: { id: emp.id },
+            data: { usedLeaves: currentUsed, leaveBalance: newBalance }
+        });
+
+        await prisma.leave.update({
+            where: { id: leaveId },
+            data: {
+                type: type,
+                startDate: toPrismaDate(startDate),
+                duration: newDuration,
+                endDate: toPrismaDate(endDate),
+                returnDate: toPrismaDate(returnDate)
+            }
+        });
+
+        if (typeof safeLogAudit === 'function') {
+            safeLogAudit(byUser, 'تعديل إجازة', emp.username, `تعديل إلى ${type} لمدة ${newDuration} أيام`);
+        }
 
         res.json({ success: true });
     } catch (error) {
-        console.error(error); res.json({ success: false });
+        console.error("❌ خطأ في تعديل الإجازة:", error);
+        res.json({ success: false });
     }
 });
+
+
+
 // =========================================================================================
 // ==================== محرك إنهاء الخدمة وتوليد مخالصة الكميات (EOS Engine) ====================
 app.post('/api/terminate-employee', (req, res) => {
