@@ -407,14 +407,61 @@ const getRiyadhTime = () => new Date().toLocaleString('ar-SA', { timeZone: 'Asia
 const getRiyadhDateOnly = () => new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Riyadh' });
 
 
-app.get('/api/users', (req, res) => { res.json(usersDB.filter(u => u.username !== 'admin')); });
-
-app.get('/api/managers', (req, res) => { 
-    const managers = usersDB.filter(u => (u.roleArabic || "").includes('مدير') || u.role === 'admin').map(u => u.name);
-    const uniqueManagers = [...new Set(managers)];
-    res.json(uniqueManagers); 
+// ==================== 🌟 1. جلب قائمة الموظفين من SQL 🌟 ====================
+app.get('/api/users', async (req, res) => {
+    try {
+        const users = await prisma.employee.findMany({
+            where: { username: { not: 'admin' } }, // استبعاد الأدمن من القائمة
+            orderBy: { username: 'asc' } // ترتيب تصاعدي حسب الرقم الوظيفي
+        });
+        res.json(users);
+    } catch (error) {
+        console.error("❌ خطأ في جلب الموظفين من SQL:", error);
+        res.status(500).json([]); // إرجاع مصفوفة فارغة لحماية الواجهة من الانهيار
+    }
 });
 
+// ==================== 🌟 2. جلب قائمة المدراء من SQL 🌟 ====================
+app.get('/api/managers', async (req, res) => {
+    try {
+        const managers = await prisma.employee.findMany({
+            where: {
+                OR: [
+                    { role: 'admin' },
+                    { roleArabic: { contains: 'مدير' } }
+                ]
+            },
+            select: { name: true } // نجلب الاسم فقط لتخفيف الضغط
+        });
+        
+        // استخراج الأسماء الفريدة فقط
+        const uniqueManagers = [...new Set(managers.map(m => m.name))];
+        res.json(uniqueManagers);
+    } catch (error) {
+        console.error("❌ خطأ في جلب المدراء من SQL:", error);
+        res.status(500).json([]);
+    }
+});
+
+// ==================== 🌟 3. جلب سجل دخول الموظفين من SQL 🌟 ====================
+app.get('/api/users-log', async (req, res) => {
+    try {
+        const log = await prisma.employee.findMany({
+            where: { username: { not: 'admin' } },
+            select: { 
+                username: true, 
+                name: true, 
+                branch: true, 
+                lastLogin: true 
+            },
+            orderBy: { username: 'asc' }
+        });
+        res.json(log);
+    } catch (error) {
+        console.error("❌ خطأ في جلب سجل الدخول:", error);
+        res.status(500).json([]);
+    }
+});
 // ==================== إضافة مستخدم جديد (نسخة ذكية تقرأ حالة الموظف) ====================
 // ==================== إضافة مستخدم جديد (النسخة الاحترافية لـ SQL) ====================
 app.post('/api/user-add', async (req, res) => { // ⬅️ أضفنا async هنا
@@ -701,12 +748,7 @@ app.post('/api/upload', upload.array('files'), async (req, res) => {
     try { hrKnowledgeBase = ""; for (let file of req.files) hrKnowledgeBase += `\n${(await mammoth.extractRawText({ buffer: file.buffer })).value}\n`; res.json({ message: "تم التحديث!" }); } catch (error) { res.status(500).json({ error: "خطأ" }); }
 });
 
-app.get('/api/users-log', (req, res) => {
-    const log = usersDB.filter(u => u.username !== 'admin').map(u => ({ username: u.username, name: u.name, branch: u.branch, lastLogin: u.lastLogin || "لم يسجل دخوله بعد" }));
-    res.json(log);
-});
 
-// ==================== جلب فريق العمل للمدير المباشر ====================
 // ==================== جلب فريق العمل للمدير المباشر ====================
 app.post('/api/my-team', (req, res) => {
     const { managerName } = req.body;
