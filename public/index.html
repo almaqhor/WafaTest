@@ -7314,7 +7314,6 @@ async function runEOSFetch(payload) {
                 alert("❌ حدث خطأ: " + res.message);
             }
         }
-       // ==================== 1. جلب ورسم جدول السجل (مطور للـ HR والمدير) ====================
         let currentLoadedPenalties = []; 
         let currentFilteredPenalties = []; 
 
@@ -7351,18 +7350,35 @@ async function runEOSFetch(payload) {
                         badge.style.display = 'none'; 
                     }
                 });
-                
-                // توجيه السيطرة لدالة الفلترة بدلاً من الرسم المباشر
+
+                // ==========================================
+                // 🔥 السحر هنا: تعيين فترة زمنية مبدئية (آخر 30 يوم) لتخفيف الضغط على الرندر
+                // ==========================================
+                const today = new Date();
+                const pastDate = new Date();
+                pastDate.setDate(today.getDate() - 30); // يمكنك تغييرها إلى 7 لأسبوع
+
+                const formatDate = (date) => {
+                    const tzOffset = date.getTimezoneOffset() * 60000;
+                    return new Date(date.getTime() - tzOffset).toISOString().split('T')[0];
+                };
+
+                const fromInput = document.getElementById('filter-pen-from');
+                const toInput = document.getElementById('filter-pen-to');
+
+                // تعبئة الحقول فقط إذا لم تكن معبأة مسبقاً من قبل المستخدم
+                if (fromInput && !fromInput.value) fromInput.value = formatDate(pastDate);
+                if (toInput && !toInput.value) toInput.value = formatDate(today);
+
+                // توجيه السيطرة لدالة الفلترة بدلاً من الرسم المباشر لكل البيانات
                 filterManagerPenalties();
                 
             } catch (error) {
+                console.error("Error loading penalties:", error);
                 tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; color:red;">حدث خطأ أثناء جلب البيانات.</td></tr>';
             }
         }
-
-        // ==================== 2. محرك فلترة ورسم جدول الجزاءات ====================
-        // ==================== محرك فلترة الرواتب (بالتواريخ) ====================
-        // ==================== محرك فلترة ورسم جدول الجزاءات ====================
+        
 async function filterManagerPenalties() {
     const searchQ = document.getElementById('filter-pen-emp-search').value.trim().toLowerCase();
     const statusQ = document.getElementById('filter-pen-status').value;
@@ -7376,7 +7392,7 @@ async function filterManagerPenalties() {
         if (statusQ === 'pending') matchStatus = p.status.includes('بانتظار');
         else if (statusQ === 'closed') matchStatus = p.status.includes('مغلقة') || p.status.includes('معتمدة');
 
-        // فلتر مسير الرواتب (تاريخ الواقعة)
+        // 🔥 فلتر التاريخ المدمج
         let matchDate = true;
         if (fromD) matchDate = matchDate && (p.violationDate >= fromD);
         if (toD) matchDate = matchDate && (p.violationDate <= toD);
