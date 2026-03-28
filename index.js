@@ -1340,62 +1340,91 @@ app.post('/api/save-attendance', (req, res) => {
     res.json({ success: true });
 });
 
-
-
-
 // ======================================================================
-// 1. مسار جلب التحضير اليومي (محدث للمنطق المعماري الجديد)
+// 🌟 1. مسار جلب التحضير اليومي (من SQL مباشرة)
 // ======================================================================
-app.post('/api/get-daily-attendance', (req, res) => {
+app.post('/api/get-daily-attendance', async (req, res) => {
     try {
         const { date, usernames, managerName } = req.body;
         
-        // فلترة مبدئية حسب التاريخ
-        let records = attendanceDB.filter(a => a.date === date);
+        let whereClause = { date: date };
 
-        // الفلترة الذهبية: البحث عن طريق مصفوفة أرقام الموظفين (usernames)
-        if (usernames && Array.isArray(usernames)) {
+        // الفلترة الذكية عبر العلاقات (Relations)
+        if (usernames && Array.isArray(usernames) && usernames.length > 0) {
             const stringUsernames = usernames.map(u => String(u));
-            records = records.filter(a => stringUsernames.includes(String(a.username)));
-        } 
-        // فلترة احتياطية (تعمل كطوق نجاة في حال عدم توفر المصفوفة)
-        else if (managerName) {
-            records = records.filter(a => a.managerName === managerName);
+            whereClause.employee = { username: { in: stringUsernames } };
+        } else if (managerName) {
+            whereClause.employee = { directManager: managerName };
         }
 
-        res.json(records); // نعيد المصفوفة دائماً لتجنب انهيار الواجهة
+        // جلب التحضير مع بيانات الموظف المرتبطة به
+        const records = await prisma.attendance.findMany({
+            where: whereClause,
+            include: {
+                employee: { select: { username: true, name: true } } // جلب الاسم والرقم من جدول الموظفين
+            }
+        });
+
+        // إعادة تشكيل البيانات لتناسب الواجهة الأمامية (التي تتوقع managerName بدلاً من note)
+        const formattedRecords = records.map(r => ({
+            date: r.date,
+            username: r.employee.username,
+            name: r.employee.name,
+            code: r.code,
+            managerName: r.note || '', // في SQL اسميناه note، الواجهة تتوقع managerName
+            timestamp: r.timestamp
+        }));
+
+        res.json(formattedRecords);
     } catch (error) {
-        console.error("Error in /api/get-daily-attendance:", error);
+        console.error("❌ Error in /api/get-daily-attendance SQL:", error);
         res.json([]); // درع حماية للسيرفر
     }
 });
 
 // ======================================================================
-// 2. مسار جلب الحالات المعلقة (T) (محدث للمنطق المعماري الجديد)
+// 🌟 2. مسار جلب الحالات المعلقة T (من SQL مباشرة)
 // ======================================================================
-app.post('/api/get-pending-attendance', (req, res) => {
+app.post('/api/get-pending-attendance', async (req, res) => {
     try {
         const { usernames, managerName } = req.body;
         
-        // فلترة مبدئية للحالات المعلقة (T)
-        let records = attendanceDB.filter(a => a.code === 'T');
+        let whereClause = { code: 'T' }; // نبحث عن الحالات المعلقة فقط
 
-        // الفلترة الذهبية: البحث عن طريق مصفوفة أرقام الموظفين
-        if (usernames && Array.isArray(usernames)) {
+        if (usernames && Array.isArray(usernames) && usernames.length > 0) {
             const stringUsernames = usernames.map(u => String(u));
-            records = records.filter(a => stringUsernames.includes(String(a.username)));
-        } 
-        // فلترة احتياطية
-        else if (managerName) {
-            records = records.filter(a => a.managerName === managerName);
+            whereClause.employee = { username: { in: stringUsernames } };
+        } else if (managerName) {
+            whereClause.employee = { directManager: managerName };
         }
 
-        res.json(records);
+        const records = await prisma.attendance.findMany({
+            where: whereClause,
+            include: {
+                employee: { select: { username: true, name: true } }
+            }
+        });
+
+        const formattedRecords = records.map(r => ({
+            date: r.date,
+            username: r.employee.username,
+            name: r.employee.name,
+            code: r.code,
+            managerName: r.note || '',
+            timestamp: r.timestamp
+        }));
+
+        res.json(formattedRecords);
     } catch (error) {
-        console.error("Error in /api/get-pending-attendance:", error);
+        console.error("❌ Error in /api/get-pending-attendance SQL:", error);
         res.json([]); 
     }
 });
+
+
+
+
+
 
 // ======================================================================
 // 3. مسار رفع الأرشيف (آلة الزمن الذكية - إكسيل)
