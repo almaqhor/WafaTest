@@ -18,6 +18,28 @@ const xlsx = require('xlsx');
 app.use(cors());
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
+const fs = require('fs');
+const path = require('path');
+
+// 📦 توصيل خزان الإجازات
+let leavesDB = [];
+try {
+    const leavesData = path.join(DATA_DIR, 'leaves.json');   
+    leavesDB = JSON.parse(leavesData);
+    console.log(`✅ تم تحميل ${leavesDB.length} إجازة من ملف الجيسون.`);
+} catch (error) {
+    console.log("⚠️ لم يتم العثور على ملف leaves.json أو أنه فارغ.");
+}
+
+// 📦 توصيل خزان العقوبات
+let penaltiesDB = [];
+try {
+    const penaltiesData = path.join(DATA_DIR, 'penaltiesHistoryDB.json');
+    penaltiesDB = JSON.parse(penaltiesData);
+    console.log(`✅ تم تحميل ${penaltiesDB.length} عقوبة من ملف الجيسون.`);
+} catch (error) {
+    console.log("⚠️ لم يتم العثور على ملف penalties.json أو أنه فارغ.");
+}
 
 // 🚀 2. مسارات الـ SQL والـ API (قبل أي Static وقبل أي ملفات)
 app.post('/test-sql', async (req, res) => {
@@ -137,7 +159,7 @@ app.get('/api/secret-migrate-penalties-bulk', async (req, res) => {
             insertedCount += chunk.length;
         }
 
-        res.json({ success: true, message: "🏁 تمت هجرة العقوبات بنجاح!", stats: { totalInJson: penaltiesDB.length, successfullyInserted: insertedCount, missingUsersCount: missingUsers.size }});
+        res.json({ success: true, message: "🏁 تمت هجرة العقوبات بنجاح!", stats: { totalInJson: let penalty = penaltiesHistoryDB.length, successfullyInserted: insertedCount, missingUsersCount: missingUsers.size }});
     } catch (error) { console.error('❌ خطأ في هجرة العقوبات:', error); res.status(500).json({ success: false, message: error.message }); }
 });
 
