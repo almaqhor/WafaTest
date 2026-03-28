@@ -190,4 +190,3 @@ model RequestTicket {
 
   employee                Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
 }
-}
