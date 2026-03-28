@@ -2895,4 +2895,103 @@ app.get('/api/secret-migrate-penalties-bulk', async (req, res) => {
 
 // =======================================================================================
 // (تأكد أن هذا السطر هو آخر سطر في الملف دائماً)
+
+// 🚀 مسار سري لتهجير الموظفين بكافة تفاصيلهم من JSON إلى SQL (التحديث الشامل)
+app.get('/api/secret-migrate-users-full', async (req, res) => {
+    try {
+        console.log("⏳ بدء عملية التهجير الشاملة لبيانات الموظفين...");
+        
+        let successCount = 0;
+        let failCount = 0;
+        let errorDetails = [];
+
+        for (const user of usersDB) {
+            try {
+                // تجميع كل بيانات الموظف (مع تحويل الأنواع لتناسب Prisma)
+                const fullUserData = {
+                    name: user.name || 'بدون اسم',
+                    password: user.password || '123456',
+                    idNumber: user.idNumber ? user.idNumber.toString() : '',
+                    idExpiry: user.idExpiry || '',
+                    nationality: user.nationality || '',
+                    gender: user.gender || 'ذكر',
+                    dobG: user.dobG || '',
+                    dobHijri: user.dobHijri || '',
+                    phone: user.phone ? user.phone.toString() : '',
+                    email: user.email || '',
+                    city: user.city || '',
+                    region: user.region || '',
+                    splAddress: user.splAddress || '',
+                    joinDate: user.joinDate || '',
+                    status: user.status || 'in Duty',
+                    isActive: user.isActive !== false, // إذا لم تكن false صراحة، فهي true
+                    branch: user.branch || '',
+                    primarySection: user.primarySection || '',
+                    jobTitle: user.jobTitle || 'موظف',
+                    role: user.role || (user.roleArabic === 'ادمن' ? 'admin' : 'user'),
+                    roleArabic: user.roleArabic || 'موظف',
+                    directManager: user.directManager || '',
+                    workingDays: parseInt(user.workingDays) || 6,
+                    offDays: parseInt(user.offDays) || 1,
+                    lastWorkingDay: user.lastWorkingDay || '',
+                    basicSalary: user.basicSalary ? user.basicSalary.toString() : '0',
+                    housingAllowance: user.housingAllowance ? user.housingAllowance.toString() : '0',
+                    otherAllowance: user.otherAllowance ? user.otherAllowance.toString() : '0',
+                    salaryE: user.salaryE ? user.salaryE.toString() : '0',
+                    gosiFees: user.gosiFees ? user.gosiFees.toString() : '0',
+                    bankName: user.bankName || '',
+                    bankIban: user.bankIban || '',
+                    leaveCredit: parseFloat(user.leaveCredit) || 0,
+                    usedLeaves: parseFloat(user.usedLeaves) || 0,
+                    leaveBalance: parseFloat(user.leaveBalance) || 0,
+                    medicalIns: user.medicalIns || '',
+                    insType: user.insType || 'Company',
+                    insExpiry: user.insExpiry || '',
+                    baladiyahCondition: user.baladiyahCondition || 'لا يوجد',
+                    baladiyahValid: user.baladiyahValid || '',
+                    baladiyahFees: user.baladiyahFees ? user.baladiyahFees.toString() : '0',
+                    emergencyName: user.emergencyName || '',
+                    emergencyNumber: user.emergencyNumber ? user.emergencyNumber.toString() : '',
+                    emergencyRelation: user.emergencyRelation || '',
+                    lastLogin: user.lastLogin || 'لم يسجل دخول بعد'
+                };
+
+                // نستخدم upsert: تحديث الشامل للموجود، أو إنشاء جديد لمن سقط سهواً
+                await prisma.employee.upsert({
+                    where: { username: user.username.toString() },
+                    update: fullUserData,
+                    create: {
+                        username: user.username.toString(),
+                        ...fullUserData
+                    }
+                });
+                
+                successCount++;
+            } catch (err) {
+                failCount++;
+                if (errorDetails.length < 15) { // حفظ أول 15 خطأ فقط للتشخيص
+                    errorDetails.push(`الموظف ${user.username}: ${err.message}`);
+                }
+            }
+        }
+
+        console.log(`✅ انتهى التحديث الشامل: نجح ${successCount}، فشل ${failCount}`);
+        
+        res.json({
+            success: true,
+            message: "🏁 تمت عملية هجرة تفاصيل الموظفين العظمى بنجاح!",
+            stats: {
+                totalInJson: usersDB.length,
+                successCount: successCount,
+                failCount: failCount,
+                sampleErrors: errorDetails
+            }
+        });
+
+    } catch (error) {
+        console.error('❌ حدث انهيار أثناء التحديث الشامل:', error);
+        res.status(500).json({ success: false, message: "خطأ قاتل: " + error.message });
+    }
+});
+
 app.listen(process.env.PORT || 3000, '0.0.0.0', () => console.log(`🚀 السيرفر يعمل بنظام الرقابة الذكي والآمن!`));
