@@ -7379,20 +7379,35 @@ async function runEOSFetch(payload) {
             }
         }
         
+// ======================================================================
+// 🔍 محرك فلترة ورسم جدول الجزاءات (نسخة مدرعة ضد الـ Undefined)
+// ======================================================================
 async function filterManagerPenalties() {
-    const searchQ = document.getElementById('filter-pen-emp-search').value.trim().toLowerCase();
-    const statusQ = document.getElementById('filter-pen-status').value;
-    const fromD = document.getElementById('filter-pen-from').value;
-    const toD = document.getElementById('filter-pen-to').value;
+    // 1. جلب القيم من الفلاتر (مع حماية إضافية لو كان الفلتر غير موجود بالشاشة)
+    const searchInput = document.getElementById('filter-pen-emp-search');
+    const statusInput = document.getElementById('filter-pen-status');
+    const fromInput = document.getElementById('filter-pen-from');
+    const toInput = document.getElementById('filter-pen-to');
 
+    const searchQ = searchInput ? searchInput.value.trim().toLowerCase() : '';
+    const statusQ = statusInput ? statusInput.value : 'all';
+    const fromD = fromInput ? fromInput.value : '';
+    const toD = toInput ? toInput.value : '';
+
+    // 2. الفلترة
     currentFilteredPenalties = currentLoadedPenalties.filter(p => {
-        const matchSearch = p.empName.toLowerCase().includes(searchQ) || p.empUsername.toLowerCase().includes(searchQ);
+        // 🛡️ درع الحماية: تأمين المتغيرات قبل استخدام toLowerCase()
+        const safeName = (p.empName || '').toLowerCase();
+        const safeUsername = String(p.empUsername || '').toLowerCase();
+        const safeStatus = (p.status || '');
+        
+        const matchSearch = safeName.includes(searchQ) || safeUsername.includes(searchQ);
         
         let matchStatus = true;
-        if (statusQ === 'pending') matchStatus = p.status.includes('بانتظار');
-        else if (statusQ === 'closed') matchStatus = p.status.includes('مغلقة') || p.status.includes('معتمدة');
+        if (statusQ === 'pending') matchStatus = safeStatus.includes('بانتظار');
+        else if (statusQ === 'closed') matchStatus = safeStatus.includes('مغلقة') || safeStatus.includes('معتمدة');
 
-        // 🔥 فلتر التاريخ المدمج
+        // فلتر التاريخ
         let matchDate = true;
         if (fromD) matchDate = matchDate && (p.violationDate >= fromD);
         if (toD) matchDate = matchDate && (p.violationDate <= toD);
@@ -7400,9 +7415,16 @@ async function filterManagerPenalties() {
         return matchSearch && matchStatus && matchDate;
     });
 
+    // 3. رسم الجدول
     const tbody = document.getElementById('manager-penalties-history-body');
+    if (!tbody) return;
+
     if (currentFilteredPenalties.length === 0) {
         tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:20px; font-weight:bold; color:#7f8c8d;">لا توجد سجلات مطابقة للفترة المحددة.</td></tr>';
+        
+        // إخفاء اللوحة إذا كانت البيانات فارغة
+        const dashboardDiv = document.getElementById('admin-penalties-dashboard');
+        if(dashboardDiv) dashboardDiv.style.display = 'none';
         return;
     }
 
@@ -7411,40 +7433,38 @@ async function filterManagerPenalties() {
     const isHrOrAdmin = (currentRoleArabic === 'ادمن' || currentRoleArabic === 'موظف موارد' || currentRoleArabic === 'موظف ادارة');
 
     currentFilteredPenalties.forEach(p => {
-        let statusBadge = p.status.includes('بانتظار') ? `<span class="status-badge" style="background:#fdebd0; color:#d35400;">${p.status}</span>` : `<span class="status-badge" style="background:#d5f5e3; color:#27ae60;">${p.status}</span>`;
+        const safeStatusForBadge = p.status || '';
+        let statusBadge = safeStatusForBadge.includes('بانتظار') ? `<span class="status-badge" style="background:#fdebd0; color:#d35400;">${safeStatusForBadge}</span>` : `<span class="status-badge" style="background:#d5f5e3; color:#27ae60;">${safeStatusForBadge}</span>`;
         let admitText = p.isAdmit ? '<span style="color:#27ae60;"><i class="fas fa-check"></i></span>' : '<span style="color:#c0392b;"><i class="fas fa-times"></i></span>';
 
-        // 👁️ زر التفاصيل متاح للجميع (مدير وموارد)
+        // 👁️ زر التفاصيل
         let actionButtons = `<button onclick="viewPenaltyDetails('${p.id}')" class="action-btn view-btn" title="عرض التفاصيل"><i class="fas fa-eye"></i></button>`;
         
         // 🖨️ زر الطباعة
-        if (p.status.includes('معتمدة') || p.status.includes('مغلقة')) {
+        if (safeStatusForBadge.includes('معتمدة') || safeStatusForBadge.includes('مغلقة')) {
             actionButtons += `<button onclick="printPenaltyNotice('${p.id}')" class="action-btn print-btn" title="طباعة الإشعار"><i class="fas fa-print"></i></button>`;
         }
         
-        // 🛡️ الصلاحيات الخاصة بـ (الموارد البشرية والإدارة العليا)
+        // 🛡️ صلاحيات HR والآدمن
         if (isHrOrAdmin) {
-            // ⚖️ أيقونة الميزان (لتغيير العقوبة استثنائياً)
             actionButtons += `<button onclick="openBalancePenaltyModal('${p.id}')" class="action-btn balance-btn" style="color:#8e44ad;" title="الميزان (تعديل استثنائي للعقوبة)"><i class="fas fa-balance-scale"></i></button>`;
-            
-            // ✏️ أيقونة التعديل (لتصحيح نوع المخالفة الخاطئ)
             actionButtons += `<button onclick="openHrEditTicketModal('${p.id}')" class="action-btn edit-btn" style="color:#f39c12;" title="تصحيح نوع المخالفة"><i class="fas fa-edit"></i></button>`;
-            
-            // 🗑️ أيقونة الحذف
             actionButtons += `<button onclick="deletePenaltyTicket('${p.id}')" class="action-btn delete-btn" style="color:#e74c3c;" title="حذف الإشعار"><i class="fas fa-trash"></i></button>`;
         }
 
         html += `<tr>
             <td style="font-weight:bold; color:#2980b9; font-size:11px;">${p.id}</td>
-            <td style="font-weight:bold;">${p.violationDate}</td>
-            <td style="font-weight:bold;">${p.empName}<br><span style="font-size:10px; color:#777;">${p.empUsername}</span></td>
-            <td style="color:#c0392b; font-size:12px;">${p.violationName}</td>
+            <td style="font-weight:bold;">${p.violationDate || '-'}</td>
+            <td style="font-weight:bold;">${p.empName || 'غير معروف'}<br><span style="font-size:10px; color:#777;">${p.empUsername || '-'}</span></td>
+            <td style="color:#c0392b; font-size:12px;">${p.violationName || '-'}</td>
             <td>${admitText}</td>
             <td>${statusBadge}</td>
             <td style="text-align:center; white-space:nowrap;">${actionButtons}</td>
         </tr>`;
     });
+    
     tbody.innerHTML = html;
+    
     // استدعاء اللوحة التحليلية وتمرير البيانات المفلترة لها
     if(typeof renderPenaltiesDashboard === 'function') {
        await renderPenaltiesDashboard(currentFilteredPenalties);
