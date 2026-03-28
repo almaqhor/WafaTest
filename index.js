@@ -1007,24 +1007,7 @@ app.post('/api/create-advanced-ticket', (req, res) => {
 });
 // =========================================================================
 
-app.post('/api/my-requests', (req, res) => {
-    try {
-        const result = requestsDB.filter(r => {
-            const senderMatch = (r.senderId === req.body.empUsername) || (!r.senderId && r.empUsername === req.body.empUsername);
-            
-            // 🛡️ درع الحماية: إذا لم تكن الحالة موجودة، نعتبرها نصاً فارغاً لمنع الانهيار
-            const safeStatus = r.status || ''; 
-            const statusMatch = safeStatus === 'pending' || safeStatus === 'resolved' || safeStatus === 'escalated' || safeStatus.startsWith('hr_');
-            
-            return senderMatch && statusMatch;
-        });
-        res.json(result);
-    } catch (error) {
-        console.error("Error in my-requests:", error);
-        res.json([]); // إرجاع مصفوفة فارغة لحماية واجهة المستخدم من التعطل
-    }
-});
-app.post('/api/manager-requests', (req, res) => { res.json(requestsDB.filter(r => r.managerName === req.body.managerName && (r.status === 'pending' || r.status === 'resolved'))); });
+
 app.post('/api/manager-history', (req, res) => {
     const { managerName, searchQuery } = req.body;
     let history = requestsDB.filter(r => r.managerName === managerName && r.status === 'completed');
@@ -1509,37 +1492,90 @@ app.post('/api/escalate-ticket', (req, res) => {
     }
 });
 
-app.post('/api/create-request', (req, res) => {
+// ======================================================================
+// 🎫 1. مسار جلب طلبات الموظف الخاصة (SQL)
+// ======================================================================
+app.post('/api/my-requests', async (req, res) => {
+    try {
+        const { username } = req.body;
+        const requests = await prisma.requestTicket.findMany({
+            where: { empUsername: String(username).trim() },
+            orderBy: { id: 'desc' } // الأحدث أولاً
+        });
+        
+        // إعادة تحويل history من نص إلى مصفوفة ليفهمها الفرونت إند
+        const formattedRequests = requests.map(r => ({
+            ...r,
+            id: r.ticketId, // الواجهة تتوقع أن الـ id هو رقم التذكرة REQ-..
+            history: r.history ? JSON.parse(r.history) : []
+        }));
+
+        res.json(formattedRequests);
+    } catch (error) {
+        console.error("❌ خطأ في جلب طلباتي:", error);
+        res.json([]);
+    }
+});
+
+// ======================================================================
+// 🎫 2. مسار جلب الطلبات للمدير المباشر (SQL)
+// ======================================================================
+app.post('/api/manager-requests', async (req, res) => {
+    try {
+        const { managerName } = req.body;
+        const requests = await prisma.requestTicket.findMany({
+            where: { managerName: managerName },
+            orderBy: { id: 'desc' }
+        });
+
+        const formattedRequests = requests.map(r => ({
+            ...r,
+            id: r.ticketId, 
+            history: r.history ? JSON.parse(r.history) : []
+        }));
+
+        res.json(formattedRequests);
+    } catch (error) {
+        console.error("❌ خطأ في جلب طلبات المدير:", error);
+        res.json([]);
+    }
+});
+
+// ======================================================================
+// 🎫 3. مسار إرسال طلب / تذكرة جديدة (SQL + دعم المرفقات ونماذج المدراء)
+// ======================================================================
+app.post('/api/create-request', async (req, res) => {
     try {
         const { senderUsername, empUsername, empName, empPhone, managerName, reason, details, targetEmp, isManagerForm, hrSupervisor, attachmentBase64, byUser } = req.body;        
         const actualActor = byUser || empName;
-        // 🛡️ درع الحماية: التأكد أن قاعدة البيانات مصفوفة صالحة وليست معطوبة
-        if (!Array.isArray(requestsDB)) {
-            requestsDB = [];
-        }
 
         let initialStatus = 'pending';
         let finalManagerName = managerName;
         let finalEmpUsername = empUsername;
         let finalEmpName = empName;
         let senderId = senderUsername || empUsername;
+        const ticketId = 'REQ-' + Date.now(); 
 
+        // 1. 📎 معالجة المرفقات (كما صممتها أنت تماماً)
         let attachmentPath = '';
         if (attachmentBase64) {
-            const ticketId = 'REQ-' + Date.now(); 
             let ext = '.jpg';
             let rawBase64 = attachmentBase64;
-            if(attachmentBase64.startsWith('data:application/pdf')) { ext = '.pdf'; rawBase64 = attachmentBase64.replace(/^data:application\/pdf;base64,/, ""); } 
-            else { rawBase64 = attachmentBase64.replace(/^data:image\/[a-zA-Z0-9]+;base64,/, ""); }
+            if(attachmentBase64.startsWith('data:application/pdf')) { 
+                ext = '.pdf'; 
+                rawBase64 = attachmentBase64.replace(/^data:application\/pdf;base64,/, ""); 
+            } 
+            else { 
+                rawBase64 = attachmentBase64.replace(/^data:image\/[a-zA-Z0-9]+;base64,/, ""); 
+            }
             const fileName = `ATT-${ticketId}${ext}`;
             
-            // التأكد من وجود مجلد الرفع
             if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
-            
             fs.writeFileSync(path.join(uploadsDir, fileName), rawBase64, 'base64');
             attachmentPath = `/uploads/${fileName}`;
         } 
 
+        // 2. 👨‍💼 معالجة نماذج المدراء (إذا كان المدير يرفع طلب لموظف)
         if (isManagerForm) {
             initialStatus = 'escalated'; 
             finalManagerName = empName;
@@ -1547,38 +1583,52 @@ app.post('/api/create-request', (req, res) => {
             
             if (targetEmp) {
                 finalEmpUsername = targetEmp;
-                const tUser = usersDB.find(u => u.username === targetEmp);
+                // جلب اسم الموظف المستهدف من SQL بدلاً من usersDB
+                const tUser = await prisma.employee.findUnique({ where: { username: String(targetEmp).trim() } });
                 if (tUser) finalEmpName = tUser.name;
             }
         }
 
-        const newRequest = {
-            id: 'REQ-' + Date.now(),
-            senderId: senderId, 
-            empUsername: finalEmpUsername,
-            empName: finalEmpName,
-            empPhone: empPhone,
-            managerName: finalManagerName,
-            hrSupervisor: isManagerForm ? hrSupervisor : '',
-            reason: reason,
-            details: details,
-            attachment: attachmentPath,
-            status: initialStatus,
-            date: new Date().toLocaleString('ar-SA'),
-            history: [{ action: isManagerForm ? `رفع إداري بواسطة ${actualActor}` : `تم الرفع بواسطة ${actualActor}`, date: new Date().toLocaleString('ar-SA') }]  
-        };
+        // 3. 🔍 جلب الـ ID الخاص بصاحب الطلب لربطه في SQL
+        const targetEmployeeRecord = await prisma.employee.findUnique({
+            where: { username: String(finalEmpUsername).trim() }
+        });
 
-        requestsDB.unshift(newRequest);
-        fs.writeFileSync(requestsFile, JSON.stringify(requestsDB, null, 2));
-        // 🚨 زراعة الحدث في سجل الرقابة والتدقيق (Audit Trail) السري للإدارة 🚨
+        if (!targetEmployeeRecord) {
+             return res.json({ success: false, message: 'الموظف المعني غير موجود في قاعدة البيانات' });
+        }
+
+        // 4. 💾 الحفظ الشامل في قاعدة بيانات SQL
+        await prisma.requestTicket.create({
+            data: {
+                ticketId: ticketId,
+                employeeId: targetEmployeeRecord.id,
+                empUsername: finalEmpUsername,
+                empName: finalEmpName,
+                senderId: senderId,
+                empPhone: empPhone || '',
+                managerName: finalManagerName || '',
+                hrSupervisor: isManagerForm ? (hrSupervisor || '') : '',
+                type: reason || '',
+                details: details || '',
+                attachment: attachmentPath,
+                status: initialStatus,
+                createdAt: new Date().toLocaleString('ar-SA'),
+                history: JSON.stringify([{ 
+                    action: isManagerForm ? `رفع إداري بواسطة ${actualActor}` : `تم الرفع بواسطة ${actualActor}`, 
+                    date: new Date().toLocaleString('ar-SA') 
+                }])
+            }
+        });
+
+        // 5. 🚨 زراعة الحدث في سجل الرقابة
         if (typeof safeLogAudit === 'function') {
             safeLogAudit(actualActor, 'رفع طلب', finalEmpName, `نوع الطلب: ${reason}`);
         }
 
-        res.json({ success: true });
+        res.json({ success: true, ticketId: ticketId });
     } catch (error) { 
-        // طباعة الخطأ في الكونسول لكشفه فوراً
-        console.error("❌ CRITICAL ERROR IN CREATE REQUEST:", error);
+        console.error("❌ CRITICAL ERROR IN CREATE REQUEST (SQL):", error);
         res.json({ success: false, message: 'خطأ بالسيرفر: ' + error.message }); 
     }
 });
