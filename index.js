@@ -2809,34 +2809,47 @@ app.post('/api/submit-penalty', (req, res) => {
         res.json({ success: false, message: "حدث خطأ داخلي في السيرفر أثناء رفع المخالفة." });
     }
 });
-// ==================== جلب سجل المخالفات (ذكي: للمدير أو الموارد البشرية) ====================
-app.post('/api/manager-penalties', (req, res) => {
+
+// ======================================================================
+// ⚖️ جلب سجل الجزاءات والمخالفات (النسخة المتطورة - SQL)
+// ======================================================================
+app.post('/api/manager-penalties', async (req, res) => {
     try {
         const { managerName, role, roleArabic } = req.body;
         let history = [];
 
-        // إذا كان أدمن أو موارد بشرية -> اجلب كل السجلات
-        if (role === 'admin' || roleArabic === 'ادمن' || roleArabic === 'موظف موارد' || roleArabic === 'موظف ادارة') {
-            history = penaltiesHistoryDB;
+        // التحقق من الصلاحيات (أدمن أو موارد بشرية)
+        const isHrOrAdmin = role === 'admin' || roleArabic === 'ادمن' || roleArabic === 'موظف موارد' || roleArabic === 'موظف ادارة';
+
+        if (isHrOrAdmin) {
+            // 👑 الإدارة العليا: جلب كل سجلات المخالفات من SQL مرتبة من الأحدث للأقدم
+            history = await prisma.penalty.findMany({
+                orderBy: { id: 'desc' } // الترتيب يتم داخل قاعدة البيانات مباشرة
+            });
         } else {
-            // إذا كان مديراً عادياً -> اجلب فريقه فقط ومخالفاته التي رفعها
-            const myTeamUsernames = usersDB.filter(u => u.directManager === managerName).map(u => u.username);
-            history = penaltiesHistoryDB.filter(p => 
-                p.managerName === managerName || myTeamUsernames.includes(p.empUsername)
-            );
+            // 👨‍💼 المدير المباشر: نجلب فريقه أولاً من قاعدة بيانات الموظفين
+            const myTeam = await prisma.employee.findMany({
+                where: { directManager: managerName },
+                select: { username: true }
+            });
+            const myTeamUsernames = myTeam.map(u => String(u.username));
+
+            // ثم نجلب المخالفات التي تخص فريقه، أو التي قام هو برفعها بنفسه
+            history = await prisma.penalty.findMany({
+                where: {
+                    OR: [
+                        { managerName: String(managerName) },
+                        { empUsername: { in: myTeamUsernames } }
+                    ]
+                },
+                orderBy: { id: 'desc' }
+            });
         }
-        
-        // ترتيب السجلات من الأحدث إلى الأقدم
-        history.sort((a, b) => {
-            const idA = parseInt(a.id.replace('PEN-', ''));
-            const idB = parseInt(b.id.replace('PEN-', ''));
-            return idB - idA;
-        });
         
         res.json(history);
     } catch (error) {
-        console.error("Error fetching penalties:", error);
-        res.json([]);
+        console.error("❌ خطأ في جلب الجزاءات من SQL:", error);
+        res.json([]); // إرجاع مصفوفة فارغة في حال الخطأ لمنع انهيار الواجهة
     }
 });
 // ==================== (HR & Managers) حساب التكرار وجلب التاريخ ====================
