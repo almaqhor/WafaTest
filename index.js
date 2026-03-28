@@ -1016,57 +1016,126 @@ app.post('/api/manager-history', (req, res) => {
     res.json(history.slice(0, 10));
 });
 // ======================================================================
-// ✅ مسار إنجاز والرد على الطلب (SQL)
+// 🚀 1. مسار تصعيد الطلب (نسخة مدرعة + أشعة سينية X-Ray)
 // ======================================================================
-app.post('/api/resolve-request', async (req, res) => {
+app.post('/api/escalate-ticket', async (req, res) => {
     try {
-        // isHr: متغير لمعرفة ما إذا كان الرد من الموارد أم من المدير لتوجيه التعليق للحقل الصحيح
-        const { id, comment, byUser, isHr } = req.body; 
+        console.log("\n================= 🚀 بدء تصعيد طلب =================");
+        console.log("📥 البيانات المستلمة من الزر:", req.body);
+
+        const { id, managerComment, byUser } = req.body;
         
-        const ticket = await prisma.requestTicket.findUnique({ 
-            where: { ticketId: String(id) } 
+        // 🛡️ درع حماية: التقاط الـ ID مهما كان اسمه، وإضافة REQ- إذا كانت مفقودة
+        let safeId = String(id || req.body.ticketId || '').trim();
+        if (safeId && !safeId.startsWith('REQ-')) {
+            safeId = 'REQ-' + safeId;
+        }
+
+        console.log(`🔍 جاري البحث في SQL عن التذكرة: ${safeId}`);
+
+        const ticket = await prisma.requestTicket.findFirst({ 
+            where: { ticketId: safeId } 
         });
         
-        if (!ticket) return res.json({ success: false, message: 'الطلب غير موجود' });
+        if (!ticket) {
+            console.log("❌ التذكرة غير موجودة في قاعدة البيانات!");
+            console.log("====================================================\n");
+            return res.json({ success: false, message: 'الطلب غير موجود في قاعدة البيانات' });
+        }
 
         const history = ticket.history ? JSON.parse(ticket.history) : [];
         history.push({
-            action: `تم إنجاز الطلب بواسطة ${byUser}`,
+            action: `تم التصعيد للموارد البشرية بواسطة ${byUser || 'المدير المباشر'}`,
+            date: new Date().toLocaleString('ar-SA'),
+            note: managerComment || ''
+        });
+
+        // التحديث باستخدام المفتاح الأساسي (id) لضمان سرعة ونجاح 100%
+        await prisma.requestTicket.update({
+            where: { id: ticket.id },
+            data: {
+                status: 'escalated',
+                escalationComment: managerComment || '',
+                history: JSON.stringify(history)
+            }
+        });
+
+        if (typeof safeLogAudit === 'function') {
+            safeLogAudit(byUser, 'تصعيد طلب', ticket.empName, `تصعيد الطلب رقم: ${safeId}`);
+        }
+
+        console.log("✅ تم تصعيد التذكرة بنجاح!");
+        console.log("====================================================\n");
+        res.json({ success: true });
+    } catch (error) {
+        console.error("❌ انهيار في مسار التصعيد:", error);
+        res.json({ success: false, message: 'حدث خطأ في السيرفر أثناء التصعيد' });
+    }
+});
+
+// ======================================================================
+// ✅ 2. مسار إنجاز/حل الطلب (نسخة مدرعة + أشعة سينية X-Ray)
+// ======================================================================
+app.post('/api/resolve-request', async (req, res) => {
+    try {
+        console.log("\n================= ✅ بدء إنجاز طلب =================");
+        console.log("📥 البيانات المستلمة:", req.body);
+
+        const { id, comment, byUser, isHr } = req.body; 
+        
+        let safeId = String(id || req.body.ticketId || '').trim();
+        if (safeId && !safeId.startsWith('REQ-')) {
+            safeId = 'REQ-' + safeId;
+        }
+
+        const ticket = await prisma.requestTicket.findFirst({ 
+            where: { ticketId: safeId } 
+        });
+        
+        if (!ticket) {
+            console.log("❌ التذكرة غير موجودة!");
+            console.log("====================================================\n");
+            return res.json({ success: false, message: 'الطلب غير موجود' });
+        }
+
+        const history = ticket.history ? JSON.parse(ticket.history) : [];
+        history.push({
+            action: `تم إنجاز الطلب بواسطة ${byUser || 'النظام'}`,
             date: new Date().toLocaleString('ar-SA'),
             note: comment || ''
         });
 
-        // تجهيز سلة التحديثات
         const updateData = {
             status: 'resolved',
             resolveDate: new Date().toLocaleString('ar-SA'),
-            resolvedBy: byUser,
+            resolvedBy: byUser || '',
             history: JSON.stringify(history)
         };
 
-        // توجيه التعليق للمكان الصحيح في قاعدة البيانات
         if (isHr || isHr === 'true' || ticket.status === 'hr_assigned' || ticket.status === 'escalated') {
             updateData.hrComment = comment || '';
         } else {
             updateData.managerComment = comment || '';
         }
 
-        // الحفظ في SQL
         await prisma.requestTicket.update({
-            where: { ticketId: String(id) },
+            where: { id: ticket.id },
             data: updateData
         });
 
         if (typeof safeLogAudit === 'function') {
-            safeLogAudit(byUser, 'إنجاز طلب', ticket.empName, `إنجاز الطلب رقم: ${id}`);
+            safeLogAudit(byUser, 'إنجاز طلب', ticket.empName, `إنجاز الطلب رقم: ${safeId}`);
         }
 
+        console.log("✅ تم إنجاز التذكرة بنجاح!");
+        console.log("====================================================\n");
         res.json({ success: true });
     } catch (error) {
-        console.error("❌ خطأ في إنجاز الطلب:", error);
+        console.error("❌ انهيار في مسار الإنجاز:", error);
         res.json({ success: false, message: 'حدث خطأ في السيرفر أثناء الإنجاز' });
     }
 });
+
 app.post('/api/confirm-request', (req, res) => {
     const { id, rating, empComment } = req.body;
     const reqIndex = requestsDB.findIndex(r => r.id === id);
@@ -1497,46 +1566,7 @@ app.post('/api/locations', (req, res) => {
 // ======================================================================
 // 🚀 مسار تصعيد الطلب للموارد البشرية (SQL)
 // ======================================================================
-app.post('/api/escalate-ticket', async (req, res) => {
-    try {
-        const { id, managerComment, byUser } = req.body;
-        
-        // 1. البحث عن التذكرة باستخدام رقمها الفريد (REQ-...)
-        const ticket = await prisma.requestTicket.findUnique({ 
-            where: { ticketId: String(id) } 
-        });
-        
-        if (!ticket) return res.json({ success: false, message: 'الطلب غير موجود في قاعدة البيانات' });
 
-        // 2. تحديث سجل التاريخ (History)
-        const history = ticket.history ? JSON.parse(ticket.history) : [];
-        history.push({
-            action: `تم التصعيد للموارد البشرية بواسطة ${byUser || 'المدير المباشر'}`,
-            date: new Date().toLocaleString('ar-SA'),
-            note: managerComment || ''
-        });
-
-        // 3. الحفظ الشامل في SQL
-        await prisma.requestTicket.update({
-            where: { ticketId: String(id) },
-            data: {
-                status: 'escalated',
-                escalationComment: managerComment || '',
-                history: JSON.stringify(history)
-            }
-        });
-
-        // 4. الرقابة
-        if (typeof safeLogAudit === 'function') {
-            safeLogAudit(byUser, 'تصعيد طلب', ticket.empName, `تصعيد الطلب رقم: ${id}`);
-        }
-
-        res.json({ success: true });
-    } catch (error) {
-        console.error("❌ خطأ في تصعيد الطلب:", error);
-        res.json({ success: false, message: 'حدث خطأ في السيرفر أثناء التصعيد' });
-    }
-});
 
 
 
