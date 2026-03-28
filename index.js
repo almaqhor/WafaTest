@@ -2821,7 +2821,7 @@ app.post('/api/manager-penalties', async (req, res) => {
         const isHrOrAdmin = role === 'admin' || roleArabic === 'ادمن' || roleArabic === 'موظف موارد' || roleArabic === 'موظف ادارة';
 
         if (isHrOrAdmin) {
-            history = await prisma.penalty.findMany({ orderBy: { id: 'desc' } });
+            history = await prisma.penalty.findMany({ orderBy: { id: 'desc' },include: { employee: true } });
         } else {
             const myTeam = await prisma.employee.findMany({
                 where: { directManager: managerName },
@@ -2829,15 +2829,23 @@ app.post('/api/manager-penalties', async (req, res) => {
             });
             const myTeamUsernames = myTeam.map(u => String(u.username));
 
-            history = await prisma.penalty.findMany({
-                where: {
-                    OR: [
-                        { managerName: String(managerName) },
-                        { empUsername: { in: myTeamUsernames } }
-                    ]
-                },
-                orderBy: { id: 'desc' }
-            });
+// للموارد والإدارة العليا:
+history = await prisma.penalty.findMany({ 
+    orderBy: { id: 'desc' },
+    include: { employee: true } // 👈 هذا السطر السحري يجلب بيانات الموظف المرتبط
+});
+
+// للمدير المباشر:
+history = await prisma.penalty.findMany({
+    where: {
+        OR: [
+            { managerName: String(managerName) },
+            { employee: { directManager: managerName } } // 👈 بحث أذكى عبر العلاقات
+        ]
+    },
+    orderBy: { id: 'desc' },
+    include: { employee: true } // 👈 هذا السطر السحري
+});
         }
         
         // 🧹 فلتر التجميل: تنظيف التواريخ وإصلاح الأسماء المفقودة
