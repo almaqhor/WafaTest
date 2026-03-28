@@ -1587,59 +1587,68 @@ app.post('/api/create-request', async (req, res) => {
         res.json({ success: false, message: 'خطأ بالسيرفر: ' + error.message }); 
     }
 });
+
 // ======================================================================
-// 🎫 4. مسار عمليات الموارد البشرية (SQL + مصفاة الـ VIP الذكية)
+// 🎫 4. مسار عمليات الموارد ومتابعة الطلبات (مضاد لفيروس الـ Null 🛡️)
 // ======================================================================
 app.post('/api/hr-requests', async (req, res) => {
     try {
-        // 1. التقاط رقم المستخدم وتأمينه من الواجهة
         const username = req.body.username || req.body.empUsername || '';
         const safeUser = String(username).trim();
         const isAdmin = req.body.isAdmin === true || String(req.body.isAdmin) === 'true'; 
         const role = req.body.role;
 
-        // 2. جلب جميع الطلبات من SQL (من الأحدث للأقدم)
         const allRequests = await prisma.requestTicket.findMany({
             orderBy: { id: 'desc' }
         });
 
-        // 3. المصفاة الذكية الموحدة (VIP Filter) - بنفس منطقك العبقري
         const filteredRequests = allRequests.filter(r => {
-            
-            // 🎯 الشرط الذهبي (VIP Pass):
             const assignedHr = r.assignedHrEmp ? String(r.assignedHrEmp).trim() : '';
-            if (assignedHr === safeUser && safeUser !== '') {
-                return true; // يعبر الطلب بنجاح
-            }
+            if (assignedHr === safeUser && safeUser !== '') return true;
 
-            // 🛡️ الشروط الطبيعية للطلبات العامة
             const safeStatus = r.status || '';
             const isGeneralHR = safeStatus === 'escalated' || 
                                 safeStatus.startsWith('hr_') || 
                                 r.escalationComment || 
-                                r.hrComment || // 🌟 لاحظ: غيرناها لتطابق SQL (hrComment) بدلاً من hrEmpComment
+                                r.hrComment || 
                                 (r.hrSupervisor && r.hrSupervisor !== '');
 
-            // 4. توجيه الطلبات العامة حسب الصلاحيات
             if (isGeneralHR) {
-                if (isAdmin || role === 'موظف ادارة') {
-                    return true; // الإدارة ترى جميع طلبات القسم
-                } else {
-                    // المشرف العادي يرى فقط الطلبات التابعة له
-                    const hrSuper = r.hrSupervisor ? String(r.hrSupervisor).trim() : '';
-                    return hrSuper === safeUser;
-                }
+                if (isAdmin || role === 'موظف ادارة') return true;
+                const hrSuper = r.hrSupervisor ? String(r.hrSupervisor).trim() : '';
+                return hrSuper === safeUser;
             }
-
             return false;
         });
 
-        // 5. 🔄 المترجم الذكي: تحويل المسميات لتطابق الواجهة الأمامية
+        // 🛡️ درع التطهير: مسح أي Null وتحويله لنص فارغ لحماية الواجهة الأمامية
         const formattedRequests = filteredRequests.map(r => ({
-            ...r,
-            id: r.ticketId,       // ترجمة للرقم مثل REQ-123
-            date: r.createdAt,    // ترجمة التاريخ
-            reason: r.type,       // ترجمة النوع
+            id: r.ticketId,                   // رقم التذكرة REQ
+            employeeId: r.employeeId,
+            empUsername: r.empUsername || '',
+            empName: r.empName || '',
+            senderId: r.senderId || '',
+            empPhone: r.empPhone || '',
+            managerName: r.managerName || '',
+            hrSupervisor: r.hrSupervisor || '',
+            assignedHrEmp: r.assignedHrEmp || '',
+            reason: r.type || '',             // ترجمة النوع
+            type: r.type || '',               // إرسالها بالاسمين للاحتياط
+            details: r.details || '',
+            attachment: r.attachment || '',
+            status: r.status || 'pending',
+            date: r.createdAt || '',          // ترجمة التاريخ
+            createdAt: r.createdAt || '',     // إرسالها بالاسمين للاحتياط
+            resolveDate: r.resolveDate || '',
+            duration: r.duration || '',
+            managerComment: r.managerComment || '',
+            hrComment: r.hrComment || '',
+            supervisorAssignComment: r.supervisorAssignComment || '',
+            supervisorRejectComment: r.supervisorRejectComment || '',
+            escalationComment: r.escalationComment || '',
+            empComment: r.empComment || '',
+            rating: r.rating || '',
+            resolvedBy: r.resolvedBy || '',
             history: r.history ? JSON.parse(r.history) : []
         }));
 
@@ -1647,9 +1656,10 @@ app.post('/api/hr-requests', async (req, res) => {
 
     } catch (error) {
         console.error("❌ خطأ في مسار hr-requests:", error);
-        res.json([]); // حماية الشاشة من الانهيار
+        res.json([]); 
     }
 });
+
 
 // ======================================================================
 // 🎫 1. مسار جلب طلبات الموظف الخاصة (SQL مع ترجمة المسميات)
