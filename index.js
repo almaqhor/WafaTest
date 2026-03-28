@@ -1136,16 +1136,52 @@ app.post('/api/resolve-request', async (req, res) => {
     }
 });
 
-app.post('/api/confirm-request', (req, res) => {
-    const { id, rating, empComment } = req.body;
-    const reqIndex = requestsDB.findIndex(r => r.id === id);
-    if (reqIndex > -1) { 
-        requestsDB[reqIndex].status = 'completed'; 
-        requestsDB[reqIndex].rating = rating || "5"; 
-        requestsDB[reqIndex].empComment = empComment || ""; 
-        fs.writeFileSync(requestsFile, JSON.stringify(requestsDB, null, 2)); 
+// ======================================================================
+// ⭐ مسار تأكيد إغلاق الطلب وتقييمه من قبل الموظف المستفيد (SQL)
+// ======================================================================
+app.post('/api/confirm-request', async (req, res) => {
+    try {
+        const { id, rating, empComment } = req.body;
+        
+        // 🛡️ درع حماية: تأمين رقم التذكرة سواء جاء بـ REQ أو بدونها
+        let safeId = String(id || '').trim();
+        if (safeId && !safeId.startsWith('REQ-')) {
+            safeId = 'REQ-' + safeId;
+        }
+
+        // 1. البحث عن التذكرة
+        const ticket = await prisma.requestTicket.findFirst({ 
+            where: { ticketId: safeId } 
+        });
+
+        if (!ticket) {
+            return res.json({ success: false, message: 'الطلب غير موجود في قاعدة البيانات' });
+        }
+
+        // 2. تحديث السجل الزمني (History) لتوثيق لحظة التقييم
+        const history = ticket.history ? JSON.parse(ticket.history) : [];
+        history.push({
+            action: `تم تأكيد الإغلاق وتقييم الحل بـ (${rating || "5"} نجوم)`,
+            date: new Date().toLocaleString('ar-SA'),
+            note: empComment || ''
+        });
+
+        // 3. الحفظ النهائي في SQL (الختم بالشمع الأحمر)
+        await prisma.requestTicket.update({
+            where: { id: ticket.id },
+            data: {
+                status: 'completed',
+                rating: String(rating || "5"),
+                empComment: empComment || "",
+                history: JSON.stringify(history)
+            }
+        });
+
+        res.json({ success: true });
+    } catch (error) {
+        console.error("❌ خطأ في مسار تأكيد إغلاق الطلب:", error);
+        res.json({ success: false, message: 'حدث خطأ بالسيرفر' });
     }
-    res.json({ success: true });
 });
 
 async function getBestModel(apiKey) {
