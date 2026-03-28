@@ -54,7 +54,7 @@ model Leave {
   type        String
   startDate   DateTime
   endDate     DateTime
-  durration   String
+  duration   String
   entryDate   DateTime
   // 🔗 الرابط مع الموظف
   employeeId  Int
