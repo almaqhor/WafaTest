@@ -55,7 +55,7 @@ model Leave {
   startDate   DateTime
   endDate     DateTime
   duration   String
-  entryDate   DateTime
+  enteryDate   DateTime
   // 🔗 الرابط مع الموظف
   employeeId  Int
   employee    Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
