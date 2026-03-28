@@ -1492,54 +1492,9 @@ app.post('/api/escalate-ticket', (req, res) => {
     }
 });
 
-// ======================================================================
-// 🎫 1. مسار جلب طلبات الموظف الخاصة (SQL)
-// ======================================================================
-app.post('/api/my-requests', async (req, res) => {
-    try {
-        const { username } = req.body;
-        const requests = await prisma.requestTicket.findMany({
-            where: { empUsername: String(username).trim() },
-            orderBy: { id: 'desc' } // الأحدث أولاً
-        });
-        
-        // إعادة تحويل history من نص إلى مصفوفة ليفهمها الفرونت إند
-        const formattedRequests = requests.map(r => ({
-            ...r,
-            id: r.ticketId, // الواجهة تتوقع أن الـ id هو رقم التذكرة REQ-..
-            history: r.history ? JSON.parse(r.history) : []
-        }));
 
-        res.json(formattedRequests);
-    } catch (error) {
-        console.error("❌ خطأ في جلب طلباتي:", error);
-        res.json([]);
-    }
-});
 
-// ======================================================================
-// 🎫 2. مسار جلب الطلبات للمدير المباشر (SQL)
-// ======================================================================
-app.post('/api/manager-requests', async (req, res) => {
-    try {
-        const { managerName } = req.body;
-        const requests = await prisma.requestTicket.findMany({
-            where: { managerName: managerName },
-            orderBy: { id: 'desc' }
-        });
 
-        const formattedRequests = requests.map(r => ({
-            ...r,
-            id: r.ticketId, 
-            history: r.history ? JSON.parse(r.history) : []
-        }));
-
-        res.json(formattedRequests);
-    } catch (error) {
-        console.error("❌ خطأ في جلب طلبات المدير:", error);
-        res.json([]);
-    }
-});
 
 // ======================================================================
 // 🎫 3. مسار إرسال طلب / تذكرة جديدة (SQL + دعم المرفقات ونماذج المدراء)
@@ -1632,55 +1587,122 @@ app.post('/api/create-request', async (req, res) => {
         res.json({ success: false, message: 'خطأ بالسيرفر: ' + error.message }); 
     }
 });
-
-app.post('/api/hr-requests', (req, res) => {
+// ======================================================================
+// 🎫 4. مسار عمليات الموارد البشرية (SQL + مصفاة الـ VIP الذكية)
+// ======================================================================
+app.post('/api/hr-requests', async (req, res) => {
     try {
         // 1. التقاط رقم المستخدم وتأمينه من الواجهة
         const username = req.body.username || req.body.empUsername || '';
         const safeUser = String(username).trim();
-        const isAdmin = req.body.isAdmin === true || req.body.isAdmin === 'true'; 
+        const isAdmin = req.body.isAdmin === true || String(req.body.isAdmin) === 'true'; 
         const role = req.body.role;
 
-        // 2. المصفاة الذكية الموحدة (VIP Filter)
-        const finalRequests = requestsDB.filter(r => {
+        // 2. جلب جميع الطلبات من SQL (من الأحدث للأقدم)
+        const allRequests = await prisma.requestTicket.findMany({
+            orderBy: { id: 'desc' }
+        });
+
+        // 3. المصفاة الذكية الموحدة (VIP Filter) - بنفس منطقك العبقري
+        const filteredRequests = allRequests.filter(r => {
             
-            // 🎯 الشرط الذهبي (VIP Pass): إذا كان الطلب موجهاً صراحة لهذا الموظف، اعرضه فوراً!
+            // 🎯 الشرط الذهبي (VIP Pass):
             const assignedHr = r.assignedHrEmp ? String(r.assignedHrEmp).trim() : '';
             if (assignedHr === safeUser && safeUser !== '') {
-                return true; // يعبر الطلب بنجاح دون النظر لباقي الشروط
+                return true; // يعبر الطلب بنجاح
             }
 
-            // 🛡️ الشروط الطبيعية للطلبات العامة (درع الحماية الخاص بك)
+            // 🛡️ الشروط الطبيعية للطلبات العامة
             const safeStatus = r.status || '';
             const isGeneralHR = safeStatus === 'escalated' || 
                                 safeStatus.startsWith('hr_') || 
                                 r.escalationComment || 
-                                r.hrEmpComment ||      
+                                r.hrComment || // 🌟 لاحظ: غيرناها لتطابق SQL (hrComment) بدلاً من hrEmpComment
                                 (r.hrSupervisor && r.hrSupervisor !== '');
 
-            // 3. توجيه الطلبات العامة حسب الصلاحيات
+            // 4. توجيه الطلبات العامة حسب الصلاحيات
             if (isGeneralHR) {
                 if (isAdmin || role === 'موظف ادارة') {
                     return true; // الإدارة ترى جميع طلبات القسم
                 } else {
-                    // المشرف العادي يرى فقط الطلبات العامة التابعة له
+                    // المشرف العادي يرى فقط الطلبات التابعة له
                     const hrSuper = r.hrSupervisor ? String(r.hrSupervisor).trim() : '';
                     return hrSuper === safeUser;
                 }
             }
 
-            // تجاهل أي طلب لا يخص الموارد البشرية
             return false;
         });
 
-        // إرجاع الطلبات المنتقاة بعناية
-        res.json(finalRequests);
+        // 5. 🔄 المترجم الذكي: تحويل المسميات لتطابق الواجهة الأمامية
+        const formattedRequests = filteredRequests.map(r => ({
+            ...r,
+            id: r.ticketId,       // ترجمة للرقم مثل REQ-123
+            date: r.createdAt,    // ترجمة التاريخ
+            reason: r.type,       // ترجمة النوع
+            history: r.history ? JSON.parse(r.history) : []
+        }));
+
+        res.json(formattedRequests);
 
     } catch (error) {
-        console.error("Error in hr-requests:", error);
-        res.json([]); // حماية الشاشة
+        console.error("❌ خطأ في مسار hr-requests:", error);
+        res.json([]); // حماية الشاشة من الانهيار
     }
 });
+
+// ======================================================================
+// 🎫 1. مسار جلب طلبات الموظف الخاصة (SQL مع ترجمة المسميات)
+// ======================================================================
+app.post('/api/my-requests', async (req, res) => {
+    try {
+        const { username } = req.body;
+        const requests = await prisma.requestTicket.findMany({
+            where: { empUsername: String(username).trim() },
+            orderBy: { id: 'desc' } 
+        });
+        
+        const formattedRequests = requests.map(r => ({
+            ...r,
+            id: r.ticketId,       // الواجهة تتوقع id كنص مثل REQ-123
+            date: r.createdAt,    // 🌟 ترجمة createdAt إلى date للواجهة
+            reason: r.type,       // 🌟 ترجمة type إلى reason للواجهة
+            history: r.history ? JSON.parse(r.history) : []
+        }));
+
+        res.json(formattedRequests);
+    } catch (error) {
+        console.error("❌ خطأ في جلب طلباتي:", error);
+        res.json([]);
+    }
+});
+
+// ======================================================================
+// 🎫 2. مسار جلب الطلبات للمدير المباشر (SQL مع ترجمة المسميات)
+// ======================================================================
+app.post('/api/manager-requests', async (req, res) => {
+    try {
+        const { managerName } = req.body;
+        const requests = await prisma.requestTicket.findMany({
+            where: { managerName: managerName },
+            orderBy: { id: 'desc' }
+        });
+
+        const formattedRequests = requests.map(r => ({
+            ...r,
+            id: r.ticketId, 
+            date: r.createdAt,
+            reason: r.type,
+            history: r.history ? JSON.parse(r.history) : []
+        }));
+
+        res.json(formattedRequests);
+    } catch (error) {
+        console.error("❌ خطأ في جلب طلبات المدير:", error);
+        res.json([]);
+    }
+});
+
 
 app.post('/api/hr-assign', (req, res) => {
     const { ticketId, assignedTo, comment, byUser } = req.body;
