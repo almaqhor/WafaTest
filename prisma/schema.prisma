@@ -159,7 +159,7 @@ model ExitInterview {
   reapplyReason         String?
   
   additionalComments    String?
-
+}
 model RequestTicket {
   id                      Int      @id @default(autoincrement()) // المفتاح التسلسلي (SQL يحب هذا)
   ticketId                String   @unique // رقم التذكرة الفعلي (مثل REQ-12345)
