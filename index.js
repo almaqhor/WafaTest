@@ -2198,30 +2198,54 @@ app.post('/api/terminate-employee', (req, res) => {
 // ======================================================================
 // 💾 1. مسار حفظ التحضير اليومي (SQL) - ذكي يمنع التكرار
 // ======================================================================
+// ======================================================================
+// 💾 1. مسار حفظ التحضير اليومي (مزود بجهاز كشف الكذب X-Ray)
+// ======================================================================
 app.post('/api/save-attendance', async (req, res) => {
     try {
+        console.log("-----------------------------------------");
+        console.log("📥 1. استلام طلب حفظ تحضير جديد...");
+        
         const { date, managerName, records } = req.body;
+        console.log(`📅 التاريخ: ${date} | 👨‍💼 المدير: ${managerName}`);
+        console.log(`👥 عدد السجلات القادمة من الواجهة: ${records ? records.length : 0}`);
+
+        if (!records || records.length === 0) {
+            return res.json({ success: false, message: "لم يتم إرسال أي بيانات للحفظ!" });
+        }
+
         let successCount = 0;
 
         // نجلب أرقام الموظفين (IDs) بناءً على الـ usernames القادمة من الواجهة
-        const usernames = records.map(r => String(r.username));
+        const usernames = records.map(r => String(r.username).trim());
+        console.log("🔍 2. جاري البحث عن هؤلاء الموظفين في SQL:", usernames);
+
         const employees = await prisma.employee.findMany({
             where: { username: { in: usernames } },
             select: { id: true, username: true }
         });
+
+        console.log(`✅ 3. تم العثور على ${employees.length} موظف في SQL من أصل ${usernames.length}`);
 
         // خريطة سريعة للبحث عن الـ ID
         const empMap = new Map();
         employees.forEach(emp => empMap.set(emp.username, emp.id));
 
         for (const r of records) {
-            const empId = empMap.get(String(r.username));
-            if (!empId) continue; // إذا الموظف غير موجود نتجاوزه
+            const cleanUsername = String(r.username).trim();
+            const empId = empMap.get(cleanUsername);
+            
+            if (!empId) {
+                console.log(`⚠️ تحذير: الموظف ${cleanUsername} غير موجود في SQL، تم تجاوزه.`);
+                continue; 
+            }
 
-            // Upsert: إذا كان محضراً مسبقاً في هذا اليوم نقوم بتحديثه، وإلا نصنع له تحضيراً جديداً
+            console.log(`⏳ 4. جاري حفظ تحضير الموظف ${cleanUsername} (ID: ${empId})...`);
+
+            // Upsert
             await prisma.attendance.upsert({
                 where: {
-                    date_employeeId: { // نعتمد على الدرع الواقي الذي صنعناه
+                    date_employeeId: {
                         date: date,
                         employeeId: empId
                     }
@@ -2242,10 +2266,16 @@ app.post('/api/save-attendance', async (req, res) => {
             successCount++;
         }
 
+        console.log(`🎉 5. نجحت العملية! تم حفظ ${successCount} سجل.`);
+        console.log("-----------------------------------------");
+        
         res.json({ success: true, message: `تم حفظ تحضير ${successCount} موظف بنجاح.` });
+
     } catch (error) {
-        console.error("❌ خطأ في حفظ التحضير (SQL):", error);
-        res.json({ success: false, message: "حدث خطأ أثناء حفظ التحضير." });
+        console.error("❌❌❌ انهيار قاتل في مسار الحفظ ❌❌❌");
+        console.error(error); // هذا السطر سيطبع سبب المشكلة الحقيقي
+        console.log("-----------------------------------------");
+        res.json({ success: false, message: "حدث خطأ أثناء حفظ التحضير: " + error.message });
     }
 });
 
