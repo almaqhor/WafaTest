@@ -7433,13 +7433,21 @@ async function filterManagerPenalties() {
     const isHrOrAdmin = (currentRoleArabic === 'ادمن' || currentRoleArabic === 'موظف موارد' || currentRoleArabic === 'موظف ادارة');
 
     currentFilteredPenalties.forEach(p => {
+    // 1. استخراج بيانات الموظف بأمان (لأن السيرفر أرسلها بفضل include)
+    const empName = p.employee ? p.employee.name : 'موظف محذوف';
+    const empUsername = p.employee ? p.employee.username : '-';
+    const admitText = p.isAdmit 
+        ? '<span style="color:#27ae60; font-weight:bold;"><i class="fas fa-check-circle"></i> نعم (مُقر)</span>' 
+        : '<span style="color:#c0392b; font-weight:bold;"><i class="fas fa-times-circle"></i> لا (يرفض الإقرار)</span>';    
         const safeStatusForBadge = p.status || '';
-        let statusBadge = safeStatusForBadge.includes('بانتظار') ? `<span class="status-badge" style="background:#fdebd0; color:#d35400;">${safeStatusForBadge}</span>` : `<span class="status-badge" style="background:#d5f5e3; color:#27ae60;">${safeStatusForBadge}</span>`;
-        let admitText = p.isAdmit ? '<span style="color:#27ae60;"><i class="fas fa-check"></i></span>' : '<span style="color:#c0392b;"><i class="fas fa-times"></i></span>';
-
-        // 👁️ زر التفاصيل
-        let actionButtons = `<button onclick="viewPenaltyDetails('${p.id}')" class="action-btn view-btn" title="عرض التفاصيل"><i class="fas fa-eye"></i></button>`;
+    let statusBadge = safeStatusForBadge.includes('بانتظار') 
+        ? `<span class="status-badge" style="background:#fdebd0; color:#d35400;">${safeStatusForBadge}</span>` 
+        : `<span class="status-badge" style="background:#d5f5e3; color:#27ae60;">${safeStatusForBadge}</span>`;
+       
         
+        
+    // 👁️ زر التفاصيل
+let actionButtons = `<button onclick="viewPenaltyDetails(${p.id})" class="action-btn view-btn" title="التفاصيل"><i class="fas fa-eye"></i></button>`;        
         // 🖨️ زر الطباعة
         if (safeStatusForBadge.includes('معتمدة') || safeStatusForBadge.includes('مغلقة')) {
             actionButtons += `<button onclick="printPenaltyNotice('${p.id}')" class="action-btn print-btn" title="طباعة الإشعار"><i class="fas fa-print"></i></button>`;
@@ -7453,14 +7461,17 @@ async function filterManagerPenalties() {
         }
 
         html += `<tr>
-            <td style="font-weight:bold; color:#2980b9; font-size:11px;">${p.id}</td>
-            <td style="font-weight:bold;">${p.violationDate || '-'}</td>
-            <td style="font-weight:bold;">${p.empName || 'غير معروف'}<br><span style="font-size:10px; color:#777;">${p.empUsername || '-'}</span></td>
-            <td style="color:#c0392b; font-size:12px;">${p.violationName || '-'}</td>
-            <td>${admitText}</td>
-            <td>${statusBadge}</td>
-            <td style="text-align:center; white-space:nowrap;">${actionButtons}</td>
-        </tr>`;
+        <td style="font-weight:bold; color:#2980b9; font-size:12px;">${p.id}</td>
+        <td style="font-weight:bold; font-size:12px;">${p.violationDate}</td>
+        <td>
+            <strong>${empName}</strong><br>
+            <span style="font-size:11px; color:#777;">${empUsername}</span>
+        </td>
+        <td style="color:#c0392b; font-size:13px; font-weight:bold;">${p.violationName}</td>
+        <td>${admitText}</td>
+        <td>${statusBadge}</td>
+        <td style="text-align:center; white-space:nowrap;">${actionButtons}</td>
+    </tr>`;
     });
     
     tbody.innerHTML = html;
