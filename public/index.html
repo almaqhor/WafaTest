@@ -5555,7 +5555,7 @@ async function renderPenaltiesDashboard(penalties) {
         }
         function setHrStatusFilter(status) { currentHrStatusFilter = status; renderHrTable(); }
 
-       async function renderHrTable() {
+        async function renderHrTable() {
     try {
         if (typeof locationsArray === 'undefined' || locationsArray.length === 0) {
             try { locationsArray = await (await fetch('/api/locations')).json(); } catch(e) {}
@@ -5563,13 +5563,12 @@ async function renderPenaltiesDashboard(penalties) {
 
         let filtered = hrAllRequests || [];
 
-        // 👑 1. التعرف على الإدارة العليا
+        // 👑 التعرف على الإدارة العليا
         const currentUser = JSON.parse(localStorage.getItem('currentUser')) || {};
         const isAdminView = (typeof globalIsAdmin !== 'undefined' && globalIsAdmin === true) || 
                             currentUser.role === 'admin' || 
                             currentUser.roleArabic === 'ادمن';
 
-        // 🛡️ 2. البوابة الجغرافية (تطبق على الموظفين فقط)
         if (!isAdminView) { 
             const mySupervisedBranches = locationsArray
                 .filter(loc => String(loc.hrUsername) === String(currentUsername))
@@ -5583,21 +5582,15 @@ async function renderPenaltiesDashboard(penalties) {
             });
         }
 
-        // 3. 🔍 قراءة الفلاتر اليدوية
         const empQ = document.getElementById('hr-filter-emp') ? document.getElementById('hr-filter-emp').value.trim().toLowerCase() : '';
         const branchQ = document.getElementById('hr-filter-branch') ? document.getElementById('hr-filter-branch').value : '';
         const typeQ = document.getElementById('hr-filter-type') ? document.getElementById('hr-filter-type').value : '';
 
-        // 🚨🚨 4. حصانة الإدارة العليا (Admin Bypass) 🚨🚨
-        if (isAdminView) {
-            // الأدمن يرى كل الحالات وكل التبويبات بدون أن تُخفى عنه
-            console.log("👑 وضع الأدمن: تم تعطيل فلاتر الحالة المزعجة!");
-        } else {
-            // الموظف العادي والموارد يخضعون لفلاتر الشاشة (طلباتي / حالة محددة)
+        // 🚨 حصانة الإدارة العليا
+        if (!isAdminView) {
             if (typeof currentHrTab !== 'undefined' && currentHrTab === 'mine') {
                 filtered = filtered.filter(r => String(r.assignedHrEmp) === String(currentUsername));
             }
-
             const statusDropdown = document.getElementById('hr-filter-status');
             const activeStatusFilter = statusDropdown ? statusDropdown.value : (typeof currentHrStatusFilter !== 'undefined' ? currentHrStatusFilter : '');
             
@@ -5606,7 +5599,6 @@ async function renderPenaltiesDashboard(penalties) {
             }
         }
 
-        // 5. تطبيق فلاتر البحث النصي (تعمل للجميع)
         if(empQ) {
             filtered = filtered.filter(r => {
                 const searchUsername = r.empUsername || r.username || '';
@@ -5624,11 +5616,7 @@ async function renderPenaltiesDashboard(penalties) {
             }); 
         }
 
-        // 📊 6. رسم الجدول
-        const tbody = document.getElementById('hr-requests-table') || 
-                      document.getElementById('admin-requests-table') || 
-                      document.getElementById('requests-tbody');
-                      
+        const tbody = document.getElementById('hr-requests-table');
         if(!tbody) return;
         
         if(filtered.length === 0) { 
@@ -5642,26 +5630,29 @@ async function renderPenaltiesDashboard(penalties) {
             const safeDate = (r.date || r.createdAt || "").split(',')[0]; 
             const safeReason = r.reason || r.type || ''; 
             
+            // 🌟 الإصلاح السحري لمعرف التذكرة (ندمج بين النظام القديم والجديد)
+            const trueId = r.ticketId || r.id; 
+            
             const attachmentLink = r.attachment ? `<a href="${r.attachment}" target="_blank" style="color:#2980b9; font-weight:bold; font-size:12px;"><i class="fas fa-paperclip"></i> المرفق</a>` : '<span style="color:#ccc; font-size:11px;">لا يوجد</span>';
             
             let badge = '';
             if(r.status === 'escalated') badge = '<span class="status-badge" style="background:#e74c3c;">جديد 🔴</span>';
-            else if(r.status === 'pending') badge = '<span class="status-badge" style="background:#95a5a6;">عند المدير ⏳</span>'; // 🌟 أضفنا تصميم الـ pending
+            else if(r.status === 'pending') badge = '<span class="status-badge" style="background:#95a5a6;">عند المدير ⏳</span>'; 
             else if(r.status === 'hr_assigned') badge = '<span class="status-badge" style="background:#f39c12;">تحت الإجراء ⏳</span>';
             else if(r.status === 'resolved') badge = '<span class="status-badge" style="background:#3498db;">بانتظار التقييم 🔄</span>';
             else if(r.status === 'completed') badge = '<span class="status-badge" style="background:#27ae60;">مغلق ✅</span>';
             else badge = `<span class="status-badge" style="background:#9b59b6;">${r.status}</span>`;
 
-            const eyeBtn = `<button onclick="viewRequestDetails('${r.id}')" style="background:#3498db; color:white; border:none; padding:5px 10px; border-radius:4px; cursor:pointer; font-size:11px;"><i class="fas fa-eye"></i> التفاصيل</button>`;
+            const eyeBtn = `<button onclick="viewRequestDetails('${trueId}')" style="background:#3498db; color:white; border:none; padding:5px 10px; border-radius:4px; cursor:pointer; font-size:11px;"><i class="fas fa-eye"></i> التفاصيل</button>`;
 
             let actionsInner = eyeBtn;
             if(r.status === 'escalated') {
                 actionsInner += `
-                    <button onclick="openHrAssignModal('${r.id}')" style="flex:1; background:#27ae60; color:white; border:none; padding:6px 8px; border-radius:4px; cursor:pointer; font-size:11px; white-space:nowrap;"><i class="fas fa-user-check"></i> تعيين</button>
-                    <button onclick="openHrRejectModal('${r.id}')" style="flex:1; background:#e74c3c; color:white; border:none; padding:6px 8px; border-radius:4px; cursor:pointer; font-size:11px; white-space:nowrap;"><i class="fas fa-times"></i> رفض</button>
+                    <button onclick="openHrAssignModal('${trueId}')" style="flex:1; background:#27ae60; color:white; border:none; padding:6px 8px; border-radius:4px; cursor:pointer; font-size:11px; white-space:nowrap;"><i class="fas fa-user-check"></i> تعيين</button>
+                    <button onclick="openHrRejectModal('${trueId}')" style="flex:1; background:#e74c3c; color:white; border:none; padding:6px 8px; border-radius:4px; cursor:pointer; font-size:11px; white-space:nowrap;"><i class="fas fa-times"></i> رفض</button>
                 `;
             } else if(r.status === 'hr_assigned' && (String(r.assignedHrEmp) === String(currentUsername) || isAdminView)) {
-                actionsInner += `<button onclick="window.openHrResolveModal('${r.id}')" style="flex:1; background:#27ae60; color:white; border:none; padding:6px 8px; border-radius:4px; cursor:pointer; font-size:11px; white-space:nowrap;"><i class="fas fa-check-double"></i> إنجاز</button>`;
+                actionsInner += `<button onclick="window.openHrResolveModal('${trueId}')" style="flex:1; background:#27ae60; color:white; border:none; padding:6px 8px; border-radius:4px; cursor:pointer; font-size:11px; white-space:nowrap;"><i class="fas fa-check-double"></i> إنجاز</button>`;
             } else if (r.status === 'pending' && isAdminView) {
                  actionsInner += `<span style="flex:1; font-size:11px; color:#95a5a6; font-weight:bold; display:flex; align-items:center; justify-content:center;">معلق</span>`;
             }
@@ -5670,7 +5661,7 @@ async function renderPenaltiesDashboard(penalties) {
             const assignedName = r.assignedHrEmp ? (allUsersData.find(x => String(x.username) === String(r.assignedHrEmp))?.name || r.assignedHrEmp) : '<span style="color:#e74c3c; font-size:11px;">لم يُعين</span>';
 
             return `<tr>
-                <td style="font-size:11px; font-weight:bold; color:#555;">${String(r.id).replace('REQ-','')}</td>
+                <td style="font-size:11px; font-weight:bold; color:#555;">${String(trueId).replace('REQ-','')}</td>
                 <td style="font-size:12px;">${safeDate}</td>
                 <td><strong>${r.empName || 'غير متوفر'}</strong><br><span style="font-size:10px; color:#888;">${targetUsername}</span></td>
                 <td style="font-size:12px;">${u.branch || '-'}</td>
@@ -8671,38 +8662,31 @@ async function openHrEditTicketModal(ticketId) {
             
             setTimeout(() => { printWindow.print(); }, 500);
         }
-       // 👁️ دالة عرض التفاصيل الشاملة للطلب (مع تفعيل escalationComment)
- // 4. دالة عرض التفاصيل الشاملة (النسخة الهجومية الآمنة 100%)
-// 4. دالة عرض التفاصيل الشاملة (النسخة الخارقة - المضادة للشوائب 🦸‍♂️🧹)
 window.viewRequestDetails = async function(reqId) {
     try {
-        // 1. 🧹 التنظيف السحري: إبقاء الحروف، الأرقام، والشرطة فقط!
         const cleanId = String(reqId).replace(/[^a-zA-Z0-9\-]/g, '');
         console.log("🕵️‍♂️ جاري البحث عن الطلب النظيف:", cleanId);
 
         let req = null;
 
-        // 2. البحث في مصفوفة الموارد (مع تنظيف الأرقام أثناء البحث)
-        if (typeof hrAllRequests !== 'undefined' && Array.isArray(hrAllRequests)) {
-            req = hrAllRequests.find(r => String(r.id).replace(/[^a-zA-Z0-9\-]/g, '') === cleanId);
-        }
+        // البحث بمرونة باستخدام id أو ticketId
+        const findReq = (arr) => arr.find(r => 
+            String(r.id).replace(/[^a-zA-Z0-9\-]/g, '') === cleanId || 
+            String(r.ticketId).replace(/[^a-zA-Z0-9\-]/g, '') === cleanId
+        );
 
-        // 3. البحث في مصفوفة الإدارة (كاحتياط)
-        if (!req && typeof allAdminRequestsData !== 'undefined' && Array.isArray(allAdminRequestsData)) {
-            req = allAdminRequestsData.find(r => String(r.id).replace(/[^a-zA-Z0-9\-]/g, '') === cleanId);
-        }
+        if (typeof hrAllRequests !== 'undefined' && Array.isArray(hrAllRequests)) req = findReq(hrAllRequests);
+        if (!req && typeof allAdminRequestsData !== 'undefined' && Array.isArray(allAdminRequestsData)) req = findReq(allAdminRequestsData);
 
-        // 4. الهجوم على السيرفر كحل أخير ومضمون
         if (!req) {
             console.log("🌐 لم نجده محلياً، جاري السحب من السيرفر مباشرة...");
             const response = await fetch('/api/all-requests');
             if (response.ok) {
                 const dbRequests = await response.json();
-                req = dbRequests.find(r => String(r.id).replace(/[^a-zA-Z0-9\-]/g, '') === cleanId);
+                req = findReq(dbRequests);
             }
         }
 
-        // إذا بعد كل هذا لم يجده.. فهذا يعني أنه غير موجود في قاعدة البيانات أصلاً!
         if (!req) {
             alert("❌ فشل العثور على الطلب رقم: " + cleanId + " (قد يكون محذوفاً من السيرفر).");
             return;
@@ -8710,7 +8694,6 @@ window.viewRequestDetails = async function(reqId) {
 
         console.log("✅ تم العثور على الطلب بنجاح!");
 
-        // 5. تجهيز النصوص والتعليقات
         const empComment = req.details && req.details.trim() !== '' ? req.details : 'لا توجد تفاصيل إضافية مسجلة.';
         const actualMgrComment = req.escalationComment || req.managerComment || req.comment || '';
         let mgrCommentHtml = actualMgrComment.trim() !== '' ? actualMgrComment : (req.isManagerForm ? '<span style="color:#7f8c8d; font-style:italic;">هذا الطلب تم رفعه من الإدارة مباشرة.</span>' : '<span style="color:#7f8c8d;">لم يقم المدير بكتابة تعليق.</span>');
@@ -8721,7 +8704,7 @@ window.viewRequestDetails = async function(reqId) {
         let historyHtml = '<div style="margin-top:15px; padding-top:15px; border-top:1px solid #eee;"><strong style="color:#8e44ad;"><i class="fas fa-history"></i> السجل الزمني للطلب:</strong><ul style="padding-right: 20px; font-size:13px; color:#555; line-height:1.8;">';
         if(req.history && req.history.length > 0) {
             req.history.forEach(h => {
-                let hComment = h.comment ? `<br><span style="color:#3498db; font-size:12px;">💬 تعليق: ${h.comment}</span>` : '';
+                let hComment = h.comment ? `<br><span style="color:#3498db; font-size:12px;">💬 تعليق: ${h.comment}</span>` : (h.note ? `<br><span style="color:#3498db; font-size:12px;">💬 تعليق: ${h.note}</span>` : '');
                 historyHtml += `<li><strong>${h.date}:</strong> ${h.action} ${hComment}</li>`;
             });
         } else {
@@ -8729,7 +8712,6 @@ window.viewRequestDetails = async function(reqId) {
         }
         historyHtml += '</ul></div>';
 
-        // 6. الحقن والإظهار
         const modalBody = document.getElementById('request-details-body');
         const modal = document.getElementById('request-details-modal');
 
@@ -8737,8 +8719,8 @@ window.viewRequestDetails = async function(reqId) {
             modalBody.innerHTML = `
                 <div style="background:#f9f9f9; padding:15px; border-radius:8px; border:1px solid #ddd; margin-bottom:15px; font-size:14px;">
                     <div style="margin-bottom:8px; border-bottom:1px dashed #ccc; padding-bottom:8px;"><strong>صاحب الطلب:</strong> <span style="color:#2c3e50;">${req.empName} (${req.empUsername || req.senderId})</span></div>
-                    <div style="margin-bottom:8px; border-bottom:1px dashed #ccc; padding-bottom:8px;"><strong>نوع الطلب:</strong> <span style="color:#d35400; font-weight:bold;">${req.reason}</span></div>
-                    <div><strong>تاريخ الرفع:</strong> <span style="direction:ltr; display:inline-block;">${req.date || req.timestamp || '-'}</span></div>
+                    <div style="margin-bottom:8px; border-bottom:1px dashed #ccc; padding-bottom:8px;"><strong>نوع الطلب:</strong> <span style="color:#d35400; font-weight:bold;">${req.reason || req.type}</span></div>
+                    <div><strong>تاريخ الرفع:</strong> <span style="direction:ltr; display:inline-block;">${req.date || req.createdAt || req.timestamp || '-'}</span></div>
                 </div>
 
                 <div style="margin-bottom:15px;">
@@ -8764,13 +8746,9 @@ window.viewRequestDetails = async function(reqId) {
                 ${historyHtml}
             `;
             modal.style.display = 'flex';
-        } else {
-            alert("✅ تم العثور على الطلب بنجاح!\n❌ لكن كود النافذة (Modal) غير موجود في ملف الـ HTML لعرضه. تأكد من إضافته في آخر الملف.");
         }
-
     } catch (error) {
         console.error("❌ خطأ برمجي داخلي:", error);
-        alert("حدث خطأ برمجي: " + error.message);
     }
 };
         // ==================== 🛠️ محرك استدعاء بيانات شاشة الإعدادات (النسخة الشاملة) ====================
@@ -9943,7 +9921,6 @@ function calculateRequestDuration(startDateStr, resolveDateStr) {
     return `${diffDays} يوم و ${remainingHours} س`;
 }
 
-// ==================== 📊 رسم جدول تقارير الإدارة (المحدث) ====================
 function renderAdminRequestsTable(data) {
     const tbody = document.getElementById('admin-report-table');
     if(!tbody) return;
@@ -9953,11 +9930,11 @@ function renderAdminRequestsTable(data) {
         return;
     }
 
-    // ترتيب من الأحدث للأقدم
-    data.sort((a,b) => new Date(b.date) - new Date(a.date));
+    data.sort((a,b) => new Date(b.date || b.createdAt) - new Date(a.date || a.createdAt));
 
     tbody.innerHTML = data.map(r => {
-        // 🎨 تصميم شارة الحالة
+        const trueId = r.ticketId || r.id; // 🌟 الإصلاح الجوهري هنا
+
         let statusBadge = '';
         let durationHtml = '';
 
@@ -9968,16 +9945,16 @@ function renderAdminRequestsTable(data) {
         else if(r.status === 'completed') statusBadge = '<span class="status-badge" style="background:#27ae60; color:white;">مغلق نهائياً</span>';
         else statusBadge = `<span class="status-badge" style="background:#95a5a6; color:white;">${r.status}</span>`;
 
-        // ⏱️ حساب المدة (مغلق = لون أخضر ، مفتوح = يحسب الوقت الحالي باللون الأحمر)
+        const safeDate = r.date || r.createdAt || '';
+        const safeResolveDate = r.resolveDate || '';
+
         if (r.status === 'completed' || r.status === 'resolved') {
-            durationHtml = `<span style="color:#27ae60; font-weight:bold; font-size:11px;"><i class="fas fa-stopwatch"></i> ${calculateRequestDuration(r.date, r.resolveDate)}</span>`;
+            durationHtml = `<span style="color:#27ae60; font-weight:bold; font-size:11px;"><i class="fas fa-stopwatch"></i> ${calculateRequestDuration(safeDate, safeResolveDate)}</span>`;
         } else {
-            // حساب الوقت المهدر للطلبات التي لم تغلق بعد!
             const nowStr = new Date().toLocaleString('ar-SA');
-            durationHtml = `<span style="color:#c0392b; font-weight:bold; font-size:11px;"><i class="fas fa-hourglass-half"></i> متأخر: ${calculateRequestDuration(r.date, nowStr)}</span>`;
+            durationHtml = `<span style="color:#c0392b; font-weight:bold; font-size:11px;"><i class="fas fa-hourglass-half"></i> متأخر: ${calculateRequestDuration(safeDate, nowStr)}</span>`;
         }
 
-        // ⭐ تصميم التقييم
         let stars = '';
         if (r.rating) {
             let starCount = parseInt(r.rating);
@@ -9987,9 +9964,8 @@ function renderAdminRequestsTable(data) {
             stars = '<span style="font-size:11px; color:#bdc3c7;">لم يُقيم</span>';
         }
 
-        // 📎 المرفق
         let attachIcon = r.attachment ? `<a href="${r.attachment}" target="_blank" style="color:#2980b9;" title="يوجد مرفق"><i class="fas fa-paperclip"></i></a>` : '';
-        let cleanDate = r.date ? r.date.split(',')[0] : '-';
+        let cleanDate = safeDate ? safeDate.split(',')[0] : '-';
 
         return `
         <tr style="border-bottom: 1px solid #eee;">
@@ -9999,7 +9975,7 @@ function renderAdminRequestsTable(data) {
             </td>
             <td style="font-size:12px; color:#555;">${r.managerName || '-'}</td>
             <td>
-                <span style="color:#27ae60; font-weight:bold;">${r.reason}</span> ${attachIcon}
+                <span style="color:#27ae60; font-weight:bold;">${r.reason || r.type}</span> ${attachIcon}
             </td>
             <td style="font-size:12px; direction:ltr;">${cleanDate}</td>
             <td>${statusBadge}</td>
@@ -10008,7 +9984,7 @@ function renderAdminRequestsTable(data) {
             <td style="direction:rtl;">${durationHtml}</td>
             
             <td style="text-align:center;">
-                <button onclick="viewRequestDetails('${r.id}')" style="background:#3498db; color:white; border:none; padding:5px 10px; border-radius:4px; cursor:pointer; font-size:11px; font-weight:bold;">
+                <button onclick="viewRequestDetails('${trueId}')" style="background:#3498db; color:white; border:none; padding:5px 10px; border-radius:4px; cursor:pointer; font-size:11px; font-weight:bold;">
                     <i class="fas fa-eye"></i> التفاصيل
                 </button>
             </td>
