@@ -2811,30 +2811,24 @@ app.post('/api/submit-penalty', (req, res) => {
 });
 
 // ======================================================================
-// ⚖️ جلب سجل الجزاءات والمخالفات (النسخة المتطورة - SQL)
+// ⚖️ جلب سجل الجزاءات والمخالفات (مع فلتر تجميل التواريخ والأسماء)
 // ======================================================================
 app.post('/api/manager-penalties', async (req, res) => {
     try {
         const { managerName, role, roleArabic } = req.body;
         let history = [];
 
-        // التحقق من الصلاحيات (أدمن أو موارد بشرية)
         const isHrOrAdmin = role === 'admin' || roleArabic === 'ادمن' || roleArabic === 'موظف موارد' || roleArabic === 'موظف ادارة';
 
         if (isHrOrAdmin) {
-            // 👑 الإدارة العليا: جلب كل سجلات المخالفات من SQL مرتبة من الأحدث للأقدم
-            history = await prisma.penalty.findMany({
-                orderBy: { id: 'desc' } // الترتيب يتم داخل قاعدة البيانات مباشرة
-            });
+            history = await prisma.penalty.findMany({ orderBy: { id: 'desc' } });
         } else {
-            // 👨‍💼 المدير المباشر: نجلب فريقه أولاً من قاعدة بيانات الموظفين
             const myTeam = await prisma.employee.findMany({
                 where: { directManager: managerName },
                 select: { username: true }
             });
             const myTeamUsernames = myTeam.map(u => String(u.username));
 
-            // ثم نجلب المخالفات التي تخص فريقه، أو التي قام هو برفعها بنفسه
             history = await prisma.penalty.findMany({
                 where: {
                     OR: [
@@ -2846,12 +2840,46 @@ app.post('/api/manager-penalties', async (req, res) => {
             });
         }
         
-        res.json(history);
+        // 🧹 فلتر التجميل: تنظيف التواريخ وإصلاح الأسماء المفقودة
+        const formattedHistory = await Promise.all(history.map(async (p) => {
+            // 1. تنظيف التاريخ
+            let cleanDate = p.violationDate;
+            if (cleanDate instanceof Date) {
+                cleanDate = cleanDate.toISOString().split('T')[0]; // يحولها إلى YYYY-MM-DD
+            } else if (typeof cleanDate === 'string' && cleanDate.includes('T')) {
+                cleanDate = cleanDate.split('T')[0];
+            }
+
+            // 2. إصلاح "غير معروف"
+            let finalName = p.empName;
+            let finalUsername = p.empUsername;
+            
+            if (!finalName || finalName === 'غير معروف' || !finalUsername || finalUsername === '-') {
+                // محاولة جلب الاسم الحقيقي من قاعدة بيانات الموظفين
+                const realEmp = await prisma.employee.findFirst({
+                    where: { username: String(p.empUsername) }
+                });
+                if (realEmp) {
+                    finalName = realEmp.name;
+                    finalUsername = realEmp.username;
+                }
+            }
+
+            return {
+                ...p,
+                violationDate: cleanDate,
+                empName: finalName,
+                empUsername: finalUsername
+            };
+        }));
+
+        res.json(formattedHistory);
     } catch (error) {
-        console.error("❌ خطأ في جلب الجزاءات من SQL:", error);
-        res.json([]); // إرجاع مصفوفة فارغة في حال الخطأ لمنع انهيار الواجهة
+        console.error("❌ خطأ في جلب الجزاءات:", error);
+        res.json([]); 
     }
 });
+
 // ==================== (HR & Managers) حساب التكرار وجلب التاريخ ====================
 app.post('/api/calculate-penalty', (req, res) => {
     try {
@@ -3102,50 +3130,58 @@ app.get('/api/analyze-absences', (req, res) => {
         res.json({ success: false, message: "حدث خطأ أثناء تحليل الغيابات." });
     }
 });
+
 // ======================================================================
-// ⚖️ (HR & Payroll) محرك المزامنة: تحويل الغيابات إلى إشعارات خصم قانونية
+// ⚖️ (HR & Payroll) محرك المزامنة (النسخة الدقيقة لأسماء الموظفين)
 // ======================================================================
 app.post('/api/sync-absences-to-penalties', async (req, res) => {
     try {
         let addedCount = 0;
         console.log("⏳ بدء تشغيل محرك المزامنة لإصدار إشعارات الغياب الآلية...");
 
-        // 1. جلب جميع سجلات الغياب (A أو LOP) من قاعدة بيانات التحضير مع بيانات الموظف
+        // جلب الغيابات مع بيانات الموظف
         const absences = await prisma.attendance.findMany({
-            where: {
-                code: { in: ['A', 'LOP'] }
-            },
-            include: {
-                employee: true // 🔗 جلب بيانات الموظف المرتبطة بهذا التحضير
-            }
+            where: { code: { in: ['A', 'LOP'] } },
+            include: { employee: true }
         });
 
         for (const att of absences) {
-            // تحويل تاريخ التحضير لصيغة نصية YYYY-MM-DD لسهولة المقارنة
-            const attDateStr = new Date(att.date).toISOString().split('T')[0];
-            const empUsername = String(att.employee.username);
+            // تجاهل السجلات القديمة جداً التي ليس لها موظف مرتبط
+            if (!att.employee || !att.employee.username) continue;
 
-            // 2. التحقق الذكي: هل قمنا بإصدار إشعار لهذا الغياب في هذا اليوم مسبقاً؟
+            let attDateStr = '';
+            if (att.date instanceof Date) {
+                attDateStr = att.date.toISOString().split('T')[0];
+            } else {
+                attDateStr = String(att.date).split('T')[0];
+            }
+
+            const empUsername = String(att.employee.username);
+            const empName = att.employee.name;
+
+            // التأكد من عدم التكرار
             const exists = await prisma.penalty.findFirst({
                 where: {
                     empUsername: empUsername,
-                    violationDate: attDateStr,
-                    category: 'تسوية غيابات للرواتب'
+                    // استخدمنا contains لأن التاريخ قد يكون محفوظاً كنص أو DateTime
+                    category: 'تسوية غيابات للرواتب' 
                 }
             });
 
-            if (!exists) {
-                // 3. 🖨️ إصدار الإشعار الآلي وحفظه في جدول الجزاءات (SQL)
+            // لحماية أقوى للتكرار، سنتأكد أيضاً أن نفس التاريخ لم يسجل
+            const isDateDuplicate = exists && exists.violationDate && String(exists.violationDate).includes(attDateStr);
+
+            if (!exists || !isDateDuplicate) {
                 await prisma.penalty.create({
                     data: {
                         ticketId: 'REQ-' + Date.now() + Math.floor(Math.random() * 10000),
                         empUsername: empUsername,
-                        empName: att.employee.name || 'غير معروف',
+                        empName: empName, // 🔥 حفظ الاسم الصحيح المضمون
                         managerName: 'النظام الآلي (تسوية)',
-                        violationDate: attDateStr,
+                        violationDate: attDateStr, // 🔥 حفظ التاريخ النظيف
                         category: 'تسوية غيابات للرواتب',
                         violationName: 'غياب 1 يوم',
-                        managerComment: 'تم سحب هذا الغياب آلياً من سجل التحضير لإدراجه في مسير الرواتب وإصدار إشعار رسمي للخصم.',
+                        managerComment: 'تم سحب هذا الغياب آلياً من سجل التحضير لإدراجه في مسير الرواتب.',
                         isAdmit: false,
                         requestLessPunishment: false,
                         actualOccurrence: 1, 
@@ -3153,7 +3189,7 @@ app.post('/api/sync-absences-to-penalties', async (req, res) => {
                         displayPenalty: 'خصم 1 يوم',
                         status: 'معتمدة آلياً',
                         attachment: '',
-                        hrComment: 'تسوية آلية لغرض تصدير الرواتب وتوثيق الخصم.',
+                        hrComment: 'تسوية آلية لغرض تصدير الرواتب.',
                         hrName: 'محرك المزامنة',
                         timestamp: new Date()
                     }
@@ -3162,12 +3198,12 @@ app.post('/api/sync-absences-to-penalties', async (req, res) => {
             }
         }
 
-        console.log(`✅ تمت المزامنة بنجاح! تم إصدار ${addedCount} إشعار خصم جديد.`);
+        console.log(`✅ تمت المزامنة بنجاح! تم إصدار ${addedCount} إشعار.`);
         res.json({ success: true, count: addedCount });
 
     } catch (error) {
         console.error("❌ Sync Error:", error);
-        res.json({ success: false, message: "حدث خطأ أثناء المزامنة، تأكد من قاعدة البيانات: " + error.message });
+        res.json({ success: false, message: "حدث خطأ أثناء المزامنة: " + error.message });
     }
 });
 
