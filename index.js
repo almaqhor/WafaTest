@@ -1015,16 +1015,57 @@ app.post('/api/manager-history', (req, res) => {
     history.sort((a, b) => parseInt(b.id) - parseInt(a.id));
     res.json(history.slice(0, 10));
 });
-app.post('/api/resolve-request', (req, res) => {
-    const { id, comment } = req.body;
-    const reqIndex = requestsDB.findIndex(r => r.id === id);
-    if (reqIndex > -1) {
-        requestsDB[reqIndex].status = 'resolved'; requestsDB[reqIndex].managerComment = comment; requestsDB[reqIndex].resolveDate = getRiyadhTime();
-        const diffMins = Math.round((Date.now() - parseInt(requestsDB[reqIndex].id)) / 60000);
-        requestsDB[reqIndex].duration = diffMins < 60 ? `${diffMins} دقيقة` : `${Math.floor(diffMins / 60)} س و ${diffMins % 60} د`;
-        fs.writeFileSync(requestsFile, JSON.stringify(requestsDB, null, 2));
+// ======================================================================
+// ✅ مسار إنجاز والرد على الطلب (SQL)
+// ======================================================================
+app.post('/api/resolve-request', async (req, res) => {
+    try {
+        // isHr: متغير لمعرفة ما إذا كان الرد من الموارد أم من المدير لتوجيه التعليق للحقل الصحيح
+        const { id, comment, byUser, isHr } = req.body; 
+        
+        const ticket = await prisma.requestTicket.findUnique({ 
+            where: { ticketId: String(id) } 
+        });
+        
+        if (!ticket) return res.json({ success: false, message: 'الطلب غير موجود' });
+
+        const history = ticket.history ? JSON.parse(ticket.history) : [];
+        history.push({
+            action: `تم إنجاز الطلب بواسطة ${byUser}`,
+            date: new Date().toLocaleString('ar-SA'),
+            note: comment || ''
+        });
+
+        // تجهيز سلة التحديثات
+        const updateData = {
+            status: 'resolved',
+            resolveDate: new Date().toLocaleString('ar-SA'),
+            resolvedBy: byUser,
+            history: JSON.stringify(history)
+        };
+
+        // توجيه التعليق للمكان الصحيح في قاعدة البيانات
+        if (isHr || isHr === 'true' || ticket.status === 'hr_assigned' || ticket.status === 'escalated') {
+            updateData.hrComment = comment || '';
+        } else {
+            updateData.managerComment = comment || '';
+        }
+
+        // الحفظ في SQL
+        await prisma.requestTicket.update({
+            where: { ticketId: String(id) },
+            data: updateData
+        });
+
+        if (typeof safeLogAudit === 'function') {
+            safeLogAudit(byUser, 'إنجاز طلب', ticket.empName, `إنجاز الطلب رقم: ${id}`);
+        }
+
+        res.json({ success: true });
+    } catch (error) {
+        console.error("❌ خطأ في إنجاز الطلب:", error);
+        res.json({ success: false, message: 'حدث خطأ في السيرفر أثناء الإنجاز' });
     }
-    res.json({ success: true });
 });
 app.post('/api/confirm-request', (req, res) => {
     const { id, rating, empComment } = req.body;
@@ -1453,44 +1494,50 @@ app.post('/api/locations', (req, res) => {
     }
 });
 
-app.post('/api/escalate-ticket', (req, res) => {
+// ======================================================================
+// 🚀 مسار تصعيد الطلب للموارد البشرية (SQL)
+// ======================================================================
+app.post('/api/escalate-ticket', async (req, res) => {
     try {
-        const { ticketId, comment, attachmentBase64, hrSupervisor, managerName } = req.body;
+        const { id, managerComment, byUser } = req.body;
         
-        const index = requestsDB.findIndex(r => r.id === ticketId);
-        if (index === -1) return res.json({ success: false, message: 'الطلب غير موجود' });
-
-        let attachmentPath = '';
-        if (attachmentBase64) {
-            let ext = '.jpg';
-            let rawBase64 = attachmentBase64;
-            if(attachmentBase64.startsWith('data:application/pdf')) { ext = '.pdf'; rawBase64 = attachmentBase64.replace(/^data:application\/pdf;base64,/, ""); } 
-            else { rawBase64 = attachmentBase64.replace(/^data:image\/[a-z]+;base64,/, ""); }
-            const fileName = `ESC-${ticketId}${ext}`;
-            fs.writeFileSync(path.join(uploadsDir, fileName), rawBase64, 'base64');
-            attachmentPath = `/uploads/${fileName}`;
-        } 
-
-        requestsDB[index].status = 'escalated';
-        requestsDB[index].hrSupervisor = hrSupervisor; 
-        requestsDB[index].escalationComment = comment; 
-        requestsDB[index].attachment = attachmentPath;
-
-        if(req.body.managerUsername) requestsDB[index].senderId = req.body.managerUsername;
+        // 1. البحث عن التذكرة باستخدام رقمها الفريد (REQ-...)
+        const ticket = await prisma.requestTicket.findUnique({ 
+            where: { ticketId: String(id) } 
+        });
         
-        if(!requestsDB[index].history) requestsDB[index].history = [];
-        requestsDB[index].history.push({ 
-            action: `تمت الإحالة للموارد من قبل المدير ${managerName}`, 
-            date: new Date().toLocaleString('ar-SA') 
+        if (!ticket) return res.json({ success: false, message: 'الطلب غير موجود في قاعدة البيانات' });
+
+        // 2. تحديث سجل التاريخ (History)
+        const history = ticket.history ? JSON.parse(ticket.history) : [];
+        history.push({
+            action: `تم التصعيد للموارد البشرية بواسطة ${byUser || 'المدير المباشر'}`,
+            date: new Date().toLocaleString('ar-SA'),
+            note: managerComment || ''
         });
 
-        fs.writeFileSync(requestsFile, JSON.stringify(requestsDB, null, 2));
+        // 3. الحفظ الشامل في SQL
+        await prisma.requestTicket.update({
+            where: { ticketId: String(id) },
+            data: {
+                status: 'escalated',
+                escalationComment: managerComment || '',
+                history: JSON.stringify(history)
+            }
+        });
+
+        // 4. الرقابة
+        if (typeof safeLogAudit === 'function') {
+            safeLogAudit(byUser, 'تصعيد طلب', ticket.empName, `تصعيد الطلب رقم: ${id}`);
+        }
+
         res.json({ success: true });
-    } catch (e) {
-        console.error('خطأ في الإحالة:', e);
-        res.json({ success: false, message: 'حدث خطأ بالسيرفر' });
+    } catch (error) {
+        console.error("❌ خطأ في تصعيد الطلب:", error);
+        res.json({ success: false, message: 'حدث خطأ في السيرفر أثناء التصعيد' });
     }
 });
+
 
 
 
