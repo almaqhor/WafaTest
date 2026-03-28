@@ -2198,49 +2198,85 @@ app.post('/api/get-pending-attendance', async (req, res) => {
 /// ======================================================================
 // 💾 3. مسار حفظ التحضير اليومي (بالطريقة الكلاسيكية الآمنة جداً 100%)
 // ======================================================================
+// ======================================================================
+// 💾 3. مسار حفظ التحضير اليومي (مزود بجهاز الأشعة السينية V2 🕵️‍♂️)
+// ======================================================================
 app.post('/api/save-attendance', async (req, res) => {
     try {
+        console.log("\n================================================");
+        console.log("📥 1. بدء محاولة حفظ التحضير (X-Ray V2)");
         const { date, managerName, records } = req.body;
-        if (!records || records.length === 0) return res.json({ success: false, message: "لا توجد بيانات" });
+        
+        console.log(`📅 التاريخ المستلم من الواجهة: ${date}`);
+        console.log(`👨‍💼 المدير: ${managerName}`);
+        console.log(`👥 عدد السجلات: ${records ? records.length : 0}`);
+
+        if (!records || records.length === 0) {
+            console.log("⚠️ تم إيقاف العملية: لا توجد بيانات مرسلة!");
+            return res.json({ success: false, message: "لا توجد بيانات" });
+        }
 
         let successCount = 0;
-        const prismaDate = toPrismaDate(date); // ترجمة التاريخ
+        
+        // تحويل التاريخ بطريقة آمنة جداً لـ Prisma
+        let prismaDate;
+        if (date && date.includes('T')) {
+            prismaDate = date;
+        } else {
+            prismaDate = new Date(date).toISOString(); 
+        }
+        console.log(`🔄 التاريخ بعد الترجمة لـ Prisma: ${prismaDate}`);
+
         const usernames = records.map(r => String(r.username).trim());
+        console.log(`🔍 2. جاري البحث عن الموظفين وعددهم (${usernames.length})...`);
         
         const employees = await prisma.employee.findMany({
             where: { username: { in: usernames } },
             select: { id: true, username: true }
         });
 
+        console.log(`✅ تم العثور على ${employees.length} موظف في SQL من أصل ${usernames.length}`);
+
         const empMap = new Map();
         employees.forEach(emp => empMap.set(emp.username, emp.id));
 
         for (const r of records) {
-            const empId = empMap.get(String(r.username).trim());
-            if (!empId) continue;
+            const cleanUsername = String(r.username).trim();
+            const empId = empMap.get(cleanUsername);
+            
+            if (!empId) {
+                console.log(`⚠️ الموظف ${cleanUsername} غير موجود، سيتم تجاوزه.`);
+                continue;
+            }
 
-            // 🌟 التفاف هندسي: البحث أولاً بدلاً من Upsert لتجنب مشاكل Railway
+            console.log(`⏳ 3. جاري حفظ تحضير الموظف ${cleanUsername} (ID: ${empId})...`);
+
             const existingRecord = await prisma.attendance.findFirst({
                 where: { date: prismaDate, employeeId: empId }
             });
 
             if (existingRecord) {
-                // إذا كان موجوداً -> تحديث
+                console.log(`🔄 تحديث سجل موجود مسبقاً للموظف ${cleanUsername}`);
                 await prisma.attendance.update({
                     where: { id: existingRecord.id },
                     data: { code: r.code, note: managerName, timestamp: new Date().toISOString() }
                 });
             } else {
-                // إذا لم يكن موجوداً -> إنشاء جديد
+                console.log(`✨ إنشاء سجل تحضير جديد للموظف ${cleanUsername}`);
                 await prisma.attendance.create({
                     data: { employeeId: empId, date: prismaDate, code: r.code, note: managerName, timestamp: new Date().toISOString() }
                 });
             }
             successCount++;
         }
+        console.log(`🎉 4. اكتمل الحفظ بنجاح! السجلات المحفوظة: ${successCount}`);
+        console.log("================================================\n");
+        
         res.json({ success: true, message: `تم حفظ تحضير ${successCount} موظف بنجاح.` });
     } catch (error) {
-        console.error("❌ خطأ في حفظ التحضير:", error);
+        console.error("❌❌ انهيار في الحفظ ❌❌");
+        console.error(error);
+        console.log("================================================\n");
         res.json({ success: false, message: "حدث خطأ أثناء الحفظ." });
     }
 });
