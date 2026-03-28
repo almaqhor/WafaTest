@@ -3240,13 +3240,13 @@ app.get('/api/secret-migrate-users-full', async (req, res) => {
 });
 
 // ======================================================================
-// 🚀 مسار الهجرة الصاروخية لنظام الطلبات والتذاكر (Requests)
+// ======================================================================
+// 🚀 مسار الهجرة الصاروخية لنظام الطلبات (التصميم المعماري الجديد)
 // ======================================================================
 app.get('/api/secret-migrate-requests', async (req, res) => {
     try {
         console.log("🚀 بدء هجرة الطلبات والتذاكر إلى SQL...");
         
-        // جلب خريطة الموظفين لربط التذاكر بأصحابها
         const allEmployees = await prisma.employee.findMany({ select: { id: true, username: true } });
         const empMap = new Map();
         allEmployees.forEach(emp => empMap.set(emp.username.toString().trim(), emp.id));
@@ -3260,7 +3260,7 @@ app.get('/api/secret-migrate-requests', async (req, res) => {
 
             if (empId) {
                 readyData.push({
-                    id: reqItem.id.toString(),
+                    ticketId: reqItem.id.toString(), // 🌟 تم توجيه الرقم القديم إلى ticketId
                     employeeId: empId,
                     empUsername: cleanUsername,
                     empName: reqItem.empName || '',
@@ -3293,15 +3293,15 @@ app.get('/api/secret-migrate-requests', async (req, res) => {
 
         console.log(`🚛 تم تجهيز ${readyData.length} تذكرة للحقن...`);
         
-        // الحقن المباشر مع تجاهل المكرر
+        // الحقن المباشر مع تجاهل المكرر بناءً على الـ ticketId الفريد
         const inserted = await prisma.requestTicket.createMany({
             data: readyData,
-            skipDuplicates: true
+            skipDuplicates: true 
         });
 
         res.json({ 
             success: true, 
-            message: "🏁 تمت هجرة التذاكر بنجاح!", 
+            message: "🏁 تمت هجرة التذاكر بنجاح بالتصميم الجديد!", 
             stats: { 
                 totalInJson: requestsDB.length, 
                 successfullyInserted: inserted.count, 
