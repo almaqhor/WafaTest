@@ -747,60 +747,63 @@ app.post('/api/upload-users', upload.single('excelFile'), (req, res) => {
 app.post('/api/upload', upload.array('files'), async (req, res) => {
     try { hrKnowledgeBase = ""; for (let file of req.files) hrKnowledgeBase += `\n${(await mammoth.extractRawText({ buffer: file.buffer })).value}\n`; res.json({ message: "تم التحديث!" }); } catch (error) { res.status(500).json({ error: "خطأ" }); }
 });
-
-
-// ==================== جلب فريق العمل للمدير المباشر ====================
-app.post('/api/my-team', (req, res) => {
-    const { managerName } = req.body;
-    
-    // الفلترة الذكية (استبعاد العرض الوظيفي والمستقيل)
-    const team = usersDB.filter(u => 
-        u.username && u.username.trim() !== '' && 
-        u.name && u.name.trim() !== '' &&         
-        u.directManager === managerName && 
-        u.status !== 'Job Offer' && 
-        u.status !== 'Resign' && 
-        u.status !== 'Terminated' && 
-        u.isActive !== false
-    );
-    
-    // 🔥 السحر هنا: نرسل الفريق مباشرة لأن الوردية محفوظة مسبقاً داخل بياناتهم 🔥
-    res.json(team);
-});
-
-
-// ==================== جلب فريق العمل للتحضير ====================
-// ==================== جلب فريق العمل للتحضير ====================
-app.post('/api/attendance-team', (req, res) => {
+// ==================== 🌟 1. جلب فريق العمل للمدير المباشر (من SQL) 🌟 ====================
+app.post('/api/my-team', async (req, res) => {
     try {
         const { managerName } = req.body;
         
-        const team = usersDB.filter(u => {
-            // 1. هل الموظف يتبع لهذا المدير؟ أو هل هو المدير نفسه؟
-            const isMyEmp = u.directManager === managerName;
-            const isManagerHimself = u.name === managerName; // لكي يظهر المدير في قائمة التحضير الخاصة به
-            
-            // 2. الفلترة حسب الحالة الوظيفية (In Duty)
-            // قمنا بتوحيد حالة الأحرف (toLowerCase) لكي يقبلها سواء كُتبت in duty أو In Duty
-            const statusStr = (u.status || '').trim().toLowerCase();
-            const isInDuty = statusStr === 'in duty' || statusStr === 'نشط' || statusStr === 'على رأس العمل' || statusStr === 'active';
-            
-            return (isMyEmp || isManagerHimself) && isInDuty;
+        // جلب الفريق من قاعدة البيانات مباشرة مع الفلترة الذكية
+        const team = await prisma.employee.findMany({
+            where: {
+                directManager: managerName,
+                isActive: true,
+                status: {
+                    notIn: ['Job Offer', 'Resign', 'Terminated'] // استبعاد المستقيلين والعروض
+                },
+                username: { not: '' },
+                name: { not: '' }
+            },
+            orderBy: { username: 'asc' } // ترتيب بالرقم الوظيفي
         });
+        
+        res.json(team);
+    } catch (error) {
+        console.error("❌ خطأ في جلب فريق العمل من SQL:", error);
+        res.status(500).json([]); // حماية الواجهة من الانهيار
+    }
+});
 
-        // 3. الترتيب بالرقم الوظيفي (تصاعدياً)
-        team.sort((a, b) => {
-            const idA = a.username ? a.username.toString() : '';
-            const idB = b.username ? b.username.toString() : '';
-            return idA.localeCompare(idB, undefined, { numeric: true });
+// ==================== 🌟 2. جلب فريق العمل للتحضير (من SQL) 🌟 ====================
+app.post('/api/attendance-team', async (req, res) => {
+    try {
+        const { managerName } = req.body;
+        
+        // جلب الموظفين + المدير نفسه (لكي يحضر نفسه) بشرط أن يكونوا على رأس العمل
+        const team = await prisma.employee.findMany({
+            where: {
+                OR: [
+                    { directManager: managerName },
+                    { name: managerName }
+                ],
+                isActive: true,
+                status: {
+                    in: ['in duty', 'In Duty', 'نشط', 'على رأس العمل', 'active'] // الحالات المسموح لها بالتحضير
+                }
+            },
+            orderBy: { username: 'asc' } // ترتيب تصاعدي
         });
 
         res.json(team);
     } catch (error) {
-        console.error("Error in /api/attendance-team:", error);
-        res.json([]);
+        console.error("❌ خطأ في جلب فريق التحضير من SQL:", error);
+        res.status(500).json([]);
     }
 });
+
+
+
+
+
 // ==================== تحديث بيانات المستخدم (يدعم تغيير الرقم الوظيفي) ====================
 app.post('/api/user-update', (req, res) => {
     try {
