@@ -5555,43 +5555,43 @@ async function renderPenaltiesDashboard(penalties) {
         }
         function setHrStatusFilter(status) { currentHrStatusFilter = status; renderHrTable(); }
 
-async function renderHrTable() {
+    async function renderHrTable() {
     try {
         if (typeof locationsArray === 'undefined' || locationsArray.length === 0) {
-            try {
-                locationsArray = await (await fetch('/api/locations')).json();
-            } catch(e) { 
-                console.error("تعذر جلب خريطة المواقع الجغرافية", e); 
-            }
+            try { locationsArray = await (await fetch('/api/locations')).json(); } catch(e) {}
         }
 
         let filtered = hrAllRequests || [];
 
-        // 2. 🛡️ البوابة الجغرافية (Geo-Routing Checkpoint)
-        if (typeof globalIsAdmin !== 'undefined' && !globalIsAdmin) { 
+        // 👑 1. صلاحية الإدارة العليا (Admin Override)
+        // تحديد ما إذا كان المستخدم الحالي هو الأدمن
+        const isAdminView = typeof globalIsAdmin !== 'undefined' && globalIsAdmin;
+
+        // 🛡️ 2. البوابة الجغرافية (تُطبق فقط على مشرف الموارد، ونتجاهلها للأدمن)
+        if (!isAdminView) { 
             const mySupervisedBranches = locationsArray
                 .filter(loc => String(loc.hrUsername) === String(currentUsername))
                 .map(loc => loc.branch);
 
             filtered = filtered.filter(r => {
                 if (String(r.assignedHrEmp) === String(currentUsername)) return true;
-
-                // 🌟 الحل هنا: استخدام empUsername أو username (أيهما متوفر من السيرفر)
                 const targetUsername = String(r.empUsername || r.username); 
                 const reqUser = allUsersData.find(x => String(x.username) === targetUsername);
                 return reqUser && mySupervisedBranches.includes(reqUser.branch);
             });
         }
 
-        // 3. 🔍 قراءة الفلاتر المعتادة
+        // 3. 🔍 قراءة الفلاتر المعتادة من الشاشة (نسمح للأدمن بالبحث النصي)
         const empQ = document.getElementById('hr-filter-emp') ? document.getElementById('hr-filter-emp').value.trim().toLowerCase() : '';
         const branchQ = document.getElementById('hr-filter-branch') ? document.getElementById('hr-filter-branch').value : '';
         const typeQ = document.getElementById('hr-filter-type') ? document.getElementById('hr-filter-type').value : '';
 
         // 4. تطبيق الفلاتر
-        if (typeof currentHrTab !== 'undefined' && currentHrTab === 'mine') {
+        // 🛑 تعطيل فخ "طلباتي" للأدمن، لكي يرى كل شيء دائماً
+        if (typeof currentHrTab !== 'undefined' && currentHrTab === 'mine' && !isAdminView) {
             filtered = filtered.filter(r => String(r.assignedHrEmp) === String(currentUsername));
         }
+
         if (typeof currentHrStatusFilter !== 'undefined' && currentHrStatusFilter) {
             filtered = filtered.filter(r => r.status === currentHrStatusFilter);
         }
@@ -5602,7 +5602,7 @@ async function renderHrTable() {
             });
         }
         if(typeQ) {
-            filtered = filtered.filter(r => r.reason === typeQ || r.type === typeQ); // دعم كلا الاسمين
+            filtered = filtered.filter(r => r.reason === typeQ || r.type === typeQ);
         }
         if(branchQ) { 
             filtered = filtered.filter(r => { 
@@ -5612,28 +5612,37 @@ async function renderHrTable() {
             }); 
         }
 
-        // 5. 📊 رسم الجدول
-        const tbody = document.getElementById('hr-requests-table');
-        if(!tbody) return;
+        // 5. 📊 رسم الجدول (إصلاح فخ اختلاف الشاشات)
+        // الكود سيبحث عن أي جدول متاح سواء في شاشة الموارد أو شاشة الأدمن
+        const tbody = document.getElementById('hr-requests-table') || 
+                      document.getElementById('admin-requests-table') || 
+                      document.getElementById('requests-tbody');
+                      
+        if(!tbody) {
+            console.warn("⚠️ لم يتم العثور على مكان رسم الجدول في هذه الشاشة!");
+            return;
+        }
         
+        // حالة عدم وجود طلبات
         if(filtered.length === 0) { 
-            tbody.innerHTML = '<tr><td colspan="9" style="text-align:center; padding: 20px; font-weight: bold; color: #777;"><i class="fas fa-inbox fa-2x" style="color:#ddd; margin-bottom:10px; display:block;"></i>لا توجد طلبات مطابقة في نطاق إشرافك أو حسب الفلاتر المحددة</td></tr>'; 
+            tbody.innerHTML = '<tr><td colspan="9" style="text-align:center; padding: 20px; font-weight: bold; color: #777;"><i class="fas fa-inbox fa-2x" style="color:#ddd; margin-bottom:10px; display:block;"></i>لا توجد طلبات لعرضها</td></tr>'; 
             return; 
         }
 
+        // رسم الصفوف
         tbody.innerHTML = filtered.map(r => {
             const targetUsername = String(r.empUsername || r.username || '');
             const u = allUsersData.find(x => String(x.username) === targetUsername) || {};
-            const safeDate = (r.date || r.createdAt || "").split(',')[0]; // دعم كلا الاسمين للتاريخ
-            const safeReason = r.reason || r.type || ''; // دعم كلا الاسمين للسبب
+            const safeDate = (r.date || r.createdAt || "").split(',')[0]; 
+            const safeReason = r.reason || r.type || ''; 
             
             const attachmentLink = r.attachment ? `<a href="${r.attachment}" target="_blank" style="color:#2980b9; font-weight:bold; font-size:12px;"><i class="fas fa-paperclip"></i> المرفق</a>` : '<span style="color:#ccc; font-size:11px;">لا يوجد</span>';
             
             let badge = '';
-            if(r.status === 'escalated') badge = '<span class="status-badge" style="background:#e74c3c;">جديد لم يُعين 🔴</span>';
+            if(r.status === 'escalated') badge = '<span class="status-badge" style="background:#e74c3c;">جديد 🔴</span>';
             else if(r.status === 'hr_assigned') badge = '<span class="status-badge" style="background:#f39c12;">تحت الإجراء ⏳</span>';
             else if(r.status === 'resolved') badge = '<span class="status-badge" style="background:#3498db;">بانتظار التقييم 🔄</span>';
-            else if(r.status === 'completed') badge = '<span class="status-badge" style="background:#27ae60;">مغلق نهائياً ✅</span>';
+            else if(r.status === 'completed') badge = '<span class="status-badge" style="background:#27ae60;">مغلق ✅</span>';
             else badge = `<span class="status-badge" style="background:#9b59b6;">${r.status}</span>`;
 
             const eyeBtn = `<button onclick="viewRequestDetails('${r.id}')" style="background:#3498db; color:white; border:none; padding:5px 10px; border-radius:4px; cursor:pointer; font-size:11px;"><i class="fas fa-eye"></i> التفاصيل</button>`;
@@ -5646,10 +5655,10 @@ async function renderHrTable() {
                     <button onclick="openHrRejectModal('${r.id}')" style="flex:1; background:#e74c3c; color:white; border:none; padding:6px 8px; border-radius:4px; cursor:pointer; font-size:11px; white-space:nowrap;"><i class="fas fa-times"></i> رفض</button>
                 `;
             } else if(r.status === 'hr_assigned') {
-                if (String(r.assignedHrEmp) === String(currentUsername)) {
+                if (String(r.assignedHrEmp) === String(currentUsername) || isAdminView) {
                     actionsInner = `
                         ${eyeBtn}
-                        <button onclick="window.openHrResolveModal('${r.id}')" style="flex:1; background:#27ae60; color:white; border:none; padding:6px 8px; border-radius:4px; cursor:pointer; font-size:11px; white-space:nowrap;"><i class="fas fa-check-double"></i> إنجاز الطلب</button>
+                        <button onclick="window.openHrResolveModal('${r.id}')" style="flex:1; background:#27ae60; color:white; border:none; padding:6px 8px; border-radius:4px; cursor:pointer; font-size:11px; white-space:nowrap;"><i class="fas fa-check-double"></i> إنجاز</button>
                     `;
                 } else {
                     actionsInner = `${eyeBtn}<span style="flex:1; font-size:11px; color:#f39c12; font-weight:bold; display:flex; align-items:center; justify-content:center;">يُعالج بواسطة زميل</span>`;
