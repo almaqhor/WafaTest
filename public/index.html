@@ -5490,9 +5490,9 @@ async function renderPenaltiesDashboard(penalties) {
         let currentHrStatusFilter = '';
 
 
-        async function loadHrRequests() {
+       async function loadHrRequests() {
     try {
-        if (allUsersData.length === 0) {
+        if (typeof allUsersData !== 'undefined' && allUsersData.length === 0) {
             try { allUsersData = await (await fetch('/api/users')).json(); } catch(e){}
         }
         
@@ -5502,40 +5502,49 @@ async function renderPenaltiesDashboard(penalties) {
         }
         
         const typeSel = document.getElementById('hr-filter-type'); 
-        if(typeSel && typeSel.options.length <= 1 && reasonsArray.length > 0) {
+        if(typeSel && typeSel.options.length <= 1 && typeof reasonsArray !== 'undefined' && reasonsArray.length > 0) {
             typeSel.innerHTML += reasonsArray.map(r => `<option value="${r}">${r}</option>`).join('');
         }
         
-        // 🔥 استدعاء البيانات من السيرفر وإرسال صلاحيات الموظف ليتم فلترتها برمجياً
-        const response = await fetch('/api/hr-requests', { 
+        // 🌟 الذكاء التوجيهي (Smart Routing):
+        // تحديد المسار بناءً على صلاحية المستخدم
+        const apiEndpoint = globalIsAdmin ? '/api/admin-mega-requests' : '/api/hr-requests';
+
+        // إرسال الطلب للمسار المناسب
+        const response = await fetch(apiEndpoint, { 
             method: 'POST', 
             headers: {'Content-Type': 'application/json'}, 
             body: JSON.stringify({
-                username: currentUsername, 
+                username: typeof currentUsername !== 'undefined' ? currentUsername : '', 
                 isAdmin: globalIsAdmin, 
-                role: globalRoleArabic
+                role: typeof globalRoleArabic !== 'undefined' ? globalRoleArabic : ''
             }) 
         });
 
         if (response.ok) {
             hrAllRequests = await response.json();
+            console.log(globalIsAdmin ? "👑 بيانات الإدارة العليا الشاملة:" : "💼 بيانات الموارد البشرية المفلترة:", hrAllRequests);
         } else {
             hrAllRequests = [];
         }
         
-        const isHrSupervisor = globalIsAdmin || locationsArray.some(loc => loc.hrUsername === currentUsername);
+        const isHrSupervisor = globalIsAdmin || (typeof locationsArray !== 'undefined' && locationsArray.some(loc => String(loc.hrUsername) === String(currentUsername)));
         const btnAll = document.getElementById('btn-hr-tab-all');
+        
         if(btnAll) {
             if (!isHrSupervisor) {
                 btnAll.style.display = 'none';
-                switchHrTab('mine'); 
+                if(typeof switchHrTab === 'function') switchHrTab('mine'); 
             } else {
                 btnAll.style.display = 'inline-block';
             }
         }
 
+        // إرسال البيانات لدالة الرسم التي حصناها مسبقاً
         renderHrTable();
-    } catch(e) { console.error("Error loading HR requests:", e); }
+    } catch(e) { 
+        console.error("Error loading HR requests:", e); 
+    }
 }
         
         function switchHrTab(tab) { 
