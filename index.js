@@ -3152,7 +3152,7 @@ app.get('/api/analyze-absences', (req, res) => {
 });
 
 // ======================================================================
-// ⚖️ (HR & Payroll) محرك المزامنة المتطور (متوافق مع العلاقات SQL Relations)
+// ⚖️ (HR & Payroll) محرك المزامنة المتطور (مع الترويض الصارم للتواريخ)
 // ======================================================================
 app.post('/api/sync-absences-to-penalties', async (req, res) => {
     try {
@@ -3162,14 +3162,14 @@ app.post('/api/sync-absences-to-penalties', async (req, res) => {
         // 1. جلب الغيابات مع بيانات الموظف (للحصول على employeeId)
         const absences = await prisma.attendance.findMany({
             where: { code: { in: ['A', 'LOP'] } },
-            include: { employee: true } // 🔗 السحر هنا: جلب الموظف المرتبط
+            include: { employee: true } // 🔗 جلب الموظف المرتبط
         });
 
         for (const att of absences) {
             // حماية: إذا كان التحضير يتيماً (الموظف محذوف) نتجاهله
             if (!att.employee || !att.employeeId) continue;
 
-            // توحيد صيغة التاريخ
+            // استخراج التاريخ كنص (YYYY-MM-DD)
             let attDateStr = '';
             if (att.date instanceof Date) {
                 attDateStr = att.date.toISOString().split('T')[0];
@@ -3177,30 +3177,28 @@ app.post('/api/sync-absences-to-penalties', async (req, res) => {
                 attDateStr = String(att.date).split('T')[0];
             }
 
-            // 2. التحقق من عدم وجود الإشعار مسبقاً (استخدام employeeId للبحث الدقيق)
+            // 🔥 السحر هنا: تحويل النص إلى كائن زمني صارم (UTC Midnight) يقبله Prisma
+            const strictViolationDate = new Date(attDateStr + 'T00:00:00Z');
+
+            // 2. التحقق من عدم وجود الإشعار مسبقاً
             const exists = await prisma.penalty.findFirst({
                 where: {
-                    employeeId: att.employeeId, // 🔗 نستخدم المعرف الرقمي المترابط
-                    violationDate: attDateStr,
+                    employeeId: att.employeeId,
+                    violationDate: strictViolationDate, // 👈 استخدام التاريخ الصارم هنا
                     category: 'تسوية غيابات للرواتب'
                 }
             });
 
-            // 3. إنشاء الإشعار وربطه بالموظف
+            // 3. إنشاء الإشعار
             if (!exists) {
                 await prisma.penalty.create({
                     data: {
                         ticketId: 'REQ-' + Date.now() + Math.floor(Math.random() * 10000),
-                        
-                        // 🔗 الربط الحقيقي بقاعدة البيانات
                         employeeId: att.employeeId, 
-                        
-                        // نحفظ هذه القيم مؤقتاً لتوافق الواجهة الأمامية (أو يمكننا الاستغناء عنها لاحقاً)
                         empUsername: String(att.employee.username),
                         empName: att.employee.name,
-                        
                         managerName: 'النظام الآلي (تسوية)',
-                        violationDate: attDateStr,
+                        violationDate: strictViolationDate, // 👈 استخدام التاريخ الصارم هنا
                         category: 'تسوية غيابات للرواتب',
                         violationName: 'غياب 1 يوم',
                         managerComment: 'تم سحب هذا الغياب آلياً من سجل التحضير لإدراجه في مسير الرواتب.',
