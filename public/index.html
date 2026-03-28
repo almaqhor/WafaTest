@@ -5555,7 +5555,7 @@ async function renderPenaltiesDashboard(penalties) {
         }
         function setHrStatusFilter(status) { currentHrStatusFilter = status; renderHrTable(); }
 
-    async function renderHrTable() {
+        async function renderHrTable() {
     try {
         if (typeof locationsArray === 'undefined' || locationsArray.length === 0) {
             try { locationsArray = await (await fetch('/api/locations')).json(); } catch(e) {}
@@ -5563,11 +5563,13 @@ async function renderPenaltiesDashboard(penalties) {
 
         let filtered = hrAllRequests || [];
 
-        // 👑 1. صلاحية الإدارة العليا (Admin Override)
-        // تحديد ما إذا كان المستخدم الحالي هو الأدمن
-        const isAdminView = typeof globalIsAdmin !== 'undefined' && globalIsAdmin;
+        // 👑 1. كشاف الإدارة العليا: التأكد القاطع من صلاحية الأدمن من أكثر من مصدر
+        const currentUser = JSON.parse(localStorage.getItem('currentUser')) || {};
+        const isAdminView = (typeof globalIsAdmin !== 'undefined' && globalIsAdmin === true) || 
+                            currentUser.role === 'admin' || 
+                            currentUser.roleArabic === 'ادمن';
 
-        // 🛡️ 2. البوابة الجغرافية (تُطبق فقط على مشرف الموارد، ونتجاهلها للأدمن)
+        // 🛡️ 2. البوابة الجغرافية (تطبق على الموارد فقط، والأدمن يتجاوزها)
         if (!isAdminView) { 
             const mySupervisedBranches = locationsArray
                 .filter(loc => String(loc.hrUsername) === String(currentUsername))
@@ -5581,20 +5583,27 @@ async function renderPenaltiesDashboard(penalties) {
             });
         }
 
-        // 3. 🔍 قراءة الفلاتر المعتادة من الشاشة (نسمح للأدمن بالبحث النصي)
+        // 3. 🔍 قراءة فلاتر البحث اليدوية من الشاشة
         const empQ = document.getElementById('hr-filter-emp') ? document.getElementById('hr-filter-emp').value.trim().toLowerCase() : '';
         const branchQ = document.getElementById('hr-filter-branch') ? document.getElementById('hr-filter-branch').value : '';
         const typeQ = document.getElementById('hr-filter-type') ? document.getElementById('hr-filter-type').value : '';
 
-        // 4. تطبيق الفلاتر
-        // 🛑 تعطيل فخ "طلباتي" للأدمن، لكي يرى كل شيء دائماً
+        // 4. تطبيق الفلاتر (مع حماية الأدمن من الإخفاء العشوائي)
+        
+        // أ. فلتر التبويب (طلباتي) - نلغيه للأدمن لكي يرى كل شيء
         if (typeof currentHrTab !== 'undefined' && currentHrTab === 'mine' && !isAdminView) {
             filtered = filtered.filter(r => String(r.assignedHrEmp) === String(currentUsername));
         }
 
-        if (typeof currentHrStatusFilter !== 'undefined' && currentHrStatusFilter) {
-            filtered = filtered.filter(r => r.status === currentHrStatusFilter);
+        // ب. فلتر الحالة - نلغيه للأدمن لكي يرى حتى الـ pending (إلا إذا اختار هو فلترة محددة من الشاشة)
+        const statusDropdown = document.getElementById('hr-filter-status');
+        const activeStatusFilter = statusDropdown ? statusDropdown.value : (typeof currentHrStatusFilter !== 'undefined' ? currentHrStatusFilter : '');
+        
+        if (activeStatusFilter && activeStatusFilter !== 'all') {
+            filtered = filtered.filter(r => r.status === activeStatusFilter);
         }
+
+        // ج. فلاتر البحث النصي (تعمل للجميع)
         if(empQ) {
             filtered = filtered.filter(r => {
                 const searchUsername = r.empUsername || r.username || '';
@@ -5602,7 +5611,7 @@ async function renderPenaltiesDashboard(penalties) {
             });
         }
         if(typeQ) {
-            filtered = filtered.filter(r => r.reason === typeQ || r.type === typeQ);
+            filtered = filtered.filter(r => r.reason === typeQ || r.type === typeQ || r.reason.includes(typeQ));
         }
         if(branchQ) { 
             filtered = filtered.filter(r => { 
@@ -5612,24 +5621,18 @@ async function renderPenaltiesDashboard(penalties) {
             }); 
         }
 
-        // 5. 📊 رسم الجدول (إصلاح فخ اختلاف الشاشات)
-        // الكود سيبحث عن أي جدول متاح سواء في شاشة الموارد أو شاشة الأدمن
+        // 5. 📊 رسم الجدول الشامل
         const tbody = document.getElementById('hr-requests-table') || 
                       document.getElementById('admin-requests-table') || 
                       document.getElementById('requests-tbody');
                       
-        if(!tbody) {
-            console.warn("⚠️ لم يتم العثور على مكان رسم الجدول في هذه الشاشة!");
-            return;
-        }
+        if(!tbody) return;
         
-        // حالة عدم وجود طلبات
         if(filtered.length === 0) { 
             tbody.innerHTML = '<tr><td colspan="9" style="text-align:center; padding: 20px; font-weight: bold; color: #777;"><i class="fas fa-inbox fa-2x" style="color:#ddd; margin-bottom:10px; display:block;"></i>لا توجد طلبات لعرضها</td></tr>'; 
             return; 
         }
 
-        // رسم الصفوف
         tbody.innerHTML = filtered.map(r => {
             const targetUsername = String(r.empUsername || r.username || '');
             const u = allUsersData.find(x => String(x.username) === targetUsername) || {};
@@ -5640,6 +5643,7 @@ async function renderPenaltiesDashboard(penalties) {
             
             let badge = '';
             if(r.status === 'escalated') badge = '<span class="status-badge" style="background:#e74c3c;">جديد 🔴</span>';
+            else if(r.status === 'pending') badge = '<span class="status-badge" style="background:#95a5a6;">عند المدير ⏳</span>'; // 🌟 إضافة شارة الـ pending
             else if(r.status === 'hr_assigned') badge = '<span class="status-badge" style="background:#f39c12;">تحت الإجراء ⏳</span>';
             else if(r.status === 'resolved') badge = '<span class="status-badge" style="background:#3498db;">بانتظار التقييم 🔄</span>';
             else if(r.status === 'completed') badge = '<span class="status-badge" style="background:#27ae60;">مغلق ✅</span>';
@@ -5647,26 +5651,15 @@ async function renderPenaltiesDashboard(penalties) {
 
             const eyeBtn = `<button onclick="viewRequestDetails('${r.id}')" style="background:#3498db; color:white; border:none; padding:5px 10px; border-radius:4px; cursor:pointer; font-size:11px;"><i class="fas fa-eye"></i> التفاصيل</button>`;
 
-            let actionsInner = '';
+            // تبسيط الإجراءات للأدمن لكي يرى التفاصيل دائماً
+            let actionsInner = eyeBtn;
             if(r.status === 'escalated') {
-                actionsInner = `
-                    ${eyeBtn}
+                actionsInner += `
                     <button onclick="openHrAssignModal('${r.id}')" style="flex:1; background:#27ae60; color:white; border:none; padding:6px 8px; border-radius:4px; cursor:pointer; font-size:11px; white-space:nowrap;"><i class="fas fa-user-check"></i> تعيين</button>
                     <button onclick="openHrRejectModal('${r.id}')" style="flex:1; background:#e74c3c; color:white; border:none; padding:6px 8px; border-radius:4px; cursor:pointer; font-size:11px; white-space:nowrap;"><i class="fas fa-times"></i> رفض</button>
                 `;
-            } else if(r.status === 'hr_assigned') {
-                if (String(r.assignedHrEmp) === String(currentUsername) || isAdminView) {
-                    actionsInner = `
-                        ${eyeBtn}
-                        <button onclick="window.openHrResolveModal('${r.id}')" style="flex:1; background:#27ae60; color:white; border:none; padding:6px 8px; border-radius:4px; cursor:pointer; font-size:11px; white-space:nowrap;"><i class="fas fa-check-double"></i> إنجاز</button>
-                    `;
-                } else {
-                    actionsInner = `${eyeBtn}<span style="flex:1; font-size:11px; color:#f39c12; font-weight:bold; display:flex; align-items:center; justify-content:center;">يُعالج بواسطة زميل</span>`;
-                }
-            } else if(r.status === 'completed' || r.status === 'resolved') {
-                actionsInner = `${eyeBtn}<span style="flex:1; font-size:11px; color:#27ae60; font-weight:bold; display:flex; align-items:center; justify-content:center;"><i class="fas fa-lock"></i> تم الرد</span>`;
-            } else {
-                actionsInner = eyeBtn;
+            } else if(r.status === 'hr_assigned' && (String(r.assignedHrEmp) === String(currentUsername) || isAdminView)) {
+                actionsInner += `<button onclick="window.openHrResolveModal('${r.id}')" style="flex:1; background:#27ae60; color:white; border:none; padding:6px 8px; border-radius:4px; cursor:pointer; font-size:11px; white-space:nowrap;"><i class="fas fa-check-double"></i> إنجاز</button>`;
             }
 
             const actions = `<div style="display:flex; gap:5px; justify-content:center; min-width:180px;">${actionsInner}</div>`;
@@ -5688,6 +5681,7 @@ async function renderPenaltiesDashboard(penalties) {
         console.error("❌ حدث خطأ أثناء رسم الجدول:", e);
     }
 }
+    
         function openHrAssignModal(ticketId) {
             document.getElementById('assign-ticket-id').value = ticketId; document.getElementById('assign-comment').value = '';
             const hrStaff = allUsersData.filter(u => u.roleArabic === 'موظف ادارة' || u.role === 'admin');
