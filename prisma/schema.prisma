@@ -161,7 +161,8 @@ model ExitInterview {
   additionalComments    String?
 
 model RequestTicket {
-  id                      String   @id // رقم التذكرة مثل REQ-12345
+  id                      Int      @id @default(autoincrement()) // المفتاح التسلسلي (SQL يحب هذا)
+  ticketId                String   @unique // رقم التذكرة الفعلي (مثل REQ-12345)
   employeeId              Int
   empUsername             String
   empName                 String?
@@ -170,7 +171,7 @@ model RequestTicket {
   managerName             String?
   hrSupervisor            String?
   assignedHrEmp           String?
-  type                    String?  // نوع الطلب أو السبب
+  type                    String?
   details                 String?
   attachment              String?
   status                  String   @default("pending")
@@ -185,9 +186,8 @@ model RequestTicket {
   empComment              String?
   rating                  String?
   resolvedBy              String?
-  history                 String?  // سنحفظ سجل الحركات كنص JSON
+  history                 String?
 
-  // العلاقة مع جدول الموظفين
   employee                Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
 }
 }
