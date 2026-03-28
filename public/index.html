@@ -9855,23 +9855,68 @@ window.exitGhostMode = function() {
 let allAdminRequestsData = [];
 let hrAllRequests = [];
 
-// 1. دالة الإدارة العليا (تجلب كل الطلبات في الشركة)
+// ======================================================================
+// 🚜 محرك التجميع العبقري (Scatter-Gather) للإدارة العليا
+// ======================================================================
 async function loadAdminReport() { 
     const tbody = document.getElementById('admin-report-table');
-    if (tbody) tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;">جاري سحب البيانات من السيرفر... ⏳</td></tr>';
+    if (tbody) tbody.innerHTML = '<tr><td colspan="9" style="text-align:center; font-weight:bold; color:#2980b9;">جاري تجميع البيانات من جميع مناطق وفروع المملكة... 🚜⏳</td></tr>';
 
     try { 
-        // 🔥 التعديل السحري: غيرنا المسار ليتطابق مع السيرفر الخاص بك 100%
-        const response = await fetch('/api/all-requests'); 
-        
-        if(response.ok) {
-            allAdminRequestsData = await response.json(); 
-            renderAdminRequestsTable(allAdminRequestsData); 
-        } else {
-            if (tbody) tbody.innerHTML = '<tr><td colspan="9" style="text-align:center; color:red;">تعذر الوصول للبيانات (تأكد من مسار السيرفر).</td></tr>';
+        // 1. التأكد من وجود خريطة المواقع لمعرفة مشرفي المناطق
+        if (typeof locationsArray === 'undefined' || locationsArray.length === 0) {
+            locationsArray = await (await fetch('/api/locations')).json();
         }
+
+        // 2. استخراج قائمة "فريدة" بأسماء أو أرقام جميع مشرفي الموارد في الشركة
+        const allHrSupervisors = [...new Set(locationsArray.map(loc => loc.hrUsername))].filter(Boolean);
+        
+        // 3. إضافة "admin" كاحتياط لجلب الطلبات غير المعينة
+        if (!allHrSupervisors.includes('admin')) allHrSupervisors.push('admin');
+
+        console.log("🕵️‍♂️ جاري إرسال جواسيس لجلب بيانات هؤلاء المشرفين:", allHrSupervisors);
+
+        let allAggregatedRequests = [];
+
+        // 4. إطلاق طلبات متزامنة (Parallel Requests) كأننا ندخل بحساباتهم
+        const fetchPromises = allHrSupervisors.map(hrUser => {
+            return fetch('/api/hr-requests', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    username: hrUser,       // نتقمص شخصية المشرف
+                    isAdmin: false,         // نخدع السيرفر ليعمل الفلتر الطبيعي
+                    role: 'موظف موارد'
+                })
+            }).then(res => res.ok ? res.json() : []);
+        });
+
+        // 5. انتظار عودة جميع الجواسيس بالبيانات
+        const resultsArray = await Promise.all(fetchPromises);
+
+        // 6. تفريغ حمولة البيانات في سلة واحدة
+        resultsArray.forEach(requestsBatch => {
+            allAggregatedRequests = [...allAggregatedRequests, ...requestsBatch];
+        });
+
+        // 7. 🔥 فلترة المكرر (لأن بعض المشرفين يمسكون أكثر من فرع)
+        // نستخدم Map لضمان أن كل ID يظهر مرة واحدة فقط
+        const uniqueRequestsMap = new Map();
+        allAggregatedRequests.forEach(req => {
+            const cleanId = String(req.id || req.ticketId).replace('REQ-', '');
+            uniqueRequestsMap.set(cleanId, req);
+        });
+
+        allAdminRequestsData = Array.from(uniqueRequestsMap.values());
+
+        console.log(`✅ تم تجميع ${allAdminRequestsData.length} طلب بنجاح من جميع المناطق!`);
+
+        // 8. إرسال الحصيلة النهائية لدالة الرسم
+        renderAdminRequestsTable(allAdminRequestsData); 
+
     } catch(e) { 
-        console.error("خطأ في جلب تقرير الطلبات:", e); 
+        console.error("❌ انهيار في محرك التجميع:", e); 
+        if (tbody) tbody.innerHTML = '<tr><td colspan="9" style="text-align:center; color:red;">حدث خطأ في عملية التجميع الكبرى.</td></tr>';
     } 
 }
 
