@@ -2195,8 +2195,8 @@ app.post('/api/get-pending-attendance', async (req, res) => {
     }
 });
 
-// ======================================================================
-// 💾 3. مسار حفظ التحضير اليومي (معدل للمترجم)
+/// ======================================================================
+// 💾 3. مسار حفظ التحضير اليومي (بالطريقة الكلاسيكية الآمنة جداً 100%)
 // ======================================================================
 app.post('/api/save-attendance', async (req, res) => {
     try {
@@ -2219,11 +2219,23 @@ app.post('/api/save-attendance', async (req, res) => {
             const empId = empMap.get(String(r.username).trim());
             if (!empId) continue;
 
-            await prisma.attendance.upsert({
-                where: { date_employeeId: { date: prismaDate, employeeId: empId } },
-                update: { code: r.code, note: managerName, timestamp: new Date().toISOString() },
-                create: { employeeId: empId, date: prismaDate, code: r.code, note: managerName, timestamp: new Date().toISOString() }
+            // 🌟 التفاف هندسي: البحث أولاً بدلاً من Upsert لتجنب مشاكل Railway
+            const existingRecord = await prisma.attendance.findFirst({
+                where: { date: prismaDate, employeeId: empId }
             });
+
+            if (existingRecord) {
+                // إذا كان موجوداً -> تحديث
+                await prisma.attendance.update({
+                    where: { id: existingRecord.id },
+                    data: { code: r.code, note: managerName, timestamp: new Date().toISOString() }
+                });
+            } else {
+                // إذا لم يكن موجوداً -> إنشاء جديد
+                await prisma.attendance.create({
+                    data: { employeeId: empId, date: prismaDate, code: r.code, note: managerName, timestamp: new Date().toISOString() }
+                });
+            }
             successCount++;
         }
         res.json({ success: true, message: `تم حفظ تحضير ${successCount} موظف بنجاح.` });
@@ -2233,6 +2245,40 @@ app.post('/api/save-attendance', async (req, res) => {
     }
 });
 
+// ======================================================================
+// 💾 5. مسار التعديل الطارئ للتحضير (النسخة الآمنة)
+// ======================================================================
+app.post('/api/urgent-edit-attendance', async (req, res) => {
+    try {
+        const { username, date, newCode, byUser } = req.body;
+        const emp = await prisma.employee.findUnique({ where: { username: String(username) } });
+        
+        if (emp) {
+            const prismaDate = toPrismaDate(date); // ترجمة التاريخ
+            
+            // 🌟 استخدام findFirst بدلاً من findUnique
+            const oldRecord = await prisma.attendance.findFirst({
+                where: { date: prismaDate, employeeId: emp.id }
+            });
+
+            if (oldRecord) {
+                await prisma.attendance.update({
+                    where: { id: oldRecord.id },
+                    data: { code: newCode, note: `تعديل طارئ (${byUser})`, timestamp: new Date().toISOString() }
+                });
+
+                if (typeof safeLogAudit === 'function') {
+                    safeLogAudit(byUser, 'تعديل تحضير للضرورة', username, `تغيير حالة يوم ${date} من (${oldRecord.code}) إلى (${newCode})`);
+                }
+                return res.json({ success: true });
+            }
+        }
+        res.json({ success: false, message: 'سجل التحضير غير موجود.' });
+    } catch (error) {
+        console.error("❌ خطأ في التعديل الطارئ:", error);
+        res.json({ success: false, message: 'حدث خطأ أثناء التعديل.' });
+    }
+});
 // ======================================================================
 // 💾 4. مسار اعتماد الحالات المعلقة (T)
 // ======================================================================
@@ -2267,36 +2313,7 @@ app.post('/api/update-pending-attendance', async (req, res) => {
 
 // ======================================================================
 // 💾 5. مسار التعديل الطارئ للتحضير
-// ======================================================================
-app.post('/api/urgent-edit-attendance', async (req, res) => {
-    try {
-        const { username, date, newCode, byUser } = req.body;
-        const emp = await prisma.employee.findUnique({ where: { username: String(username) } });
-        
-        if (emp) {
-            const prismaDate = toPrismaDate(date); // ترجمة التاريخ
-            const oldRecord = await prisma.attendance.findUnique({
-                where: { date_employeeId: { date: prismaDate, employeeId: emp.id } }
-            });
 
-            if (oldRecord) {
-                await prisma.attendance.update({
-                    where: { id: oldRecord.id },
-                    data: { code: newCode, note: `تعديل طارئ (${byUser})`, timestamp: new Date().toISOString() }
-                });
-
-                if (typeof safeLogAudit === 'function') {
-                    safeLogAudit(byUser, 'تعديل تحضير للضرورة', username, `تغيير حالة يوم ${date} من (${oldRecord.code}) إلى (${newCode})`);
-                }
-                return res.json({ success: true });
-            }
-        }
-        res.json({ success: false, message: 'سجل التحضير غير موجود.' });
-    } catch (error) {
-        console.error("❌ خطأ في التعديل الطارئ:", error);
-        res.json({ success: false, message: 'حدث خطأ أثناء التعديل.' });
-    }
-});
 
 // ==================== مسارات مصفوفة الجزاءات ====================
 // مسار لحفظ المصفوفة المرفوعة من الإكسيل
