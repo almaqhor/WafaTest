@@ -1530,11 +1530,13 @@ app.get('/api/all-attendance', async (req, res) => {
 
 
 
-
-
-const SUPER_SECRET_PASSWORD = "Wafaa2026@Clear"; 
-
-app.post('/api/super-cleanup', (req, res) => {
+// ======================================================================
+// 💣 محرك التنظيف الشامل (Super Cleanup) - نسخة SQL
+// ======================================================================
+app.post('/api/super-cleanup', async (req, res) => {
+    // افترض أن كلمة السر مخزنة في متغير بيئة أو ثابت لديك
+    const SUPER_SECRET_PASSWORD = process.env.SUPER_SECRET_PASSWORD || '12345'; // تأكد من تغييرها 
+    
     const { password, targets } = req.body;
 
     if (password !== SUPER_SECRET_PASSWORD) {
@@ -1542,40 +1544,50 @@ app.post('/api/super-cleanup', (req, res) => {
     }
 
     try {
+        // 🔥 مسح الجداول المختارة باستخدام أوامر Prisma
         if (targets.leaves) {
-            leavesDB = [];
-            fs.writeFileSync(leavesFile, JSON.stringify([], null, 2));
+            await prisma.leave.deleteMany({});
+            console.log("تم مسح جدول الإجازات.");
         }
+        
         if (targets.attendance) {
-            attendanceDB = [];
-            fs.writeFileSync(attendanceFile, JSON.stringify([], null, 2));
+            await prisma.attendance.deleteMany({});
+            console.log("تم مسح جدول التحضير.");
         }
+        
         if (targets.penalties) {
-            penaltiesHistoryDB = [];
-            fs.writeFileSync(penaltiesHistoryFile, JSON.stringify(penaltiesHistoryDB, null, 2));
+            await prisma.penalty.deleteMany({});
+            console.log("تم مسح جدول الجزاءات والمخالفات.");
         }
         
         if (targets.requests) {
-            const reqFile = path.join(requestsFile, 'data', 'requests.json');
-            if(fs.existsSync(reqFile)) fs.writeFileSync(reqFile, JSON.stringify([], null, 2));
+            await prisma.requestTicket.deleteMany({});
+            console.log("تم مسح جدول الطلبات.");
         }
         
         if (targets.announcements) {
-            const annFile = path.join(announcementsFile, 'data', 'announcements.json');
-            if(fs.existsSync(annFile)) fs.writeFileSync(annFile, JSON.stringify([], null, 2));
+            await prisma.announcement.deleteMany({});
+            console.log("تم مسح جدول التعميمات.");
         }
 
         if (targets.users) {
-            usersDB = usersDB.filter(u => u.username === 'admin');
-            fs.writeFileSync(usersFile, JSON.stringify(usersDB, null, 2));
+            // حماية الآدمن من الحذف: احذف كل الموظفين حيث الـ username لا يساوي 'admin'
+            await prisma.employee.deleteMany({
+                where: {
+                    username: { not: 'admin' }
+                }
+            });
+            console.log("تم مسح جدول الموظفين (باقي الآدمن فقط).");
         }
 
-        res.json({ success: true });
+        res.json({ success: true, message: "تم تنفيذ عملية التنظيف بنجاح! 🧹" });
     } catch (error) {
-        console.error("خطأ في التنظيف:", error);
-        res.json({ success: false, message: "حدث خطأ داخلي أثناء مسح البيانات." });
+        console.error("❌ خطأ في التنظيف العميق (SQL):", error);
+        res.json({ success: false, message: "حدث خطأ داخلي أثناء مسح بيانات قاعدة البيانات." });
     }
 });
+
+
 
 let locationsDB = [];
 const locationsFile = path.join(__dirname, 'data', 'locations.json');
@@ -3140,23 +3152,24 @@ app.get('/api/analyze-absences', (req, res) => {
 });
 
 // ======================================================================
-// ⚖️ (HR & Payroll) محرك المزامنة (النسخة الدقيقة لأسماء الموظفين)
+// ⚖️ (HR & Payroll) محرك المزامنة المتطور (متوافق مع العلاقات SQL Relations)
 // ======================================================================
 app.post('/api/sync-absences-to-penalties', async (req, res) => {
     try {
         let addedCount = 0;
         console.log("⏳ بدء تشغيل محرك المزامنة لإصدار إشعارات الغياب الآلية...");
 
-        // جلب الغيابات مع بيانات الموظف
+        // 1. جلب الغيابات مع بيانات الموظف (للحصول على employeeId)
         const absences = await prisma.attendance.findMany({
             where: { code: { in: ['A', 'LOP'] } },
-            include: { employee: true }
+            include: { employee: true } // 🔗 السحر هنا: جلب الموظف المرتبط
         });
 
         for (const att of absences) {
-            // تجاهل السجلات القديمة جداً التي ليس لها موظف مرتبط
-            if (!att.employee || !att.employee.username) continue;
+            // حماية: إذا كان التحضير يتيماً (الموظف محذوف) نتجاهله
+            if (!att.employee || !att.employeeId) continue;
 
+            // توحيد صيغة التاريخ
             let attDateStr = '';
             if (att.date instanceof Date) {
                 attDateStr = att.date.toISOString().split('T')[0];
@@ -3164,29 +3177,30 @@ app.post('/api/sync-absences-to-penalties', async (req, res) => {
                 attDateStr = String(att.date).split('T')[0];
             }
 
-            const empUsername = String(att.employee.username);
-            const empName = att.employee.name;
-
-            // التأكد من عدم التكرار
+            // 2. التحقق من عدم وجود الإشعار مسبقاً (استخدام employeeId للبحث الدقيق)
             const exists = await prisma.penalty.findFirst({
                 where: {
-                    empUsername: empUsername,
-                    // استخدمنا contains لأن التاريخ قد يكون محفوظاً كنص أو DateTime
-                    category: 'تسوية غيابات للرواتب' 
+                    employeeId: att.employeeId, // 🔗 نستخدم المعرف الرقمي المترابط
+                    violationDate: attDateStr,
+                    category: 'تسوية غيابات للرواتب'
                 }
             });
 
-            // لحماية أقوى للتكرار، سنتأكد أيضاً أن نفس التاريخ لم يسجل
-            const isDateDuplicate = exists && exists.violationDate && String(exists.violationDate).includes(attDateStr);
-
-            if (!exists || !isDateDuplicate) {
+            // 3. إنشاء الإشعار وربطه بالموظف
+            if (!exists) {
                 await prisma.penalty.create({
                     data: {
                         ticketId: 'REQ-' + Date.now() + Math.floor(Math.random() * 10000),
-                        empUsername: empUsername,
-                        empName: empName, // 🔥 حفظ الاسم الصحيح المضمون
+                        
+                        // 🔗 الربط الحقيقي بقاعدة البيانات
+                        employeeId: att.employeeId, 
+                        
+                        // نحفظ هذه القيم مؤقتاً لتوافق الواجهة الأمامية (أو يمكننا الاستغناء عنها لاحقاً)
+                        empUsername: String(att.employee.username),
+                        empName: att.employee.name,
+                        
                         managerName: 'النظام الآلي (تسوية)',
-                        violationDate: attDateStr, // 🔥 حفظ التاريخ النظيف
+                        violationDate: attDateStr,
                         category: 'تسوية غيابات للرواتب',
                         violationName: 'غياب 1 يوم',
                         managerComment: 'تم سحب هذا الغياب آلياً من سجل التحضير لإدراجه في مسير الرواتب.',
