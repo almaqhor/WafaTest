@@ -3194,8 +3194,6 @@ app.post('/api/sync-absences-to-penalties', async (req, res) => {
                 await prisma.penalty.create({
                     data: {
                         employeeId: att.employeeId, 
-                        empUsername: String(att.employee.username),
-                        empName: att.employee.name,
                         managerName: 'النظام الآلي (تسوية)',
                         violationDate: strictViolationDate, // 👈 استخدام التاريخ الصارم هنا
                         category: 'تسوية غيابات للرواتب',
