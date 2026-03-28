@@ -3396,4 +3396,52 @@ app.get('/api/secret-migrate-requests', async (req, res) => {
     }
 });
 
+// ======================================================================
+// 👑 5. مسار الرقابة الشاملة للإدارة العليا (يجلب كل شيء بدون فلاتر)
+// ======================================================================
+app.post('/api/admin-mega-requests', async (req, res) => {
+    try {
+        const { isAdmin } = req.body;
+        
+        // 🛡️ حماية أمنية: إذا لم يكن المستخدم مديراً، نطرده فوراً
+        if (!isAdmin && String(isAdmin) !== 'true') {
+            return res.json([]); 
+        }
+
+        // 🔍 جلب كل التذاكر في قاعدة البيانات من الأحدث للأقدم (بدون أي استثناءات)
+        const allRequests = await prisma.requestTicket.findMany({
+            orderBy: { id: 'desc' }
+        });
+
+        // 🔄 المترجم الذكي للواجهة الأمامية
+        const formattedRequests = allRequests.map(r => ({
+            id: r.ticketId,
+            employeeId: r.employeeId,
+            empUsername: r.empUsername || '',
+            empName: r.empName || '',
+            senderId: r.senderId || '',
+            empPhone: r.empPhone || '',
+            managerName: r.managerName || '',
+            hrSupervisor: r.hrSupervisor || '',
+            assignedHrEmp: r.assignedHrEmp || '',
+            reason: r.type || '',
+            type: r.type || '',
+            details: r.details || '',
+            attachment: r.attachment || '',
+            status: r.status || 'pending',
+            date: r.createdAt || '',
+            createdAt: r.createdAt || '',
+            resolveDate: r.resolveDate || '',
+            managerComment: r.managerComment || '',
+            hrComment: r.hrComment || '',
+            history: r.history ? JSON.parse(r.history) : []
+        }));
+
+        res.json(formattedRequests);
+    } catch (error) {
+        console.error("❌ خطأ في مسار الإدارة العليا:", error);
+        res.json([]);
+    }
+});
+
 app.listen(process.env.PORT || 3000, '0.0.0.0', () => console.log(`🚀 السيرفر يعمل بنظام الرقابة الذكي والآمن!`));
