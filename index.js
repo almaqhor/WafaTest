@@ -2737,6 +2737,57 @@ app.post('/api/missing-attendance', (req, res) => {
         res.json({ success: false, message: 'حدث خطأ داخلي أثناء البحث عن النواقص.' });
     }
 });
+// 🚀 مسار الهجرة الصاروخية للإجازات (Leaves)
+app.get('/api/secret-migrate-leaves-bulk', async (req, res) => {
+    try {
+        console.log("🚀 بدء عملية الهجرة الصاروخية للإجازات...");
+        
+        // افتراض: مصفوفة الإجازات من الجيسون اسمها leavesDB
+        const allEmployees = await prisma.employee.findMany({ select: { id: true, username: true } });
+        const empMap = new Map();
+        allEmployees.forEach(emp => empMap.set(emp.username.toLowerCase(), emp.id));
 
+        const safeIsoDate = (dateString) => {
+            if (!dateString) return new Date().toISOString();
+            try { const d = new Date(dateString); return isNaN(d.getTime()) ? new Date().toISOString() : d.toISOString(); } 
+            catch (e) { return new Date().toISOString(); }
+        };
+
+        let readyData = [];
+        let missingUsers = new Set();
+
+        for (const record of leavesDB) { // ⬅️ تأكد من اسم المصفوفة هنا
+            const lowerUser = record.username ? record.username.toString().toLowerCase() : '';
+            const empId = empMap.get(lowerUser);
+
+            if (empId) {
+                readyData.push({
+                    employeeId: empId,
+                    type: record.type || 'سنوية',
+                    startDate: safeIsoDate(record.startDate),
+                    duration: parseInt(record.duration) || 0, // تحويل لنوع رقمي
+                    endDate: safeIsoDate(record.endDate),
+                    returnDate: safeIsoDate(record.returnDate),
+                    enteryDate: safeIsoDate(record.entryDate) // ⬅️ كتبتها كما طلبت enteryDate
+                    // id: record.id  <-- تجاهلناه لنسمح للـ SQL بتوليد رقم متسلسل نظيف
+                });
+            } else {
+                if (record.username) missingUsers.add(record.username);
+            }
+        }
+
+        console.log(`🚛 تم تجهيز ${readyData.length} إجازة. بدء الحقن...`);
+        const chunkSize = 10000;
+        let insertedCount = 0;
+
+        for (let i = 0; i < readyData.length; i += chunkSize) {
+            const chunk = readyData.slice(i, i + chunkSize);
+            await prisma.leave.createMany({ data: chunk, skipDuplicates: true });
+            insertedCount += chunk.length;
+        }
+
+        res.json({ success: true, message: "🏁 تمت هجرة الإجازات بنجاح!", stats: { totalInJson: leavesDB.length, successfullyInserted: insertedCount, missingUsersCount: missingUsers.size }});
+    } catch (error) { console.error('❌ خطأ في هجرة الإجازات:', error); res.status(500).json({ success: false, message: error.message }); }
+});
 
 app.listen(process.env.PORT || 3000, '0.0.0.0', () => console.log(`🚀 السيرفر يعمل بنظام الرقابة الذكي والآمن!`));
