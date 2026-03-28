@@ -2610,45 +2610,48 @@ app.post('/api/urgent-edit-attendance', async (req, res) => {
 });
 
 // ======================================================================
-// 🏰 1. حصن التحضير اليومي (حفظ وتحديث ذكي في SQL)
+// 🏰 1. حصن التحضير اليومي (نسخة الأشعة السينية لكشف أخطاء Prisma)
 // ======================================================================
 app.post('/api/save-attendance', async (req, res) => {
     try {
         const { date, managerName, records } = req.body;
         
         console.log(`\n================= 📅 بدء تحضير يوم ${date} =================`);
-        console.log(`المدير: ${managerName} | عدد الموظفين: ${records.length}`);
+        console.log(`المدير: ${managerName} | عدد الموظفين: ${records ? records.length : 0}`);
+
+        if (!records || !Array.isArray(records)) {
+            return res.json({ success: false, message: 'سجلات الموظفين مفقودة من الطلب!' });
+        }
 
         let savedCount = 0;
 
-        // الدوران على كل موظف وحفظ تحضيره
         for (const rec of records) {
-            // 🔍 البحث: هل تم تحضير هذا الموظف في هذا اليوم مسبقاً؟
+            // البحث: هل الموظف محضر مسبقاً في هذا اليوم؟
             const existingRecord = await prisma.attendance.findFirst({
                 where: { 
                     username: String(rec.username), 
-                    date: date 
+                    date: String(date) // إجبار المتغير ليكون نصاً
                 }
             });
 
             if (existingRecord) {
-                // 🔄 تحديث: إذا كان موجوداً، نحدث الحالة فقط (تعديل طارئ أو إعادة تحضير)
+                // 🔄 تحديث
                 await prisma.attendance.update({
                     where: { id: existingRecord.id },
                     data: { 
-                        code: rec.code,
-                        managerName: managerName || existingRecord.managerName
+                        code: String(rec.code),
+                        managerName: String(managerName || 'النظام')
                     }
                 });
             } else {
-                // ➕ إنشاء: إذا لم يكن موجوداً، نصنع سجلاً جديداً
+                // ➕ إنشاء جديد
                 await prisma.attendance.create({
                     data: {
                         username: String(rec.username),
-                        name: rec.name || 'غير محدد',
-                        date: date,
-                        code: rec.code,
-                        managerName: managerName || 'النظام'
+                        name: String(rec.name || 'غير محدد'),
+                        date: String(date),
+                        code: String(rec.code),
+                        managerName: String(managerName || 'النظام')
                     }
                 });
             }
@@ -2660,8 +2663,13 @@ app.post('/api/save-attendance', async (req, res) => {
         res.json({ success: true, count: savedCount });
 
     } catch (error) {
-        console.error("❌ انهيار في حصن التحضير:", error);
-        res.json({ success: false, message: 'حدث خطأ في السيرفر أثناء حفظ التحضير.' });
+        console.error("❌ انهيار في قاعدة البيانات أثناء التحضير:", error);
+        
+        // 🔥 السحر هنا: إرسال الخطأ الحقيقي القادم من SQL للواجهة لمعرفة الجاني!
+        res.json({ 
+            success: false, 
+            message: `خطأ Prisma الدقيق: ${error.message}` 
+        });
     }
 });
 
