@@ -7570,73 +7570,97 @@ function printDeductionsReport() {
     setTimeout(() => { printWindow.print(); }, 500);
 }
 
-// ==================== 📊 محرك تصدير خلاصة الخصميات للإكسيل (نسخة العلاقات SQL) ====================
 function exportPenaltiesToExcel() {
     if (!currentFilteredPenalties || currentFilteredPenalties.length === 0) {
         return alert("لا توجد بيانات مطابقة لتصديرها!");
     }
 
-    // 1. تجميع الخصميات لكل موظف (Grouping & Summing)
+    // 1. تجميع الخصميات وتصنيف التواريخ لكل موظف
     const employeeTotals = {};
 
     currentFilteredPenalties.forEach(p => {
-        // 🔥 الإصلاح الجوهري هنا: استخراج الاسم والرقم الوظيفي من جدول العلاقات بأمان
         const safeUsername = p.employee ? String(p.employee.username) : String(p.empUsername || 'غير_معروف');
         const safeName = p.employee ? p.employee.name : (p.empName || 'موظف محذوف');
 
-        // استخراج الرقم من العقوبة المطبقة (سواء كانت "1"، أو "خصم 2 أيام")
+        // استخراج الرقم من العقوبة المطبقة
         let penaltyVal = parseFloat(p.appliedPenalty);
-        
-        // إذا كانت العقوبة نصية (مثل: إنذار، فصل) وليست رقماً، نعتبرها 0
         if (isNaN(penaltyVal)) {
-            // محاولة سحب الرقم من النص الجمالي كحل احتياطي
             const match = p.displayPenalty ? p.displayPenalty.match(/\d+(\.\d+)?/) : null;
             penaltyVal = match ? parseFloat(match[0]) : 0;
         }
 
-        // نستخدم safeUsername كمفتاح لتجميع خصميات نفس الموظف
+        // 📅 استخراج وتنسيق التاريخ (DD-MM-YYYY)
+        const rawDate = new Date(p.violationDate || p.timestamp || new Date());
+        const d = String(rawDate.getDate()).padStart(2, '0');
+        const m = String(rawDate.getMonth() + 1).padStart(2, '0');
+        const y = rawDate.getFullYear();
+        const formattedDate = `${d}-${m}-${y}`; // النتيجة: 12-03-2026
+
+        // إنشاء سجل الموظف إذا لم يكن موجوداً
         if (!employeeTotals[safeUsername]) {
             employeeTotals[safeUsername] = {
                 id: safeUsername,
                 name: safeName,
-                totalPenalty: 0
+                totalPenalty: 0,
+                absenceDates: [], // 🧺 سلة تواريخ الغياب
+                otherDates: []    // 🧺 سلة تواريخ المخالفات الأخرى
             };
         }
         
         // جمع الكسور والأرقام
         employeeTotals[safeUsername].totalPenalty += penaltyVal;
+
+        // 🕵️‍♂️ الفرز الاستخباراتي: هل هي غياب أم مخالفة أخرى؟
+        const categoryName = p.category || '';
+        const violationName = p.violationName || '';
+        
+        if (categoryName.includes('غياب') || violationName.includes('غياب')) {
+            employeeTotals[safeUsername].absenceDates.push(formattedDate);
+        } else {
+            employeeTotals[safeUsername].otherDates.push(formattedDate);
+        }
     });
 
-    // 2. تجهيز مصفوفة الإكسيل (3 أعمدة فقط)
-    const headers = ["الرقم الوظيفي", "الاسم", "مجموع الحسميات (أيام)"];
+    // 2. تجهيز مصفوفة الإكسيل (5 أعمدة الآن بدلاً من 3)
+    const headers = [
+        "الرقم الوظيفي", 
+        "الاسم", 
+        "مجموع الحسميات (أيام)", 
+        "تواريخ الغياب", 
+        "تواريخ المخالفات الأخرى"
+    ];
     const aoa = [headers];
 
     Object.values(employeeTotals).forEach(emp => {
-        // 🔥 السحر هنا: التقريب للأدنى (Math.floor) يحول 4.9 إلى 4 (حسب سياسة الخصم)
+        // التقريب للأدنى (Math.floor)
         const finalDeduction = Math.floor(emp.totalPenalty);
         
-        // نضيف الموظف للإكسيل فقط إذا كان لديه أيام خصم بعد التقريب (لتنظيف المسير)
-        if (finalDeduction > 0) {
+        // التصدير فقط لمن لديه خصم فعلي أو لديه سجل تواريخ (تحسباً لأي توثيق)
+        if (finalDeduction > 0 || emp.absenceDates.length > 0 || emp.otherDates.length > 0) {
             aoa.push([
                 emp.id,
                 emp.name,
-                finalDeduction
+                finalDeduction,
+                emp.absenceDates.join(' * '), // دمج تواريخ الغياب بالنجوم
+                emp.otherDates.join(' * ')    // دمج التواريخ الأخرى بالنجوم
             ]);
         }
     });
 
     if (aoa.length === 1) {
-        return alert("✅ السجل نظيف: لا توجد أي خصميات مالية (أيام) لتصديرها بعد تجميع البيانات.");
+        return alert("✅ السجل نظيف: لا توجد أي بيانات لتصديرها بعد التجميع.");
     }
 
     // 3. بناء ملف الإكسيل وتصديره
     const ws = XLSX.utils.aoa_to_sheet(aoa);
 
-    // هندسة عرض الأعمدة لتبدو أنيقة
+    // هندسة عرض الأعمدة لتبدو أنيقة وتستوعب التواريخ الطويلة
     ws['!cols'] = [
         {wch: 15}, // الرقم الوظيفي
         {wch: 35}, // الاسم
-        {wch: 25}  // الحسميات
+        {wch: 25}, // الحسميات
+        {wch: 45}, // تواريخ الغياب (تم توسعتها لتستوعب التواريخ المدمجة)
+        {wch: 45}  // تواريخ المخالفات الأخرى
     ];
 
     // توجيه الشيت من اليمين لليسار
