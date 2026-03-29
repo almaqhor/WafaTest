@@ -2900,34 +2900,50 @@ history = await prisma.penalty.findMany({
     }
 });
 
-// ==================== (HR & Managers) حساب التكرار وجلب التاريخ ====================
-app.post('/api/calculate-penalty', (req, res) => {
+// ======================================================================
+// 🧮 محرك حساب تكرار المخالفة (البحث في SQL + الفلترة الذكية)
+// ======================================================================
+app.post('/api/calculate-penalty', async (req, res) => {
     try {
         const { empUsername, violationName } = req.body;
 
-        // 1. فلترة ذكية ومحمية ضد السجلات التالفة
-        const pastViolations = penaltiesHistoryDB.filter(p => {
-            if (!p || p.empUsername !== empUsername || p.status === 'مرفوضة') return false;
-            
-            // 🔥 السر هنا: مطابقة ذكية للغيابات (لأن النظام الآلي يضيف عدد الأيام في الاسم)
+        // 1. جلب كل مخالفات الموظف من قاعدة البيانات (SQL)
+        const allEmpViolations = await prisma.penalty.findMany({
+            where: {
+                empUsername: String(empUsername),
+                status: { not: 'مرفوضة' } // 🛡️ استبعاد المخالفات المرفوضة من الحسبة
+            },
+            orderBy: { violationDate: 'desc' } // 📅 الترتيب من الأحدث للأقدم مباشرة من قاعدة البيانات
+        });
+
+        // 2. الفلترة الذكية في الذاكرة (للحفاظ على هندستك الخاصة بالغيابات المتصلة والمنفردة)
+        const matchedViolations = allEmpViolations.filter(p => {
+            // 🔥 السر هنا: مطابقة ذكية للغيابات
             if (violationName.includes('متصل') && p.violationName && p.violationName.includes('متصل')) return true;
             if (violationName.includes('منفرد') && p.violationName && p.violationName.includes('منفرد')) return true;
             
             return p.violationName === violationName;
         });
 
-        // 2. ترتيب المخالفات من الأحدث للأقدم
-        pastViolations.sort((a, b) => new Date(b.violationDate || 0) - new Date(a.violationDate || 0));
-
-        const previousCount = pastViolations.length;
+        const previousCount = matchedViolations.length;
         const currentOccurrence = previousCount + 1;
 
         let lastDate = "لا يوجد";
         let lastPenalty = "لا يوجد";
 
         if (previousCount > 0) {
-            lastDate = pastViolations[0].violationDate || "تاريخ غير مسجل";
-            lastPenalty = pastViolations[0].displayPenalty || pastViolations[0].appliedPenalty || "غير مسجل"; 
+            const lastVio = matchedViolations[0];
+            
+            // تنظيف صيغة التاريخ إذا كان قادماً كـ DateTime من SQL
+            if (lastVio.violationDate instanceof Date) {
+                lastDate = lastVio.violationDate.toISOString().split('T')[0];
+            } else if (typeof lastVio.violationDate === 'string' && lastVio.violationDate.includes('T')) {
+                lastDate = lastVio.violationDate.split('T')[0];
+            } else {
+                lastDate = lastVio.violationDate || "تاريخ غير مسجل";
+            }
+            
+            lastPenalty = lastVio.displayPenalty || lastVio.appliedPenalty || "غير مسجل"; 
         }
 
         res.json({ 
@@ -2939,8 +2955,8 @@ app.post('/api/calculate-penalty', (req, res) => {
         });
 
     } catch (error) {
-        console.error("Error calculating penalty:", error);
-        res.json({ success: false, message: "حدث خطأ في السيرفر أثناء فحص السجلات." });
+        console.error("❌ خطأ في حساب التكرار (SQL):", error);
+        res.json({ success: false, message: "حدث خطأ في السيرفر أثناء فحص سجلات قاعدة البيانات." });
     }
 });
 
