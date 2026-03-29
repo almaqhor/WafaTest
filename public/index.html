@@ -856,9 +856,6 @@
                                         <th>المُعالج (HR)</th>
                                         <th>مدة الإنجاز ()</th>
                                         <th style="text-align:center;">التفاصيل</th>
-                                        <button onclick="openAdminRequestControl('${r.ticketId}', '${r.status}', '${r.hrComment}')">تعديل</button>)
-
-
                                         <th style="background:#d35400; text-align:center; color:white;">التقييم</th>
                                     </tr>
                                 </thead>
@@ -10467,6 +10464,7 @@ function renderAdminRequestsTable(data) {
                 <button onclick="viewRequestDetails('${trueId}')" style="background:#3498db; color:white; border:none; padding:5px 10px; border-radius:4px; cursor:pointer; font-size:11px; font-weight:bold;">
                     <i class="fas fa-eye"></i> التفاصيل
                 </button>
+                <button onclick="openAdminRequestControl('${r.ticketId}', '${r.status}', '${r.hrComment}')">تعديل</button>
             </td>
             <td style="text-align:center; background:#fdfaed;">${stars}</td>
         </tr>
