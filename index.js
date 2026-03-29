@@ -3534,7 +3534,10 @@ app.post('/api/update-activity', (req, res) => {
         res.json({ success: false });
     }
 });
-app.post('/api/missing-attendance', (req, res) => {
+// ======================================================================
+// 📡 رادار النواقص والغياب (SQL Version - High Performance)
+// ======================================================================
+app.post('/api/missing-attendance', async (req, res) => {
     try {
         const { managerName, lookbackDays = 7 } = req.body;
 
@@ -3542,56 +3545,77 @@ app.post('/api/missing-attendance', (req, res) => {
             return res.json({ success: false, message: 'معرف المستخدم مطلوب.' });
         }
 
-        // 💡 الذكاء الاستخباراتي: استخراج الاسم الحقيقي والصلاحية للمستخدم الذي فتح الشاشة
-        const requestingUser = usersDB.find(u => String(u.username) === String(managerName) || String(u.name) === String(managerName));
-        const actualManagerName = requestingUser ? requestingUser.name : managerName; // تحويل الرقم إلى الاسم العربي الصريح
-        
-        // هل هذا المستخدم أدمن؟ (إذا كان أدمن، نعطيه صلاحية رؤية جميع الموظفين)
-        const isSuperAdmin = requestingUser && (requestingUser.role === 'admin' || requestingUser.roleArabic === 'ادمن');
-
-        // 1. جلب فريق العمل (النسخة المدرعة فائقة الذكاء)
-        const team = usersDB.filter(u => {
-            // أ. التحقق من المدير (إما أن يكون أدمن، أو يكون مديره المباشر فعلاً)
-            const isMyEmp = isSuperAdmin || (u.directManager && String(u.directManager).trim() === String(actualManagerName).trim());
-            
-            // ب. التحقق من الحالة الوظيفية
-            const statusStr = (u.status || '').trim().toLowerCase();
-            const isInDuty = statusStr === 'in duty' || statusStr === 'نشط' || statusStr === 'على رأس العمل' || statusStr === 'active';
-            
-            return isMyEmp && u.isActive !== false && isInDuty;
+        // 💡 1. استخراج المستخدم من SQL
+        const requestingUser = await prisma.employee.findFirst({
+            where: {
+                OR: [
+                    { username: String(managerName).trim() },
+                    { name: String(managerName).trim() }
+                ]
+            }
         });
 
-        // طباعة للتأكد من نجاح الفلترة
-        console.log("Team found:", team.map(u => u.username));
+        const actualManagerName = requestingUser ? requestingUser.name : managerName;
+        const isSuperAdmin = requestingUser && (requestingUser.role === 'admin' || requestingUser.roleArabic === 'ادمن');
+
+        // 💡 2. جلب فريق العمل من SQL بذكاء (للمدير أو لكل الشركة إذا كان أدمن)
+        const team = await prisma.employee.findMany({
+            where: {
+                isActive: true, // يجب أن يكون حسابه فعالاً
+                status: {
+                    in: ['in duty', 'نشط', 'على رأس العمل', 'active', 'in Duty'] // على رأس العمل فقط
+                },
+                ...(isSuperAdmin ? {} : { directManager: actualManagerName }) // فلتر المدير المباشر يطبق فقط لغير الأدمن
+            }
+        });
+
+        if (team.length === 0) {
+            return res.json({ success: true, count: 0, data: [] });
+        }
+
+        // استخراج أرقام الفريق للبحث السريع
+        const teamUsernames = team.map(u => u.username);
+
+        // 💡 3. إعداد التواريخ (توقيت السعودية)
+        const todayRiyadh = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Riyadh' }));
+        todayRiyadh.setHours(0,0,0,0);
+
+        // جلب جميع تحضيرات الفريق في هذا النطاق الزمني دفعة واحدة (أسرع بـ 100 مرة من اللوب)
+        const teamAttendances = await prisma.attendance.findMany({
+            where: {
+                username: { in: teamUsernames }
+            }
+        });
+
+        // تحويل التحضيرات إلى "خريطة سريعة" (Set) للبحث في أجزاء من الملي ثانية
+        const attendanceMap = new Set(teamAttendances.map(a => `${a.username}_${a.date}`));
 
         const missingRecords = [];
 
-        // 2. إعداد التواريخ (توقيت السعودية)
-        const todayStr = new Date().toLocaleString('en-US', { timeZone: 'Asia/Riyadh' });
-        const todayRiyadh = new Date(todayStr);
-        todayRiyadh.setHours(0,0,0,0);
-
-        // 3. المحرك الزمني (الرجوع للخلف)
+        // 💡 4. المحرك الزمني (الرجوع للخلف)
         for (let i = 1; i <= lookbackDays; i++) {
             const checkDate = new Date(todayRiyadh);
             checkDate.setDate(checkDate.getDate() - i);
             
-            const dateString = checkDate.toLocaleDateString('en-CA', { timeZone: 'Asia/Riyadh' }); 
+            // هندسة صياغة التاريخ (YYYY-MM-DD) ليتطابق تماماً مع المسجل في SQL
+            const yyyy = checkDate.getFullYear();
+            const mm = String(checkDate.getMonth() + 1).padStart(2, '0');
+            const dd = String(checkDate.getDate()).padStart(2, '0');
+            const dateString = `${yyyy}-${mm}-${dd}`;
+            
             const dayName = checkDate.toLocaleDateString('ar-SA', { weekday: 'long', timeZone: 'Asia/Riyadh' });
             
-            // 4. فحص كل موظف
+            // 💡 5. فحص كل موظف
             team.forEach(emp => {
-                // حماية تاريخ التعيين الدقيقة
-                if (emp.joinDate) {
+                // حماية تاريخ التعيين (لا نحسب غياباً قبل توظيفه)
+                if (emp.joinDate && emp.joinDate !== 'غير مسجل') {
                     const empJoinDate = new Date(emp.joinDate);
                     empJoinDate.setHours(0,0,0,0);
                     if (empJoinDate > checkDate) return; 
                 }
 
-                // هل يوجد له تحضير في هذا اليوم؟
-                const hasRecord = attendanceDB.find(a => a.date === dateString && a.username === emp.username);
-
-                if (!hasRecord) {
+                // هل يوجد له تحضير في الخريطة السريعة؟
+                if (!attendanceMap.has(`${emp.username}_${dateString}`)) {
                     missingRecords.push({
                         username: emp.username,
                         name: emp.name,
@@ -3602,14 +3626,14 @@ app.post('/api/missing-attendance', (req, res) => {
             });
         }
 
-        // 5. الترتيب من الأقدم للأحدث
+        // 💡 6. الترتيب من الأقدم للأحدث
         missingRecords.sort((a, b) => new Date(a.date) - new Date(b.date));
 
         res.json({ success: true, count: missingRecords.length, data: missingRecords });
 
     } catch (error) {
-        console.error("❌ خطأ في رادار النواقص:", error);
-        res.json({ success: false, message: 'حدث خطأ داخلي أثناء البحث عن النواقص.' });
+        console.error("❌ خطأ في رادار النواقص (SQL):", error);
+        res.status(500).json({ success: false, message: 'حدث خطأ داخلي أثناء البحث عن النواقص في قاعدة البيانات.' });
     }
 });
 
