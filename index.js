@@ -1540,17 +1540,22 @@ app.post('/api/upload-historical-attendance', async (req, res) => {
         });
 
         // 💡 2. معالجة الإكسيل وإدخاله لـ SQL
+        // 💡 2. معالجة الإكسيل وإدخاله لـ SQL
         for (const record of historicalData) {
             const empId = empMap[String(record.username)];
             
-            // إذا كان الموظف غير موجود في قاعدة بياناتنا (ربما موظف قديم جداً أو محذوف)، نتخطاه
+            // إذا كان الموظف غير موجود نتخطاه
             if (!empId) continue; 
+
+            // ⚡ السحر هنا: تحويل التاريخ النصي إلى صيغة ISO-8601 التي يعشقها Prisma
+            // دمج T00:00:00.000Z يمنع السيرفر من تغيير اليوم بسبب فروقات التوقيت
+            const isoDate = new Date(`${record.date}T00:00:00.000Z`);
 
             // البحث: هل لهذا الموظف تحضير مسبق في نفس هذا اليوم؟
             const existingRecord = await prisma.attendance.findFirst({
                 where: {
                     employeeId: empId,
-                    date: record.date
+                    date: isoDate // 👈 استخدمنا التاريخ المدرع هنا
                 }
             });
 
@@ -1569,10 +1574,10 @@ app.post('/api/upload-historical-attendance', async (req, res) => {
                 await prisma.attendance.create({
                     data: {
                         employeeId: empId,
-                        date: record.date,
+                        date: isoDate, // 👈 واستخدمناه هنا للإنشاء
                         code: record.code,
                         note: 'مرفوع آلياً من الإكسيل',
-                        timestamp: new Date() // توثيق وقت الرفع
+                        timestamp: new Date()
                     }
                 });
                 added++;
