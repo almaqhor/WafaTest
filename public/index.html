@@ -620,63 +620,65 @@
         </div>
     
                 <div id="interviews-view" class="view-section" style="display: none;">
-                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
-                        <h2 style="color:#2c3e50; margin:0;"><i class="fas fa-handshake"></i> بوابة المقابلات الشخصية (ATS)</h2>
-                        <button style="background:var(--primary-green); color:white; border:none; padding:8px 15px; border-radius:5px; cursor:pointer;" onclick="copyCareersLink()">
-                            <i class="fas fa-link"></i> نسخ رابط التقديم العام
-                        </button>
-                    </div>
+    
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+        <h2 style="color:#2c3e50; margin:0;"><i class="fas fa-handshake"></i> بوابة المقابلات الشخصية (ATS)</h2>
+        <button style="background:var(--primary-green); color:white; border:none; padding:8px 15px; border-radius:5px; cursor:pointer;" onclick="copyCareersLink()">
+            <i class="fas fa-link"></i> نسخ رابط التقديم العام
+        </button>
+    </div>
 
-                    <div class="tabs-header">
-                        <button class="tab-btn active" onclick="switchCandTab('pending')"><i class="fas fa-users"></i> بانتظار المقابلة</button>
-                        <button class="tab-btn" onclick="switchCandTab('accepted')" style="color:#27ae60;"><i class="fas fa-user-check"></i> المقبولون</button>
-                        <button class="tab-btn" onclick="switchCandTab('rejected')" style="color:#e74c3c;"><i class="fas fa-user-times"></i> المرفوضون</button>
-                        <button class="tab-btn" onclick="switchCandTab('needs')" style="color:#8e44ad;"><i class="fas fa-chart-pie"></i> الفروع والاحتياج</button>
-                        <button class="tab-btn" onclick="switchCandTab('hr-reports')" style="background-color: #34495e; color: white;">
-    <i class="fas fa-chart-line"></i> تقارير أداء مسؤولي التوظيف
-</button>
-                    </div>
+    <div class="tabs-header">
+        <button class="tab-btn active" onclick="switchCandTab('pending')"><i class="fas fa-users"></i> بانتظار المقابلة</button>
+        <button class="tab-btn" onclick="switchCandTab('accepted')" style="color:#27ae60;"><i class="fas fa-user-check"></i> المقبولون</button>
+        <button class="tab-btn" onclick="switchCandTab('rejected')" style="color:#e74c3c;"><i class="fas fa-user-times"></i> المرفوضون</button>
+        <button class="tab-btn" onclick="switchCandTab('needs')" style="color:#8e44ad;"><i class="fas fa-chart-pie"></i> الفروع والاحتياج</button>
+        <button class="tab-btn" onclick="switchCandTab('hr-reports')" style="background-color: #34495e; color: white;">
+            <i class="fas fa-chart-line"></i> تقارير أداء مسؤولي التوظيف
+        </button>
+    </div>
 
-                    <div id="candidates-tab-content">
-                        <div style="background:#f4fbf9; padding:15px; border-radius:8px; border:1px solid #d1f2eb; margin-bottom:15px; display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end;">
-                            <div style="flex:1; min-width:130px;">
-                                <label style="font-size:12px; font-weight:bold; color:#555;">من تاريخ:</label>
-                                <input type="date" id="filter-cand-from" style="width:100%; padding:8px; border:1px solid #ccc; border-radius:5px; font-family:inherit;" onchange="applyCandFilters()">
-                            </div>
-                            <div style="flex:1; min-width:130px;">
-                                <label style="font-size:12px; font-weight:bold; color:#555;">إلى تاريخ:</label>
-                                <input type="date" id="filter-cand-to" style="width:100%; padding:8px; border:1px solid #ccc; border-radius:5px; font-family:inherit;" onchange="applyCandFilters()">
-                            </div>
-                            <div style="flex:1; min-width:130px;">
-                                <label style="font-size:12px; font-weight:bold; color:#555;">المنطقة:</label>
-                                <select id="filter-cand-region" style="width:100%; padding:8px; border:1px solid #ccc; border-radius:5px; font-family:inherit;" onchange="updateCandCityFilter(); applyCandFilters()">
-                                    <option value="">كل المناطق</option>
-                                </select>
-                            </div>
-                            <div style="flex:1; min-width:130px;">
-                                <label style="font-size:12px; font-weight:bold; color:#555;">المدينة:</label>
-                                <select id="filter-cand-city" style="width:100%; padding:8px; border:1px solid #ccc; border-radius:5px; font-family:inherit;" onchange="applyCandFilters()">
-                                    <option value="">كل المدن</option>
-                                </select>
-                            </div>
-                            <div style="flex:1; min-width:130px;">
-                                <button onclick="clearCandFilters()" style="background:#e74c3c; color:white; border:none; padding:9px 15px; border-radius:5px; font-weight:bold; cursor:pointer; width:100%;" title="مسح الفلاتر"><i class="fas fa-eraser"></i> مسح الفلاتر</button>
-                            </div>
-                        </div>
+    <div id="candidates-tab-content">
+        <div style="background:#f4fbf9; padding:15px; border-radius:8px; border:1px solid #d1f2eb; margin-bottom:15px; display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end;">
+            <div style="flex:1; min-width:130px;">
+                <label style="font-size:12px; font-weight:bold; color:#555;">من تاريخ:</label>
+                <input type="date" id="filter-cand-from" style="width:100%; padding:8px; border:1px solid #ccc; border-radius:5px; font-family:inherit;" onchange="applyCandFilters()">
+            </div>
+            <div style="flex:1; min-width:130px;">
+                <label style="font-size:12px; font-weight:bold; color:#555;">إلى تاريخ:</label>
+                <input type="date" id="filter-cand-to" style="width:100%; padding:8px; border:1px solid #ccc; border-radius:5px; font-family:inherit;" onchange="applyCandFilters()">
+            </div>
+            <div style="flex:1; min-width:130px;">
+                <label style="font-size:12px; font-weight:bold; color:#555;">المنطقة:</label>
+                <select id="filter-cand-region" style="width:100%; padding:8px; border:1px solid #ccc; border-radius:5px; font-family:inherit;" onchange="updateCandCityFilter(); applyCandFilters()">
+                    <option value="">كل المناطق</option>
+                </select>
+            </div>
+            <div style="flex:1; min-width:130px;">
+                <label style="font-size:12px; font-weight:bold; color:#555;">المدينة:</label>
+                <select id="filter-cand-city" style="width:100%; padding:8px; border:1px solid #ccc; border-radius:5px; font-family:inherit;" onchange="applyCandFilters()">
+                    <option value="">كل المدن</option>
+                </select>
+            </div>
+            <div style="flex:1; min-width:130px;">
+                <button onclick="clearCandFilters()" style="background:#e74c3c; color:white; border:none; padding:9px 15px; border-radius:5px; font-weight:bold; cursor:pointer; width:100%;" title="مسح الفلاتر"><i class="fas fa-eraser"></i> مسح الفلاتر</button>
+            </div>
+        </div>
 
-                        <div style="background:white; padding:20px; border-radius:8px; box-shadow:0 2px 5px rgba(0,0,0,0.05);">
-                            <div id="candidates-container" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 15px;">
-                                </div>
-                        </div>
-                        <div id="hr-reports-tab-content" style="display:none; padding: 20px; background: #fdfdfd; border-radius: 8px; border: 1px solid #ddd; margin-top: 15px;">
-                        </div>
-                    </div>
+        <div style="background:white; padding:20px; border-radius:8px; box-shadow:0 2px 5px rgba(0,0,0,0.05);">
+            <div id="candidates-container" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 15px;">
+            </div>
+        </div>
+    </div>
 
-                    <div id="needs-tab-content" style="display:none; background:white; padding:20px; border-radius:8px; box-shadow:0 2px 5px rgba(0,0,0,0.05);">
-                        <div id="needs-container">
-                            </div>
-                    </div>
-                </div>
+    <div id="hr-reports-tab-content" style="display:none; padding: 20px; background: #fdfdfd; border-radius: 8px; border: 1px solid #ddd; margin-top: 15px;">
+        </div>
+
+    <div id="needs-tab-content" style="display:none; background:white; padding:20px; border-radius:8px; box-shadow:0 2px 5px rgba(0,0,0,0.05);">
+        <div id="needs-container"></div>
+    </div>
+
+</div>
                 <div id="admin-attendance-view" style="display:none;">
                     <div class="panel-box" style="border-top: 4px solid #16a085;">
                         <h3 style="margin-top:0; color:#16a085;"><i class="fas fa-user-clock"></i> تقارير الحضور والانصراف الشاملة</h3>
