@@ -4033,8 +4033,9 @@ app.post('/api/admin-mega-requests', async (req, res) => {
         res.json([]);
     }
 });
+
 // ======================================================================
-// 👑 مسار الإدارة العليا لتحديث الطلبات بالقوة الجبرية (SQL Version)
+// 👑 مسار الإدارة العليا لتحديث الطلبات بالقوة الجبرية (SQL Version - ذكي جداً)
 // ======================================================================
 app.post('/api/admin-update-request', async (req, res) => {
     try {
@@ -4042,9 +4043,16 @@ app.post('/api/admin-update-request', async (req, res) => {
 
         if (!ticketId) return res.json({ success: false, message: 'رقم التذكرة مفقود' });
 
-        // 1. جلب التذكرة لمعرفة تاريخها القديم
-        const ticket = await prisma.requestTicket.findUnique({
-            where: { ticketId: String(ticketId) }
+        // ⚡ السحر هنا: البحث المزدوج الذكي (عبر id أو ticketId)
+        const numericId = parseInt(ticketId.toString().replace('REQ-', '')); // استخراج الرقم الصافي في حال كان هناك حروف
+        
+        const ticket = await prisma.requestTicket.findFirst({
+            where: {
+                OR: [
+                    { ticketId: String(ticketId) },
+                    ...(isNaN(numericId) ? [] : [{ id: numericId }]) // البحث بالـ ID الداخلي إن وجد
+                ]
+            }
         });
 
         if (!ticket) return res.json({ success: false, message: 'التذكرة غير موجودة في السجلات' });
@@ -4064,23 +4072,21 @@ app.post('/api/admin-update-request', async (req, res) => {
             history: JSON.stringify(history)
         };
 
-        // تحديث تعليق الموارد/الإدارة إذا تم إدخاله
         if (hrComment) updateData.hrComment = hrComment;
 
-        // تسجيل تاريخ الإغلاق إذا كانت الحالة نهائية
         if (status === 'resolved' || status === 'completed' || status === 'rejected') {
             updateData.resolveDate = new Date().toLocaleString('en-CA', { timeZone: 'Asia/Riyadh' });
         }
 
-        // 4. تنفيذ الأمر في قلب الـ SQL
+        // 4. تنفيذ الأمر في قلب الـ SQL (باستخدام المعرف الداخلي الآمن ticket.id)
         await prisma.requestTicket.update({
-            where: { ticketId: String(ticketId) },
+            where: { id: ticket.id }, 
             data: updateData
         });
 
         // توثيق أمني
         if (typeof safeLogAudit === 'function') {
-            safeLogAudit(adminName || 'الإدمن', 'تحديث طلب سيادي', `تم تحديث الطلب ${ticketId} إلى ${status}`, 'SQL System');
+            safeLogAudit(adminName || 'الإدمن', 'تحديث طلب سيادي', `تم تحديث الطلب الداخلي ${ticket.id} إلى ${status}`, 'SQL System');
         }
 
         res.json({ success: true, message: 'تم تحديث حالة الطلب بنجاح' });
