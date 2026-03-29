@@ -3726,30 +3726,32 @@ async function confirmTransferAction() {
     btn.innerHTML = `<i class="fas fa-paper-plane"></i> إرسال`; 
     btn.disabled = false;
 }
-       // ======================================================================
-// 👨‍💼 دالة عرض طلبات الموظف (النسخة المدرعة والشاملة لكل الحالات)
-// ======================================================================
-async function loadEmployeeRequests(username) { 
+
+        async function loadEmployeeRequests(username) { 
     try { 
         // جلب البيانات من السيرفر
         const reqs = await (await fetch('/api/my-requests', { 
             method: 'POST', 
             headers: {'Content-Type': 'application/json'}, 
-            body: JSON.stringify({ username: username, empUsername: username }) // تأكيد إرسال المتغيرين
+            body: JSON.stringify({ username: username, empUsername: username }) 
         })).json(); 
         
         const listDiv = document.getElementById('my-requests-list'); 
-        if(reqs.length === 0) { 
-            listDiv.innerHTML = "<p style='color:#777; font-weight:bold;'><i class='fas fa-inbox'></i> لا توجد طلبات سابقة.</p>"; 
+        
+        // ⚡ الفلتر التكتيكي: استبعاد الطلبات المكتملة (المغلقة) نهائياً من شاشة الموظف
+        const openRequests = reqs.filter(r => r.status !== 'completed');
+
+        // إذا لم يكن لديه طلبات مفتوحة
+        if(openRequests.length === 0) { 
+            listDiv.innerHTML = "<p style='color:#777; font-weight:bold; text-align:center; padding: 20px;'><i class='fas fa-inbox fa-2x' style='color:#ccc; margin-bottom:10px; display:block;'></i> لا توجد طلبات مفتوحة أو قيد المعالجة حالياً.</p>"; 
             return; 
         } 
         
-        listDiv.innerHTML = reqs.map(r => { 
-            // 🌟 الإصلاح السحري لمعرف التذكرة
+        listDiv.innerHTML = openRequests.map(r => { 
+            // 🌟 المتغيرات الأساسية
             const trueId = r.ticketId || r.id;
             const safeReason = r.reason || r.type || 'طلب عام';
             const safeDate = r.date || r.createdAt || '';
-
             const dt = r.details ? `<p style="margin:0 0 5px 0; font-size:13px; color:#555;"><strong>التفاصيل:</strong> ${r.details}</p>` : ''; 
             const attachLink = r.attachment ? `<a href="${r.attachment}" target="_blank" style="font-size:12px; color:#2980b9; display:inline-block; margin-bottom:5px; background:#e8f4fd; padding:3px 8px; border-radius:4px;"><i class="fas fa-paperclip"></i> عرض المرفق</a>` : '';
             
@@ -3761,7 +3763,7 @@ async function loadEmployeeRequests(username) {
             else if (r.status === 'escalated' || r.status.startsWith('hr_')) { 
                 return `<div class="request-item" style="border-right: 4px solid #8e44ad; background:#fcf9fe;"><h4 style="margin:0 0 5px 0; color:#333;">${safeReason} <span style="font-size:10px; color:#999;">(${String(trueId).replace('REQ-','')})</span></h4>${dt}${attachLink}<br><span class="status-badge" style="background:#8e44ad; display:inline-block; margin-top:8px;"><i class="fas fa-cogs"></i> مُحال للموارد البشرية وجاري الحل...</span></div>`; 
             } 
-            // 3. حالة: تم الحل وبانتظار التقييم (⭐ هنا يظهر صندوق التقييم ⭐)
+            // 3. حالة: تم الحل وبانتظار التقييم
             else if (r.status === 'resolved') { 
                 let commentHtml = r.hrComment ? 
                     `<div style="background:#f4ecf7; padding:10px; border-radius:5px; margin:10px 0; border-right: 3px solid #8e44ad;"><strong style="color:#8e44ad;"><i class="fas fa-user-shield"></i> رد الموارد:</strong> ${r.hrComment}</div>` : 
@@ -3788,28 +3790,6 @@ async function loadEmployeeRequests(username) {
                     </button>
                 </div>`; 
             } 
-            // 4. 🔥 السحر الجديد: حالة مكتمل (لكي يرى الموظف تاريخ طلباته وتقييمه لها)
-            else if (r.status === 'completed') {
-                let starCount = parseInt(r.rating || 5);
-                let starsHtml = '<span style="color:#f1c40f; font-size:14px;">' + '★'.repeat(starCount) + '☆'.repeat(5-starCount) + '</span>';
-                
-                let commentHtml = r.hrComment ? 
-                    `<div style="background:#f9f9f9; padding:8px; border-radius:5px; margin:8px 0; border-right: 3px solid #8e44ad; font-size:12px;"><strong style="color:#8e44ad;">رد الموارد:</strong> ${r.hrComment}</div>` : 
-                    (r.managerComment ? `<div style="background:#f9f9f9; padding:8px; border-radius:5px; margin:8px 0; border-right: 3px solid #3498db; font-size:12px;"><strong style="color:#2980b9;">رد الإدارة:</strong> ${r.managerComment}</div>` : '');
-
-                return `<div class="request-item" style="border-right: 4px solid #27ae60; background:#f4fbf9; opacity: 0.8;">
-                    <div style="display:flex; justify-content:space-between;">
-                        <h4 style="margin:0 0 5px 0; color:#27ae60;">${safeReason}</h4>
-                        <span class="status-badge" style="background:#27ae60;"><i class="fas fa-lock"></i> مغلق</span>
-                    </div>
-                    ${dt}${attachLink}
-                    ${commentHtml}
-                    <div style="margin-top:10px; border-top:1px dashed #ccc; padding-top:8px; font-size:12px; color:#555; display:flex; justify-content:space-between; align-items:center;">
-                        <span>تاريخ الإغلاق: ${r.resolveDate ? r.resolveDate.split(',')[0] : '-'}</span>
-                        <span>تقييمك: ${starsHtml}</span>
-                    </div>
-                </div>`;
-            }
         }).join(''); 
     } catch(e) { 
         console.error("❌ خطأ في تحميل طلبات الموظف:", e);
@@ -3859,68 +3839,160 @@ window.confirmClosure = async function(id) {
     }
 };
         async function confirmClosure(id) { const rating = document.getElementById(`rating-${id}`) ? document.getElementById(`rating-${id}`).value : "5"; const empComment = document.getElementById(`emp-comment-${id}`) ? document.getElementById(`emp-comment-${id}`).value.trim() : ""; if (parseInt(rating) < 5 && empComment === "") { return alert("الرجاء كتابة سبب التقييم المنخفض."); } await fetch('/api/confirm-request', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({id, rating, empComment}) }); loadEmployeeRequests(currentUsername); }
-        // ==================== أزرار المدير (حل وإغلاق أو إحالة للـ HR) ====================
-        async function loadManagerRequests(mName) { 
-            try { 
-                const reqs = await (await fetch('/api/manager-requests', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({managerName:mName})})).json(); 
-                const listDiv = document.getElementById('requests-list'); 
-                if(reqs.length === 0) { listDiv.innerHTML = "<p style='color:#777;'>لا توجد مهام.</p>"; return; } 
-                
-                const pendingReqs = reqs.filter(r => r.status === 'pending'); 
-                const resolvedReqs = reqs.filter(r => r.status === 'resolved'); 
-                const escalatedReqs = reqs.filter(r => r.status === 'escalated'); // طلبات تم إحالتها
-                
-                let html = ''; 
-                if (pendingReqs.length > 0) { 
-                    html += '<h4 style="color:#d35400;">🔴 بانتظار إجراء منك</h4>'; 
-                    html += pendingReqs.map(r=> { 
-                        const targetUser = allUsersData.find(u => u.username === r.empUsername);
-                        const empBranch = targetUser ? targetUser.branch : '';
-                        
-                        let cp = r.empPhone ? String(r.empPhone).replace(/[^0-9]/g, '') : ''; 
-                        let wb = cp ? `<button style="background:#25D366;color:white;border:none;padding:5px 10px;border-radius:5px;cursor:pointer;font-size:11px;" onclick="window.open('https://wa.me/${cp}', '_blank')"><i class="fab fa-whatsapp"></i> واتساب</button>` : ''; 
-                        const dt = r.details ? `<p style="margin:0 0 5px 0; font-size:13px; color:#555;"><strong>التفاصيل:</strong> ${r.details}</p>` : ''; 
-                        
-                        return `<div class="request-item" style="border-right: 4px solid #f39c12;">
-                            <h4 style="margin:0 0 5px 0;">${r.empName} <span style="font-size:11px; color:#888;">(${r.empUsername})</span></h4>
-                            <p style="margin:0 0 5px 0; font-size:14px; color:#d35400; font-weight:bold;">${r.reason}</p>${dt}
-                            <div style="margin-bottom:10px;">${wb}</div>
-                            
-                            <div style="background:#f9f9f9; padding:10px; border-radius:5px; border:1px solid #eee;">
-                                <input type="text" id="comment-${r.id}" class="comment-input" placeholder="تعليقك لحل الطلب وإعادته للموظف..." oninput="validateResolveBtn('${r.id}')">
-                                <div style="display:flex; gap:10px; margin-top:5px;">
-                                    <button id="btn-complete-${r.id}" disabled style="flex:1; background:#ccc; color:white; border:none; padding:8px; border-radius:5px; cursor:not-allowed;" onclick="resolveRequest('${r.id}')"><i class="fas fa-check"></i> حل وإغلاق</button>
-                                    <button style="flex:1; background:#8e44ad; color:white; border:none; padding:8px; border-radius:5px; cursor:pointer;" onclick="openEscalateModal('${r.id}', '${r.empName}', '${empBranch}')"><i class="fas fa-level-up-alt"></i> إحالة للموارد البشرية</button>
-                                </div>
-                            </div>
-                        </div>`; 
-                    }).join(''); 
-                } 
-                
-                if (escalatedReqs.length > 0) {
-                    html += '<h4 style="color:#8e44ad;">🟣 طلبات بانتظار الموارد البشرية</h4>'; 
-                    html += escalatedReqs.map(r=> `<div class="request-item" style="border-right: 4px solid #8e44ad; background:#f4ecf7; opacity:0.8;"><h4 style="margin:0 0 5px 0;">${r.empName}</h4><p style="margin:0; font-size:13px;">${r.reason}</p><span style="font-size:11px; color:#8e44ad; font-weight:bold;">تمت الإحالة للموارد وجاري المعالجة...</span></div>`).join('');
-                }
-                
-                if (resolvedReqs.length > 0) { 
-                    html += '<h4 style="color:#3498db;">🔵 بانتظار تقييم الموظف</h4>'; 
-                    html += resolvedReqs.map(r => {
-                        // 🔥 التصحيح هنا: استخدمنا hrComment المطابق لملف الـ JSON
-                        let hrReply = r.hrComment ? `<div style="background:#f4ecf7; padding:8px; border-radius:5px; margin-top:8px; border-right: 3px solid #8e44ad; font-size:12px;"><strong style="color:#8e44ad;"><i class="fas fa-user-shield"></i> رد الموارد:</strong> ${r.hrComment}</div>` : '';
-                        let mgrReply = r.managerComment ? `<div style="background:#ebf5fb; padding:8px; border-radius:5px; margin-top:8px; border-right: 3px solid #3498db; font-size:12px;"><strong style="color:#2980b9;"><i class="fas fa-user-tie"></i> تعليق الإدارة:</strong> ${r.managerComment}</div>` : '';
-                        
-                        return `<div class="request-item" style="border-right: 4px solid #3498db; background:#ebf5fb; opacity:0.9;">
-                            <h4 style="margin:0 0 5px 0;">${r.empName} <span style="font-size:11px; color:#888;">(${r.empUsername})</span></h4>
-                            <p style="margin:0; font-size:13px; font-weight:bold;">${r.reason}</p>
-                            ${mgrReply}
-                            ${hrReply}
-                        </div>`;
-                    }).join(''); 
-                } 
- 
-                listDiv.innerHTML = html; 
-            } catch(e) {} 
+        
+        // متغير عام للاحتفاظ بطلبات المدير للبحث السريع (بدون تحميل السيرفر)
+let globalManagerRequests = [];
+
+// ======================================================================
+// 👑 1. دالة التحميل الرئيسية (توزع الطلبات على الشاشتين)
+// ======================================================================
+async function loadManagerRequests(managerName) {
+    try {
+        // (ملاحظة: تأكد أن مسار السيرفر لديك يطابق هذا المسار)
+        const response = await fetch('/api/manager-requests', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ managerName: managerName })
+        });
+        
+        const reqs = await response.json();
+        globalManagerRequests = reqs || [];
+        
+        // ⚡ الفرز الاستراتيجي
+        const activeRequests = globalManagerRequests.filter(r => r.status !== 'completed' && r.status !== 'rejected');
+        const closedRequests = globalManagerRequests.filter(r => r.status === 'completed' || r.status === 'rejected');
+
+        // توجيه القوات لمواقعها
+        renderActiveRequests(activeRequests);
+        renderClosedRequests(closedRequests);
+
+    } catch (e) {
+        console.error("❌ خطأ في تحميل طلبات المدير:", e);
+    }
+}
+
+// ======================================================================
+// ⚔️ 2. رسم الطلبات النشطة (في ساحة المعركة requests-list)
+// ======================================================================
+function renderActiveRequests(reqs) {
+    const listDiv = document.getElementById('requests-list');
+    
+    if (reqs.length === 0) {
+        listDiv.innerHTML = "<p style='color:#777; padding:15px; background:#f9f9f9; border-radius:5px;'><i class='fas fa-check-circle'></i> لا توجد طلبات جديدة معلقة حالياً.</p>";
+        return;
+    }
+
+    listDiv.innerHTML = reqs.map(r => {
+        const trueId = r.ticketId || r.id;
+        const safeReason = r.reason || r.type || 'طلب عام';
+        const empName = r.empName || 'موظف';
+        const empUser = r.empUsername || '';
+        const dt = r.details ? `<p style="font-size:13px; color:#555; margin:5px 0;"><strong>التفاصيل:</strong> ${r.details}</p>` : '';
+        const attachLink = r.attachment ? `<a href="${r.attachment}" target="_blank" style="font-size:12px; color:#2980b9;"><i class="fas fa-paperclip"></i> عرض المرفق</a>` : '';
+
+        // إذا كان الطلب بانتظار قرار المدير
+        if (r.status === 'pending') {
+            return `<div style="border-right: 4px solid #f39c12; background:#fff; padding:15px; margin-bottom:15px; border-radius:8px; box-shadow:0 2px 5px rgba(0,0,0,0.05);">
+                <div style="display:flex; justify-content:space-between;">
+                    <h4 style="margin:0 0 5px; color:#d35400;">${safeReason}</h4>
+                    <span style="font-size:11px; color:#999;">${String(trueId).replace('REQ-','')}</span>
+                </div>
+                <p style="margin:0 0 5px; font-size:13px; color:#333;"><i class="fas fa-user-tie"></i> <strong>الموظف:</strong> ${empName} (${empUser})</p>
+                ${dt}${attachLink}
+                <div style="margin-top:15px; display:flex; gap:10px;">
+                    <button onclick="updateRequestStatus('${trueId}', 'escalated')" style="flex:1; background:#27ae60; color:white; border:none; padding:10px; border-radius:5px; cursor:pointer; font-weight:bold;"><i class="fas fa-check"></i> توجيه للـ HR</button>
+                    <button onclick="updateRequestStatus('${trueId}', 'rejected')" style="flex:1; background:#e74c3c; color:white; border:none; padding:10px; border-radius:5px; cursor:pointer; font-weight:bold;"><i class="fas fa-times"></i> رفض</button>
+                </div>
+            </div>`;
+        } 
+        // إذا كان الطلب تمت الموافقة عليه وذهب للـ HR أو بانتظار تقييم الموظف
+        else {
+            let statusBadge = r.status === 'resolved' ? 
+                `<span style="background:#3498db; color:white; padding:4px 8px; border-radius:4px; font-size:11px;"><i class="fas fa-star-half-alt"></i> بانتظار تقييم الموظف للحل</span>` : 
+                `<span style="background:#8e44ad; color:white; padding:4px 8px; border-radius:4px; font-size:11px;"><i class="fas fa-cogs"></i> قيد المعالجة لدى الموارد البشرية</span>`;
+
+            return `<div style="border-right: 4px solid #95a5a6; background:#f4f6f7; padding:15px; margin-bottom:15px; border-radius:8px;">
+                <h4 style="margin:0 0 5px; color:#555;">${safeReason}</h4>
+                <p style="margin:0 0 10px; font-size:13px;"><i class="fas fa-user"></i> ${empName} (${empUser})</p>
+                ${statusBadge}
+            </div>`;
         }
+    }).join('');
+}
+
+// ======================================================================
+// 🏛️ 3. رسم الأرشيف (في متحف الانتصارات manager-history-list)
+// ======================================================================
+function renderClosedRequests(reqs) {
+    const historyDiv = document.getElementById('manager-history-list');
+    
+    if (reqs.length === 0) {
+        historyDiv.innerHTML = "<p style='color:#777; grid-column: 1 / -1; text-align:center; padding:20px;'><i class='fas fa-box-open fa-2x' style='color:#ccc;'></i><br>الأرشيف فارغ.</p>";
+        return;
+    }
+
+    historyDiv.innerHTML = reqs.map(r => {
+        const trueId = r.ticketId || r.id;
+        const safeReason = r.reason || r.type || 'طلب عام';
+        const empName = r.empName || 'موظف';
+        const empUser = r.empUsername || '';
+        const closeDate = r.resolveDate ? r.resolveDate.split(',')[0] : (r.date || '');
+        
+        // إذا كان الطلب مرفوضاً
+        if (r.status === 'rejected') {
+            return `<div style="border-top: 4px solid #e74c3c; background:#fff; padding:15px; border-radius:8px; box-shadow:0 2px 4px rgba(0,0,0,0.05);">
+                <strong style="color:#e74c3c;">${safeReason}</strong> <span style="font-size:11px; float:left; color:#999;">${String(trueId).replace('REQ-','')}</span>
+                <p style="margin:8px 0; font-size:13px;"><i class="fas fa-user"></i> ${empName} (${empUser})</p>
+                <span style="background:#fadbd8; color:#c0392b; padding:3px 8px; border-radius:4px; font-size:11px; font-weight:bold;"><i class="fas fa-ban"></i> تم الرفض</span>
+            </div>`;
+        }
+
+        // إذا كان الطلب مكتملاً بنجاح (مع التقييم)
+        let starCount = parseInt(r.rating || 5);
+        let starsHtml = '<span style="color:#f1c40f; font-size:14px;">' + '★'.repeat(starCount) + '☆'.repeat(5-starCount) + '</span>';
+
+        return `<div style="border-top: 4px solid #27ae60; background:#fff; padding:15px; border-radius:8px; box-shadow:0 2px 4px rgba(0,0,0,0.05);">
+            <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
+                <strong style="color:#27ae60;">${safeReason}</strong>
+                <span style="font-size:11px; color:#999;">${String(trueId).replace('REQ-','')}</span>
+            </div>
+            <p style="margin:0 0 5px; font-size:13px;"><i class="fas fa-user"></i> ${empName} (${empUser})</p>
+            <p style="margin:0 0 10px; font-size:11px; color:#777;"><i class="fas fa-calendar-check"></i> أُغلق في: ${closeDate}</p>
+            <div style="background:#f4fbf9; padding:8px; border-radius:5px; text-align:center; border: 1px dashed #27ae60;">
+                <span style="font-size:11px; color:#555; display:block; margin-bottom:3px;">رضا الموظف عن الحل</span>
+                ${starsHtml}
+            </div>
+        </div>`;
+    }).join('');
+}
+
+// ======================================================================
+// 🔍 4. رادار البحث في الأرشيف (يعمل لحظياً عند الكتابة)
+// ======================================================================
+function searchHistoryAuto() {
+    const searchTerm = document.getElementById('history-search').value.trim().toLowerCase();
+    
+    // فلترة الطلبات المغلقة فقط من الذاكرة (سريع جداً)
+    const closedRequests = globalManagerRequests.filter(r => r.status === 'completed' || r.status === 'rejected');
+
+    if (!searchTerm) {
+        renderClosedRequests(closedRequests);
+        return;
+    }
+
+    // البحث برقم الموظف، اسمه، أو رقم التذكرة
+    const filtered = closedRequests.filter(r => 
+        String(r.empUsername).toLowerCase().includes(searchTerm) || 
+        String(r.empName).toLowerCase().includes(searchTerm) ||
+        String(r.ticketId).toLowerCase().includes(searchTerm)
+    );
+
+    renderClosedRequests(filtered);
+}
+
+function searchHistoryManual() {
+    searchHistoryAuto(); // زر البحث اليدوي يستدعي نفس محرك الفلترة اللحظي
+}
 
 
         function validateResolveBtn(id) { 
@@ -4296,7 +4368,6 @@ window.confirmClosure = async function(id) {
 
         function validateComment(id) { const v = document.getElementById(`comment-${id}`).value.trim(); const b = document.getElementById(`btn-complete-${id}`); if(v.length>=10){b.disabled=false;b.style.background='#3498db';b.style.cursor='pointer';}else{b.disabled=true;b.style.background='#ccc';b.style.cursor='not-allowed';} }
         async function resolveRequest(id) { const comment = document.getElementById(`comment-${id}`).value; await fetch('/api/resolve-request', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({id, comment})}); loadManagerRequests(globalEmpName); }
-        let searchTimeout; function searchHistoryAuto() { clearTimeout(searchTimeout); searchTimeout = setTimeout(() => { const query = document.getElementById('history-search').value.trim(); if (query.length === 0 || query.length >= 5) loadManagerHistory(globalEmpName, query); }, 500); }
         function searchHistoryManual() { clearTimeout(searchTimeout); const query = document.getElementById('history-search').value.trim(); if (query.length > 0 && query.length < 5) { alert("أدخل 5 أرقام"); return; } loadManagerHistory(globalEmpName, query); }
 
 
@@ -10572,7 +10643,33 @@ function printHrReport() {
     window.print();
     location.reload(); // إعادة تحميل قمرة القيادة لاستعادة الواجهة الأساسية
 }
-
+// ⚡ محرك البحث والفلترة لطلبات الإدارة
+function filterManagerRequests() {
+    const searchText = document.getElementById('manager-req-search').value.toLowerCase();
+    const statusFilter = document.getElementById('manager-req-status-filter').value;
+    
+    // نجلب جميع الطلبات المعروضة في شاشة المدير
+    const requestItems = document.querySelectorAll('.manager-req-item');
+    
+    requestItems.forEach(item => {
+        const textContent = item.innerText.toLowerCase();
+        const itemStatus = item.getAttribute('data-status') || ''; // يجب أن تضع هذا في HTML الخاص بك
+        
+        // فحص النص
+        const matchesText = textContent.includes(searchText);
+        // فحص الحالة (مفتوح، مغلق، الكل)
+        const matchesStatus = (statusFilter === 'all') || 
+                              (statusFilter === 'completed' && itemStatus === 'completed') ||
+                              (statusFilter === 'pending' && itemStatus !== 'completed');
+                              
+        // إظهار أو إخفاء بناءً على النتيجة
+        if (matchesText && matchesStatus) {
+            item.style.display = 'block';
+        } else {
+            item.style.display = 'none';
+        }
+    });
+}
         
 </script>
 </body>
