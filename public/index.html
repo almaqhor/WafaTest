@@ -8410,30 +8410,46 @@ async function openBalancePenaltyModal(ticketId) {
                 document.getElementById('cand-city').innerHTML = '<option value="">-- اختر المدينة --</option>' + uniqueCities.map(c => `<option value="${c}">${c}</option>`).join('');
             }
         };
-        // 2. إرسال المرشح لبياناته
-        async function submitCandidateData() {
-            const payload = {
-                name: document.getElementById('cand-name').value.trim(),
-                idNumber: document.getElementById('cand-id').value.trim(),
-                phone: document.getElementById('cand-phone').value.trim(),
-                email: document.getElementById('cand-email').value.trim(),
-                jobTitle: document.getElementById('cand-job').value,
-                city: document.getElementById('cand-city').value
-            };
+     async function submitCandidateData() {
+    const payload = {
+        name: document.getElementById('cand-name').value.trim(),
+        idNumber: document.getElementById('cand-id').value.trim(),
+        phone: document.getElementById('cand-phone').value.trim(),
+        email: document.getElementById('cand-email').value.trim() || 'لا يوجد',
+        jobTitle: document.getElementById('cand-job').value,
+        city: document.getElementById('cand-city').value,
+        
+        // ⚠️ لغم تم تفكيكه: هذه الحقول إجبارية في SQL، نعطيها قيمة افتراضية إذا لم تكن موجودة في الفورم
+        dobG: document.getElementById('cand-dob-g')?.value || 'غير مسجل',
+        dobHijri: document.getElementById('cand-dob-h')?.value || 'غير مسجل'
+    };
 
-            if(!payload.name || !payload.idNumber || !payload.phone || !payload.jobTitle || !payload.city) {
-                return alert("يرجى تعبئة جميع الحقول الإجبارية (*)");
-            }
+    if(!payload.name || !payload.idNumber || !payload.phone || !payload.jobTitle || !payload.city) {
+        return alert("يرجى تعبئة جميع الحقول الإجبارية (*)");
+    }
 
-            const btn = document.querySelector('#public-careers-portal button');
-            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري الإرسال...'; btn.disabled = true;
+    const btn = document.querySelector('#public-careers-portal button');
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري الإرسال...'; btn.disabled = true;
 
-            try {
-                await fetch('/api/submit-candidate', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) });
-                document.getElementById('cand-success-msg').style.display = 'block';
-                btn.style.display = 'none';
-            } catch(e) { alert("حدث خطأ، يرجى المحاولة مرة أخرى."); btn.innerHTML = 'تسجيل البيانات'; btn.disabled = false; }
+    try {
+        const res = await (await fetch('/api/submit-candidate', { 
+            method: 'POST', 
+            headers: {'Content-Type': 'application/json'}, 
+            body: JSON.stringify(payload) 
+        })).json();
+
+        if (res.success) {
+            document.getElementById('cand-success-msg').style.display = 'block';
+            btn.style.display = 'none';
+        } else {
+            alert(res.message || "حدث خطأ أثناء التسجيل.");
+            btn.innerHTML = 'تسجيل البيانات'; btn.disabled = false;
         }
+    } catch(e) { 
+        alert("فشل الاتصال بالسيرفر، يرجى المحاولة مرة أخرى."); 
+        btn.innerHTML = 'تسجيل البيانات'; btn.disabled = false; 
+    }
+}
 
         function copyCareersLink() {
             const link = window.location.origin + '/?careers=true';
@@ -8604,28 +8620,26 @@ async function openBalancePenaltyModal(ticketId) {
         }
 
         function applyCandFilters() {
-            const fromD = document.getElementById('filter-cand-from').value;
-            const toD = document.getElementById('filter-cand-to').value;
-            const region = document.getElementById('filter-cand-region').value;
-            const city = document.getElementById('filter-cand-city').value;
+    const fromD = document.getElementById('filter-cand-from').value;
+    const toD = document.getElementById('filter-cand-to').value;
+    const region = document.getElementById('filter-cand-region').value;
+    const city = document.getElementById('filter-cand-city').value;
 
-            // فلترة بالحالة (معلق، مقبول، مرفوض)
-            let filtered = allCandidates.filter(c => c.status === currentCandStatus);
+    let filtered = allCandidates.filter(c => c.status === currentCandStatus);
 
-            // فلترة بالتاريخ
-            if (fromD) filtered = filtered.filter(c => c.timestamp.split('T')[0] >= fromD);
-            if (toD) filtered = filtered.filter(c => c.timestamp.split('T')[0] <= toD);
+    // ⚠️ لغم تم تفكيكه: استخدام createdAt بدلاً من timestamp
+    if (fromD) filtered = filtered.filter(c => c.createdAt && c.createdAt.split('T')[0] >= fromD);
+    if (toD) filtered = filtered.filter(c => c.createdAt && c.createdAt.split('T')[0] <= toD);
 
-            // فلترة بالمدينة أو المنطقة (الربط الذكي)
-            if (city) {
-                filtered = filtered.filter(c => c.city === city);
-            } else if (region) {
-                const validCitiesInRegion = locationsArray.filter(loc => loc.region === region).map(loc => loc.city);
-                filtered = filtered.filter(c => validCitiesInRegion.includes(c.city));
-            }
+    if (city) {
+        filtered = filtered.filter(c => c.city === city);
+    } else if (region) {
+        const validCitiesInRegion = locationsArray.filter(loc => loc.region === region).map(loc => loc.city);
+        filtered = filtered.filter(c => validCitiesInRegion.includes(c.city));
+    }
 
-            renderCandidatesGrid(filtered);
-        }
+    renderCandidatesGrid(filtered);
+}
 
         function renderCandidatesGrid(filtered) {
     const container = document.getElementById('candidates-container');
@@ -8637,22 +8651,23 @@ async function openBalancePenaltyModal(ticketId) {
     }
 
     container.innerHTML = filtered.map(c => {
-        const dateStr = new Date(c.timestamp).toLocaleDateString('ar-SA');
+        // استخدام createdAt
+        const dateStr = c.createdAt ? new Date(c.createdAt).toLocaleDateString('ar-SA') : 'غير محدد';
         
-        // 🔮 السحر هنا: كشف الموظف السابق
-        const isFormerEmployee = allUsersData.some(u => String(u.idNumber) === String(c.idNumber) || String(u.nationalId) === String(c.idNumber));
-        const historyBadge = isFormerEmployee 
+        // 🔮 السحر هنا: استخدام استخبارات السيرفر الجاهزة بدلاً من اللوب المعقد!
+        const historyBadge = c.isFormerEmployee 
             ? `<span style="background:#fdedec; color:#c0392b; padding:3px 8px; border-radius:4px; font-size:11px; font-weight:bold; border:1px solid #e74c3c;"><i class="fas fa-exclamation-triangle"></i> موظف سابق</span>` 
             : `<span style="background:#e8f8f5; color:#27ae60; padding:3px 8px; border-radius:4px; font-size:11px; font-weight:bold; border:1px solid #27ae60;"><i class="fas fa-seedling"></i> دماء جديدة</span>`;
 
         let actionsHtml = '';
-        // ... (باقي كود الأزرار actionsHtml كما هو في كودك السابق تماماً)
+        
+        // ⚠️ استخدام c.candidateId في جميع الـ IDs والأزرار بدلاً من c.id
         if (statusFilter === 'pending') {
             actionsHtml = `
-                <textarea id="hr-comment-${c.id}" class="comment-input" placeholder="أضف تقييم المقابلة هنا..." rows="2" style="font-size:12px; margin-bottom:10px;"></textarea>
+                <textarea id="hr-comment-${c.candidateId}" class="comment-input" placeholder="أضف تقييم المقابلة هنا..." rows="2" style="font-size:12px; margin-bottom:10px;"></textarea>
                 <div style="display:flex; gap:10px;">
-                    <button onclick="actionCandidate('${c.id}', 'accepted')" style="flex:1; background:#27ae60; color:white; border:none; padding:8px; border-radius:5px; cursor:pointer; font-weight:bold;"><i class="fas fa-check"></i> قبول</button>
-                    <button onclick="actionCandidate('${c.id}', 'rejected')" style="flex:1; background:#e74c3c; color:white; border:none; padding:8px; border-radius:5px; cursor:pointer; font-weight:bold;"><i class="fas fa-times"></i> رفض</button>
+                    <button onclick="actionCandidate('${c.candidateId}', 'accepted')" style="flex:1; background:#27ae60; color:white; border:none; padding:8px; border-radius:5px; cursor:pointer; font-weight:bold;"><i class="fas fa-check"></i> قبول</button>
+                    <button onclick="actionCandidate('${c.candidateId}', 'rejected')" style="flex:1; background:#e74c3c; color:white; border:none; padding:8px; border-radius:5px; cursor:pointer; font-weight:bold;"><i class="fas fa-times"></i> رفض</button>
                 </div>
             `;
         } else if (statusFilter === 'accepted') {
@@ -8661,7 +8676,7 @@ async function openBalancePenaltyModal(ticketId) {
                 <button onclick="magicJobOffer('${c.name}', '${c.idNumber}', '${c.jobTitle}', '${c.city}', '${c.phone}')" style="width:100%; background:#d35400; color:white; border:none; padding:10px; border-radius:5px; cursor:pointer; font-weight:bold;"><i class="fas fa-magic"></i> إنشاء عرض وظيفي (Auto-Fill)</button>
             `;
         } else if (statusFilter === 'rejected') {
-            let waText = 'أهلاً بك ' + c.name + '،\\nنشكر لك وقتك واهتمامك بالانضمام لفريق هايبر الوفاء.\\nنعتذر عن عدم قبولك في هذه المرحلة، ونتمنى لك التوفيق في مسيرتك المهنية.';
+            let waText = 'أهلاً بك ' + c.name + '،\nنشكر لك وقتك واهتمامك بالانضمام لفريق هايبر الوفاء.\nنعتذر عن عدم قبولك في هذه المرحلة، ونتمنى لك التوفيق في مسيرتك المهنية.';
             let waLink = 'https://wa.me/' + (c.phone.startsWith('0') ? '966'+c.phone.slice(1) : c.phone) + '?text=' + encodeURIComponent(waText);
             actionsHtml = `
                 <div style="background:#fdedec; color:#c0392b; padding:10px; border-radius:5px; font-size:12px; margin-bottom:10px;"><strong>سبب الرفض:</strong> ${c.hrComment}</div>
@@ -8688,13 +8703,20 @@ async function openBalancePenaltyModal(ticketId) {
     }).join('');
 }
 
-        async function actionCandidate(id, status) {
-            const comment = document.getElementById(`hr-comment-${id}`).value.trim();
-            if(!comment) return alert("يرجى كتابة تقييم أو سبب للقرار!");
-            
-            await fetch('/api/update-candidate', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({id, status, hrComment: comment, hrName: globalEmpName}) });
-            loadCandidates('pending');
-        }
+async function actionCandidate(candidateId, status) {
+    const comment = document.getElementById(`hr-comment-${candidateId}`).value.trim();
+    if(!comment) return alert("يرجى كتابة تقييم أو سبب للقرار!");
+    
+    // نرسل الـ candidateId ليتوافق مع السيرفر
+    await fetch('/api/update-candidate', { 
+        method: 'POST', 
+        headers: {'Content-Type':'application/json'}, 
+        body: JSON.stringify({id: candidateId, status, hrComment: comment, hrName: globalEmpName}) 
+    });
+    loadCandidates('pending');
+}
+
+        
 
         // 🔥 الدالة السحرية لنقل بيانات المقبول إلى نموذج العرض الوظيفي
         function magicJobOffer(name, idNumber, position, city, phone) {
