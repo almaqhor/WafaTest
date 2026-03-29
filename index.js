@@ -485,7 +485,6 @@ app.post('/api/user-add', async (req, res) => {
     try {
         const data = req.body;
 
-        // 1. التحقق من عدم تكرار الرقم الوظيفي
         const existingUser = await prisma.employee.findUnique({
             where: { username: String(data.username) }
         });
@@ -494,7 +493,6 @@ app.post('/api/user-add', async (req, res) => {
             return res.json({ success: false, message: 'رقم الموظف موجود مسبقاً في النظام' });
         }
 
-        // 2. إنشاء الموظف بجميع تفاصيل العرض الوظيفي (Job Offer)
         const newUser = await prisma.employee.create({
             data: {
                 username: String(data.username),
@@ -507,14 +505,15 @@ app.post('/api/user-add', async (req, res) => {
                 role: data.roleArabic === 'ادمن' ? 'admin' : 'user',
                 roleArabic: String(data.roleArabic || 'موظف'),
                 
-                // التفاصيل المالية والإدارية من البايلود
-                basicSalary: String(data.basicSalary || '0'),
+                // ⚠️ (ملاحظة: إذا كانت الرواتب والبدلات لديك في Schema من نوع Int، استبدل String بـ Number هنا أيضاً)
+                basicSalary: String(data.basicSalary || '0'), 
                 housingAllowance: String(data.housingAllowance || '0'),
                 otherAllowance: String(data.otherAllowance || '0'),
-                workingDays: String(data.workingDays || '6'),
-                offDays: String(data.offDays || '1'),
                 
-                // حالات النظام
+                // 🛠️ تفكيك اللغم: تحويل القيم النصية إلى أرقام صحيحة (Int) لترضي Prisma
+                workingDays: parseInt(data.workingDays || 6),
+                offDays: parseInt(data.offDays || 1),
+                
                 isActive: data.isActive !== undefined ? data.isActive : false,
                 policyConfirmed: data.policyConfirmed !== undefined ? data.policyConfirmed : false,
                 status: String(data.status || 'Job Offer'),
@@ -523,8 +522,6 @@ app.post('/api/user-add', async (req, res) => {
             }
         });
 
-        // 3. تحديث حالة المرشح في جدول التوظيف (اختياري: لإغلاق ملفه في الـ ATS)
-        // يبحث عن المرشح بواسطة رقم الهوية ويحول حالته إلى "تم التعيين"
         if (data.idNumber) {
              await prisma.recruitment.updateMany({
                  where: { idNumber: String(data.idNumber) },
@@ -532,8 +529,10 @@ app.post('/api/user-add', async (req, res) => {
              });
         }
 
-        // 4. تسجيل الحدث
-        safeLogAudit(data.byUser || 'النظام', 'إصدار عرض وظيفي / إضافة موظف', `${data.name} (${data.username})`, `SQL ATS`);
+        // 🛡️ حماية إضافية لدالة السجل حتى لا تكسر العملية إذا لم تكن موجودة
+        if (typeof safeLogAudit === 'function') {
+            safeLogAudit(data.byUser || 'النظام', 'إصدار عرض وظيفي', `${data.name} (${data.username})`, `SQL ATS`);
+        }
 
         res.json({ success: true, message: 'تم حفظ العرض الوظيفي وإنشاء ملف الموظف بنجاح' });
 
