@@ -864,7 +864,7 @@
                         </div>
                     </div>
                 </div>
-
+<button onclick="openAdminRequestControl('${r.ticketId}', '${r.status}', '${r.hrComment}')">تعديل</button>)
 
                 <div id="admin-users-view" style="display:none;">
     
@@ -1941,6 +1941,36 @@
             </div>
         </div>
     </div>
+    <div id="admin-request-modal" class="modal" style="display:none;">
+    <div class="modal-content" style="max-width: 450px; text-align: right; direction: rtl;">
+        <h3 style="color: #8e44ad; margin-top: 0; border-bottom: 2px solid #eee; padding-bottom: 10px;">
+            <i class="fas fa-gavel"></i> لوحة التحكم السيادية بالطلب
+        </h3>
+        
+        <p style="margin-bottom: 15px; color:#555;">رقم الطلب: <strong id="admin-modal-ticket-id" style="color:#d35400;"></strong></p>
+        
+        <label style="font-weight:bold; color:#333;">تغيير حالة الطلب إلى:</label>
+        <select id="admin-modal-status" class="form-input" style="width: 100%; margin: 10px 0 20px; padding:10px; border:1px solid #ccc; border-radius:5px;">
+            <option value="pending">⏳ قيد الانتظار (إرجاع للمدير)</option>
+            <option value="escalated">⚙️ قيد المعالجة (لدى الموارد البشرية)</option>
+            <option value="resolved">✅ تم الحل (بانتظار تقييم الموظف)</option>
+            <option value="completed">🔒 مكتمل ومغلق نهائياً</option>
+            <option value="rejected">❌ مرفوض</option>
+        </select>
+        
+        <label style="font-weight:bold; color:#333;">تعليق الإدارة العليا / الموارد (إلزامي للرفض أو الحل):</label>
+        <textarea id="admin-modal-comment" rows="4" placeholder="اكتب ردك هنا ليروه الموظف والمدير..." style="width: 100%; padding:10px; margin-top:10px; border-radius:5px; border:1px solid #ccc; font-family:inherit; resize:vertical;"></textarea>
+        
+        <div style="display:flex; gap:10px; margin-top: 20px;">
+            <button onclick="submitAdminRequestUpdate()" style="flex:2; background: #8e44ad; color: white; border: none; padding: 12px; border-radius: 5px; cursor: pointer; font-weight:bold;">
+                <i class="fas fa-save"></i> تنفيذ الأمر
+            </button>
+            <button onclick="document.getElementById('admin-request-modal').style.display='none'" style="flex:1; background: #ccc; color: #333; border: none; padding: 12px; border-radius: 5px; cursor: pointer; font-weight:bold;">
+                إلغاء
+            </button>
+        </div>
+    </div>
+</div>
    <div class="modal-overlay" id="print-forms-modal">
     <div class="modal-content" style="text-align: right; max-width: 400px; width: 90%;">
         <h3 style="color: #2980b9; margin-top: 0; text-align: center;"><i class="fas fa-print"></i> طباعة نماذج الموظف</h3>
@@ -10669,6 +10699,53 @@ function filterManagerRequests() {
             item.style.display = 'none';
         }
     });
+}
+  let currentAdminTicketId = '';
+
+// 1. فتح الشاشة وجلب البيانات الحالية للطلب
+function openAdminRequestControl(ticketId, currentStatus, currentHrComment) {
+    currentAdminTicketId = ticketId;
+    document.getElementById('admin-modal-ticket-id').innerText = ticketId;
+    document.getElementById('admin-modal-status').value = currentStatus || 'pending';
+    document.getElementById('admin-modal-comment').value = currentHrComment === 'undefined' ? '' : (currentHrComment || '');
+    
+    document.getElementById('admin-request-modal').style.display = 'block';
+}
+
+// 2. إطلاق أمر التحديث
+async function submitAdminRequestUpdate() {
+    const newStatus = document.getElementById('admin-modal-status').value;
+    const adminComment = document.getElementById('admin-modal-comment').value.trim();
+    
+    if ((newStatus === 'rejected' || newStatus === 'resolved') && !adminComment) {
+        return alert("⚠️ يرجى كتابة تعليق يوضح سبب الرفض أو الحل للموظف.");
+    }
+
+    try {
+        const response = await fetch('/api/admin-update-request', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                ticketId: currentAdminTicketId,
+                status: newStatus,
+                hrComment: adminComment,
+                adminName: globalEmpName || 'الإدارة العليا' // اسم الإدمن الذي ينفذ الأمر
+            })
+        });
+
+        const result = await response.json();
+        
+        if (result.success) {
+            document.getElementById('admin-request-modal').style.display = 'none';
+            alert("✅ تم تنفيذ أمر الإدارة العليا بنجاح!");
+            // تحديث الشاشة المركزية للإدمن
+            if(typeof loadAdminMegaRequests === 'function') loadAdminMegaRequests();
+        } else {
+            alert("❌ فشل التحديث: " + result.message);
+        }
+    } catch (error) {
+        alert("❌ حدث خطأ في الاتصال بقاعدة البيانات.");
+    }
 }
         
 </script>
