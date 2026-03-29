@@ -6,7 +6,7 @@
   "scripts": {
     "build": "prisma generate && prisma db push",
     "start": "node index.js"
-  }
+  },
   "keywords": [],
   "author": "",
   "license": "ISC",
