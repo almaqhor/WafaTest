@@ -280,11 +280,27 @@ const safeLoadDB = (filePath, defaultData) => {
 const branchTargetsFile = path.join(DATA_DIR, 'branchTargets.json');
 let branchTargetsDB = safeLoadDB(branchTargetsFile, {});
 
-app.get('/api/branch-targets', (req, res) => res.json(branchTargetsDB));
-app.post('/api/branch-targets', (req, res) => {
-    branchTargetsDB = req.body;
-    fs.writeFileSync(branchTargetsFile, JSON.stringify(branchTargetsDB, null, 2));
-    res.json({ success: true });
+// ==================== 📊 أهداف الفروع (SQL Config) ====================
+app.get('/api/branch-targets', async (req, res) => {
+    try {
+        const config = await prisma.systemConfig.findUnique({ where: { key: 'BRANCH_TARGETS' } });
+        res.json(config ? JSON.parse(config.value) : {});
+    } catch (e) {
+        res.json({});
+    }
+});
+
+app.post('/api/branch-targets', async (req, res) => {
+    try {
+        await prisma.systemConfig.upsert({
+            where: { key: 'BRANCH_TARGETS' },
+            update: { value: JSON.stringify(req.body) },
+            create: { key: 'BRANCH_TARGETS', value: JSON.stringify(req.body) }
+        });
+        res.json({ success: true });
+    } catch (e) {
+        res.json({ success: false });
+    }
 });
 
 let usersDB = safeLoadDB(usersFile, [{ username: "admin", password: "123", role: "admin", roleArabic: "ادمن", name: "مدير النظام", gender: "ذكر", queryCount: 0, lastQueryDate: "", last: "لم يسجل دخوله بعد" }]);
@@ -462,48 +478,68 @@ app.get('/api/users-log', async (req, res) => {
         res.status(500).json([]);
     }
 });
-// ==================== إضافة مستخدم جديد (نسخة ذكية تقرأ حالة الموظف) ====================
-// ==================== إضافة مستخدم جديد (النسخة الاحترافية لـ SQL) ====================
-app.post('/api/user-add', async (req, res) => { // ⬅️ أضفنا async هنا
+// ======================================================================
+// 🎓 تحويل المرشح المقبول إلى موظف رسمي (إصدار العرض)
+// ======================================================================
+app.post('/api/user-add', async (req, res) => {
     try {
         const data = req.body;
 
-        // 🕵️ 1. البحث في SQL بدلاً من المصفوفة
+        // 1. التحقق من عدم تكرار الرقم الوظيفي
         const existingUser = await prisma.employee.findUnique({
-            where: { username: data.username.toString() }
+            where: { username: String(data.username) }
         });
 
         if (existingUser) {
-            return res.json({ success: false, message: 'رقم الموظف موجود مسبقاً في SQL' });
+            return res.json({ success: false, message: 'رقم الموظف موجود مسبقاً في النظام' });
         }
 
-        // 💾 2. الحفظ المباشر في قاعدة البيانات SQL
+        // 2. إنشاء الموظف بجميع تفاصيل العرض الوظيفي (Job Offer)
         const newUser = await prisma.employee.create({
             data: {
-                username: data.username.toString(),
-                name: data.name,
-                password: data.password || '123456',
-               //idNumber: data.idNumber || '',
-                city: data.city || '',
-                branch: data.branch || '',
-                jobTitle: data.jobTitle || '',
-                role: data.roleArabic === 'ادمن' ? 'admin' : 'user', // تحديد الدور برمجياً
-                roleArabic: data.roleArabic || 'موظف',
-                basicSalary: (data.basicSalary || 0).toString(),
-                isActive: data.isActive !== undefined ? data.isActive : true,
+                username: String(data.username),
+                name: String(data.name),
+                password: String(data.password || '123456'),
+                idNumber: String(data.idNumber || ''),
+                city: String(data.city || ''),
+                branch: String(data.branch || ''),
+                jobTitle: String(data.jobTitle || ''),
+                role: data.roleArabic === 'ادمن' ? 'admin' : 'user',
+                roleArabic: String(data.roleArabic || 'موظف'),
+                
+                // التفاصيل المالية والإدارية من البايلود
+                basicSalary: String(data.basicSalary || '0'),
+                housingAllowance: String(data.housingAllowance || '0'),
+                otherAllowance: String(data.otherAllowance || '0'),
+                workingDays: String(data.workingDays || '6'),
+                offDays: String(data.offDays || '1'),
+                
+                // حالات النظام
+                isActive: data.isActive !== undefined ? data.isActive : false,
+                policyConfirmed: data.policyConfirmed !== undefined ? data.policyConfirmed : false,
+                status: String(data.status || 'Job Offer'),
+                
                 lastLogin: 'لم يسجل دخول بعد'
-                // ملاحظة: تأكد أن هذه الحقول موجودة في ملف schema.prisma الخاص بك
             }
         });
 
-        // 📝 3. تسجيل الحدث في سجل الرقابة (Audit Log)
-        safeLogAudit(data.byUser, 'إضافة موظف جديد', `${data.name} (${data.username})`, `SQL Storage`);
+        // 3. تحديث حالة المرشح في جدول التوظيف (اختياري: لإغلاق ملفه في الـ ATS)
+        // يبحث عن المرشح بواسطة رقم الهوية ويحول حالته إلى "تم التعيين"
+        if (data.idNumber) {
+             await prisma.recruitment.updateMany({
+                 where: { idNumber: String(data.idNumber) },
+                 data: { status: 'offered' }
+             });
+        }
 
-        res.json({ success: true, message: 'تم حفظ الموظف في قاعدة البيانات بنجاح' });
+        // 4. تسجيل الحدث
+        safeLogAudit(data.byUser || 'النظام', 'إصدار عرض وظيفي / إضافة موظف', `${data.name} (${data.username})`, `SQL ATS`);
+
+        res.json({ success: true, message: 'تم حفظ العرض الوظيفي وإنشاء ملف الموظف بنجاح' });
 
     } catch (error) {
         console.error('❌ خطأ في إضافة المستخدم لـ SQL:', error);
-        res.status(500).json({ success: false, message: 'حدث خطأ في السيرفر أثناء الكتابة في SQL: ' + error.message });
+        res.status(500).json({ success: false, message: 'حدث خطأ في السيرفر أثناء تسجيل الموظف.' });
     }
 });
 
@@ -3364,18 +3400,73 @@ const candidatesFile = path.join(DATA_DIR, 'candidates.json');
 let candidatesDB = safeLoadDB(candidatesFile, []);
 
 // 1. استقبال بيانات المرشح من البوابة العامة (بدون تسجيل دخول)
-app.post('/api/submit-candidate', (req, res) => {
+// ======================================================================
+// 🛡️ بوابة التوظيف المركزية (ATS - SQL Version)
+// ======================================================================
+
+// 1. تقديم طلب توظيف (مع الفحص الأمني للموظفين السابقين)
+app.post('/api/submit-candidate', async (req, res) => {
     try {
-        const candidate = {
-            id: 'CAN-' + Date.now(),
-            ...req.body,
-            status: 'pending', // pending, accepted, rejected
-            timestamp: new Date().toISOString()
-        };
-        candidatesDB.unshift(candidate); // إضافته في بداية القائمة
-        fs.writeFileSync(candidatesFile, JSON.stringify(candidatesDB, null, 2));
+        const payload = req.body;
+
+        // 🕵️ استخبارات البوابة: هل الهوية موجودة مسبقاً في جدول الموظفين؟
+        const existingEmployee = await prisma.employee.findFirst({
+            where: { idNumber: String(payload.idNumber) }
+        });
+
+        await prisma.recruitment.create({
+            data: {
+                candidateId: 'CAN-' + Date.now(),
+                name: String(payload.name),
+                idNumber: String(payload.idNumber || ''),
+                dobG: payload.dobG,
+                dobHijri: payload.dobHijri,
+                phone: payload.phone,
+                email: payload.email,
+                city: payload.city,
+                jobTitle: payload.jobTitle,
+                status: 'pending',
+                isFormerEmployee: !!existingEmployee // true إذا كان موظفاً سابقاً
+            }
+        });
+
+        res.json({ success: true, message: "تم تسجيل الطلب بنجاح" });
+    } catch (e) {
+        console.error("❌ Error submitting candidate:", e);
+        res.json({ success: false, message: "حدث خطأ أثناء التقديم" });
+    }
+});
+
+// 2. جلب المرشحين لغرفة عمليات الموارد البشرية
+app.get('/api/candidates', async (req, res) => {
+    try {
+        const candidates = await prisma.recruitment.findMany({
+            orderBy: { createdAt: 'desc' } // الأحدث أولاً (مثل unshift القديمة)
+        });
+        res.json(candidates);
+    } catch (e) {
+        res.json([]);
+    }
+});
+
+// 3. اتخاذ قرار (قبول / رفض)
+app.post('/api/update-candidate', async (req, res) => {
+    try {
+        const { id, status, hrComment, hrName } = req.body;
+        
+        await prisma.recruitment.update({
+            where: { candidateId: id }, // نستخدم candidateId الذي يبدأ بـ CAN-
+            data: {
+                status: status,
+                hrComment: hrComment || '',
+                hrName: hrName || '',
+                actionDate: new Date()
+            }
+        });
+        
         res.json({ success: true });
     } catch (e) {
+        console.error("❌ Error updating candidate:", e);
         res.json({ success: false });
     }
 });
