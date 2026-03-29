@@ -4033,5 +4033,62 @@ app.post('/api/admin-mega-requests', async (req, res) => {
         res.json([]);
     }
 });
+// ======================================================================
+// 👑 مسار الإدارة العليا لتحديث الطلبات بالقوة الجبرية (SQL Version)
+// ======================================================================
+app.post('/api/admin-update-request', async (req, res) => {
+    try {
+        const { ticketId, status, hrComment, adminName } = req.body;
+
+        if (!ticketId) return res.json({ success: false, message: 'رقم التذكرة مفقود' });
+
+        // 1. جلب التذكرة لمعرفة تاريخها القديم
+        const ticket = await prisma.requestTicket.findUnique({
+            where: { ticketId: String(ticketId) }
+        });
+
+        if (!ticket) return res.json({ success: false, message: 'التذكرة غير موجودة في السجلات' });
+
+        // 2. تحديث سجل التاريخ (History Array)
+        let history = ticket.history ? JSON.parse(ticket.history) : [];
+        history.push({
+            date: new Date().toLocaleString('ar-SA', { timeZone: 'Asia/Riyadh' }),
+            action: `تدخل إداري: تغيير الحالة إلى (${status})`,
+            by: adminName || 'الإدارة العليا',
+            note: hrComment || 'لا يوجد تعليق إضافي'
+        });
+
+        // 3. تجهيز بيانات التحديث
+        const updateData = {
+            status: status,
+            history: JSON.stringify(history)
+        };
+
+        // تحديث تعليق الموارد/الإدارة إذا تم إدخاله
+        if (hrComment) updateData.hrComment = hrComment;
+
+        // تسجيل تاريخ الإغلاق إذا كانت الحالة نهائية
+        if (status === 'resolved' || status === 'completed' || status === 'rejected') {
+            updateData.resolveDate = new Date().toLocaleString('en-CA', { timeZone: 'Asia/Riyadh' });
+        }
+
+        // 4. تنفيذ الأمر في قلب الـ SQL
+        await prisma.requestTicket.update({
+            where: { ticketId: String(ticketId) },
+            data: updateData
+        });
+
+        // توثيق أمني
+        if (typeof safeLogAudit === 'function') {
+            safeLogAudit(adminName || 'الإدمن', 'تحديث طلب سيادي', `تم تحديث الطلب ${ticketId} إلى ${status}`, 'SQL System');
+        }
+
+        res.json({ success: true, message: 'تم تحديث حالة الطلب بنجاح' });
+
+    } catch (error) {
+        console.error("❌ خطأ في مسار التحكم السيادي للطلبات:", error);
+        res.status(500).json({ success: false, message: 'حدث خطأ في السيرفر أثناء تحديث الطلب' });
+    }
+});
 
 app.listen(process.env.PORT || 3000, '0.0.0.0', () => console.log(`🚀 السيرفر يعمل بنظام الرقابة الذكي والآمن!`));
