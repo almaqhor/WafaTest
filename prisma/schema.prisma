@@ -190,3 +190,29 @@ model RequestTicket {
 
   employee                Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
 }
+model Recruitment {
+  id          Int       @id @default(autoincrement())
+  candidateId String    @unique // لتعويض 'CAN-123456'
+  name        String
+  idNumber    String?   // الهوية
+  dobG        String?   // الميلاد ميلادي
+  dobHijri    String?   // الميلاد هجري
+  phone       String?   // الجوال
+  email       String?   // الإيميل
+  city        String?   // المدينة
+  jobTitle    String?   // المسمى الوظيفي
+  
+  status      String    @default("pending") // pending, accepted, rejected, offered
+  hrComment   String?
+  hrName      String?
+  actionDate  DateTime?
+  createdAt   DateTime  @default(now())
+
+  // 🕵️ ميزة الاستخبارات: هل هذا المرشح موظف حالي/سابق؟
+  isFormerEmployee Boolean @default(false)
+}
+model SystemConfig {
+  id    Int    @id @default(autoincrement())
+  key   String @unique // مثلاً: 'BRANCH_TARGETS'
+  value String // نخزن فيها الـ JSON كنص
+}
