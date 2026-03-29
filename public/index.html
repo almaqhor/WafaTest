@@ -50,7 +50,7 @@
         @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.15); } 100% { transform: scale(1); } }
         .pulse-badge { animation: pulse 1.5s infinite; }
         .quick-card { transition: 0.3s; border: 2px solid transparent; background: white; padding: 15px; border-radius: 12px; display: flex; justify-content: center; flex-direction: column; text-align: center; cursor: pointer; position: relative; box-shadow: 0 2px 8px rgba(0,0,0,0.04); }
-        .quick-card:hover { transform: translateY(-3px); box-shadow: 0 5px 15px rgba(0,0,0,0.08); border-color: var(--primary-green); }
+        .quick-card:hover { transform: tranteY(-3px); box-shadow: 0 5px 15px rgba(0,0,0,0.08); border-color: var(--primary-green); }
         .quick-icon-wrapper { width: 50px; height: 50px; margin: 0 auto 10px; display: flex; justify-content: center; align-items: center; border-radius: 10px; font-size: 24px; }
 
 
@@ -140,7 +140,7 @@
         .tab-content { display: none; background: #fff; padding: 10px 0; }
         .tab-content.active { display: block; animation: fadeIn 0.3s; }
         .input-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes fadeIn { from { opacity: 0; transform: tranteY(5px); } to { opacity: 1; transform: tranteY(0); } }
         /* =============================================================== */
     /* =========================================
            🎨 جراحة التجميل: إصلاح التشوه البصري للبطاقات
@@ -164,7 +164,7 @@
         }
         
         .stat-card:hover, .stat-box:hover {
-            transform: translateY(-5px);
+            transform: tranteY(-5px);
         }
         
         .stat-card h3, .stat-box h3 {
@@ -225,8 +225,8 @@
             text-decoration: underline;
         }
         @keyframes ticker-scroll {
-            0% { transform: translateX(100%); }
-            100% { transform: translateX(-100%); }
+            0% { transform: tranteX(100%); }
+            100% { transform: tranteX(-100%); }
         }
     </style>
 </head>
@@ -469,7 +469,7 @@
 
 .modal-content button:hover {
     opacity: 0.8;
-    transform: translateY(-1px);
+    transform: tranteY(-1px);
 }
 </style>
                         <div id="missing-attendance-section" style="display: none; margin-top: 20px;">
@@ -854,17 +854,21 @@
                                         <th>الرفع</th>
                                         <th>الحالة</th>
                                         <th>المُعالج (HR)</th>
-                                        <th>مدة الإنجاز (SLA)</th>
+                                        <th>مدة الإنجاز ()</th>
                                         <th style="text-align:center;">التفاصيل</th>
+                                        <button onclick="openAdminRequestControl('${r.ticketId}', '${r.status}', '${r.hrComment}')">تعديل</button>)
+
+
                                         <th style="background:#d35400; text-align:center; color:white;">التقييم</th>
                                     </tr>
                                 </thead>
                                 <tbody id="admin-report-table"></tbody>
                             </table>
                         </div>
+                        
                     </div>
                 </div>
-<button onclick="openAdminRequestControl('${r.ticketId}', '${r.status}', '${r.hrComment}')">تعديل</button>)
+
 
                 <div id="admin-users-view" style="display:none;">
     
@@ -891,14 +895,14 @@
             
             <button style="background:#d35400; color:white; border:none; padding:10px 15px; border-radius:5px; font-weight:bold; cursor:pointer;" onclick="openJobOfferModal()"><i class="fas fa-file-signature"></i> إصدار عرض وظيفي</button>
             <button style="background:var(--primary-green); color:white; border:none; padding:10px 15px; border-radius:5px; font-weight:bold; cursor:pointer;" onclick="openAddUserModal()"><i class="fas fa-plus"></i> مستخدم جديد</button>
-            <button style="background:#c0392b; color:white; border:none; padding:10px 15px; border-radius:5px; font-weight:bold; cursor:pointer;" onclick="openEosModal()"><i class="fas fa-user-slash"></i> إنهاء خدمات</button>
+            <button style="background:#c0392b; color:white; border:none; padding:10px 15px; border-radius:5px; font-weight:bold; cursor:pointer;" onclick="openEosModal()"><i class="fas fa-user-sh"></i> إنهاء خدمات</button>
             <button onclick="exportUsersToExcel()" style="background:#27ae60; color:white; border:none; padding:10px 15px; border-radius:5px; font-weight:bold; cursor:pointer; display:inline-flex; align-items:center; gap:8px;">
                 <i class="fas fa-file-excel"></i> تصدير البيانات
             </button>
         </div>
 
         <div style="background:#f8f9fa; padding:15px; border-radius:8px; border:1px solid #ddd; margin-top: 5px; margin-bottom: 20px; display:flex; gap:10px; flex-wrap:wrap; width:100%;">
-            <button onclick="bulkDeactivateUsers()" style="flex:1; background:#e74c3c; color:white; border:none; padding:10px; border-radius:5px; font-weight:bold; cursor:pointer;"><i class="fas fa-user-slash"></i> إيقاف الجميع</button>
+            <button onclick="bulkDeactivateUsers()" style="flex:1; background:#e74c3c; color:white; border:none; padding:10px; border-radius:5px; font-weight:bold; cursor:pointer;"><i class="fas fa-user-sh"></i> إيقاف الجميع</button>
             <button onclick="bulkActivateUsers()" style="flex:1; background:#27ae60; color:white; border:none; padding:10px; border-radius:5px; font-weight:bold; cursor:pointer;"><i class="fas fa-user-check"></i> تفعيل الجميع</button>
             <button onclick="bulkResetPasswords()" style="flex:1; background:#f39c12; color:white; border:none; padding:10px; border-radius:5px; font-weight:bold; cursor:pointer;"><i class="fas fa-key"></i> تهيئة كلمات المرور</button>
             
@@ -1458,7 +1462,7 @@
                 </div>
                 <div class="modal-overlay" id="eos-modal">
         <div class="modal-content" style="text-align: right; border-top: 5px solid #c0392b; max-width: 500px; width: 90%;">
-            <h3 style="color: #c0392b; margin-top: 0; text-align: center;"><i class="fas fa-user-slash"></i> إنهاء خدمات موظف</h3>
+            <h3 style="color: #c0392b; margin-top: 0; text-align: center;"><i class="fas fa-user-sh"></i> إنهاء خدمات موظف</h3>
             
             <div id="eos-input-area">
                 <label class="form-label">الرقم الوظيفي</label>
@@ -2262,7 +2266,7 @@
         }
         function confirmLogout() { if(confirm('هل أنت متأكد أنك تريد تسجيل الخروج؟')) { localStorage.removeItem('wafaUser'); location.reload(); } }
         async function fetchManagers() { try { managersList = await (await fetch('/api/managers')).json(); } catch(e){} }
-        function togglePasswordVisibility() { const pwd = document.getElementById('password'); const icon = document.getElementById('togglePassword'); if (pwd.type === 'password') { pwd.type = 'text'; icon.classList.replace('fa-eye', 'fa-eye-slash'); icon.style.color = 'var(--primary-green)'; } else { pwd.type = 'password'; icon.classList.replace('fa-eye-slash', 'fa-eye'); icon.style.color = '#888'; } }
+        function togglePasswordVisibility() { const pwd = document.getElementById('password'); const icon = document.getElementById('togglePassword'); if (pwd.type === 'password') { pwd.type = 'text'; icon.classList.replace('fa-eye', 'fa-eye-sh'); icon.style.color = 'var(--primary-green)'; } else { pwd.type = 'password'; icon.classList.replace('fa-eye-sh', 'fa-eye'); icon.style.color = '#888'; } }
 
 
         async function checkLogin() {
@@ -3066,7 +3070,7 @@ function renderAdminUsers(users) {
             `;
         } else {
             const deleteBtnHtml = globalIsAdmin ? `<button style="background:#e74c3c; color:white; border:none; padding:5px 10px; border-radius:3px; cursor:pointer;" onclick="deleteUser('${u.username}')" title="حذف"><i class="fas fa-trash"></i></button>` : '';
-            const eosBtnHtml = `<button style="background:#c0392b; color:white; border:none; padding:5px 10px; border-radius:3px; cursor:pointer; margin-left:2px;" onclick="quickEosModal('${u.username}', '${u.name}')" title="إنهاء خدمات"><i class="fas fa-user-slash"></i></button>`;
+            const eosBtnHtml = `<button style="background:#c0392b; color:white; border:none; padding:5px 10px; border-radius:3px; cursor:pointer; margin-left:2px;" onclick="quickEosModal('${u.username}', '${u.name}')" title="إنهاء خدمات"><i class="fas fa-user-sh"></i></button>`;
 
             actionBtns = `
                 ${waBtn}
@@ -4618,9 +4622,9 @@ function searchHistoryManual() {
             if (!file) return;
 
 
-            const statusLabel = document.getElementById('leave-upload-status');
-            statusLabel.style.color = 'blue';
-            statusLabel.innerText = "جاري معالجة الملف...";
+            const statubel = document.getElementById('leave-upload-status');
+            statubel.style.color = 'blue';
+            statubel.innerText = "جاري معالجة الملف...";
 
 
             const reader = new FileReader();
@@ -4645,8 +4649,8 @@ function searchHistoryManual() {
 
 
                 if (balancesData.length === 0) {
-                    statusLabel.style.color = 'red';
-                    statusLabel.innerText = "الملف فارغ أو التنسيق غير صحيح!";
+                    statubel.style.color = 'red';
+                    statubel.innerText = "الملف فارغ أو التنسيق غير صحيح!";
                     return;
                 }
 
@@ -4661,16 +4665,16 @@ function searchHistoryManual() {
 
 
                     if (res.success) {
-                        statusLabel.style.color = 'green';
-                        statusLabel.innerText = `تم تحديث أرصدة ${res.count} موظف بنجاح! ✅`;
+                        statubel.style.color = 'green';
+                        statubel.innerText = `تم تحديث أرصدة ${res.count} موظف بنجاح! ✅`;
                         loadAdminUsers(); // تحديث الجدول بالخلفية
                     } else {
-                        statusLabel.style.color = 'red';
-                        statusLabel.innerText = "فشل التحديث: " + res.message;
+                        statubel.style.color = 'red';
+                        statubel.innerText = "فشل التحديث: " + res.message;
                     }
                 } catch (error) {
-                    statusLabel.style.color = 'red';
-                    statusLabel.innerText = "حدث خطأ في الاتصال بالسيرفر.";
+                    statubel.style.color = 'red';
+                    statubel.innerText = "حدث خطأ في الاتصال بالسيرفر.";
                 }
             };
               
@@ -5247,7 +5251,7 @@ function searchHistoryManual() {
                 const branchName = user ? user.branch : 'غير محدد';
                 
                 const codeObj = attendanceCodes.find(c => c.code === a.code);
-                const statusLabel = codeObj ? codeObj.label : a.code;
+                const statubel = codeObj ? codeObj.label : a.code;
 
 
                 let color = '#333';
@@ -5264,7 +5268,7 @@ function searchHistoryManual() {
                     <td style="font-weight:bold;">${a.username}</td>
                     <td>${a.name}</td>
                     <td>${branchName}</td>
-                    <td style="font-weight:bold; color:${color};">${statusLabel}</td>
+                    <td style="font-weight:bold; color:${color};">${statubel}</td>
                     <td style="font-size:12px; color:#555; display:flex; justify-content:space-between; align-items:center;">
     ${a.managerName} 
     <button onclick="openUrgentEditAtt('${a.username}', '${a.name}', '${a.date}', '${a.code}')" style="background:none; color:#3498db; border:none; cursor:pointer;" title="تعديل للضرورة"><i class="fas fa-edit"></i></button>
@@ -5381,9 +5385,9 @@ function searchHistoryManual() {
             if (!file) return;
 
 
-            const statusLabel = document.getElementById('historical-upload-status');
-            statusLabel.style.color = 'blue';
-            statusLabel.innerText = "⏳ جاري تفكيك مصفوفة الإكسيل ومعالجة التواريخ...";
+            const statubel = document.getElementById('historical-upload-status');
+            statubel.style.color = 'blue';
+            statubel.innerText = "⏳ جاري تفكيك مصفوفة الإكسيل ومعالجة التواريخ...";
 
 
             const reader = new FileReader();
@@ -5398,7 +5402,7 @@ function searchHistoryManual() {
                     const excelRows = XLSX.utils.sheet_to_json(firstSheet, {defval: "", raw: false});
                     
                     if(excelRows.length === 0) {
-                        statusLabel.style.color = 'red'; statusLabel.innerText = "الملف فارغ!"; return;
+                        statubel.style.color = 'red'; statubel.innerText = "الملف فارغ!"; return;
                     }
 
 
@@ -5445,13 +5449,13 @@ function searchHistoryManual() {
 
 
                     if (historicalData.length === 0) {
-                        statusLabel.style.color = 'red';
-                        statusLabel.innerText = "❌ لم يتم العثور على بيانات! تأكد أن أسماء الأعمدة هي تواريخ بصيغة YYYY-MM-DD";
+                        statubel.style.color = 'red';
+                        statubel.innerText = "❌ لم يتم العثور على بيانات! تأكد أن أسماء الأعمدة هي تواريخ بصيغة YYYY-MM-DD";
                         return;
                     }
 
 
-                    statusLabel.innerText = `⏳ جاري رفع ${historicalData.length} سجل تحضير للسيرفر...`;
+                    statubel.innerText = `⏳ جاري رفع ${historicalData.length} سجل تحضير للسيرفر...`;
 
 
                     // إرسال البيانات المفككة للسيرفر (السيرفر لن يلاحظ الفرق وسيستقبلها كالمعتاد)
@@ -5463,20 +5467,20 @@ function searchHistoryManual() {
 
 
                     if (res.success) {
-                        statusLabel.style.color = 'green';
-                        statusLabel.innerText = `✅ تمت العملية! (أُضيف: ${res.added}، حُدث: ${res.updated} سجل)`;
+                        statubel.style.color = 'green';
+                        statubel.innerText = `✅ تمت العملية! (أُضيف: ${res.added}، حُدث: ${res.updated} سجل)`;
                         
                         // تحديث جدول الإدمن
                         allAttendanceData = await (await fetch('/api/all-attendance')).json();
                         filterAdminAttendance();
                     } else {
-                        statusLabel.style.color = 'red';
-                        statusLabel.innerText = "❌ فشل الرفع: " + res.message;
+                        statubel.style.color = 'red';
+                        statubel.innerText = "❌ فشل الرفع: " + res.message;
                     }
                 } catch (error) {
                     console.error(error);
-                    statusLabel.style.color = 'red';
-                    statusLabel.innerText = "❌ حدث خطأ في قراءة ملف الإكسيل.";
+                    statubel.style.color = 'red';
+                    statubel.innerText = "❌ حدث خطأ في قراءة ملف الإكسيل.";
                 }
                 
                 event.target.value = ''; // تصفير زر الرفع
@@ -9999,9 +10003,9 @@ async function uploadComprehensiveUsersExcel(event) {
     const file = event.target.files[0];
     if (!file) return;
 
-    const statusLabel = document.getElementById('comp-upload-status');
-    statusLabel.style.color = '#2980b9';
-    statusLabel.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري قراءة وتفكيك الملف بصرامة...';
+    const statubel = document.getElementById('comp-upload-status');
+    statubel.style.color = '#2980b9';
+    statubel.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري قراءة وتفكيك الملف بصرامة...';
 
     const reader = new FileReader();
     reader.onload = async function(e) {
@@ -10012,7 +10016,7 @@ async function uploadComprehensiveUsersExcel(event) {
             const rawRows = XLSX.utils.sheet_to_json(firstSheet, {defval: "", raw: false});
 
             if(rawRows.length === 0) {
-                statusLabel.innerHTML = "<span style='color:red;'>الملف فارغ!</span>"; return;
+                statubel.innerHTML = "<span style='color:red;'>الملف فارغ!</span>"; return;
             }
 
             // تنظيف أسماء الأعمدة من المسافات المخفية
@@ -10056,17 +10060,17 @@ async function uploadComprehensiveUsersExcel(event) {
             });
 
             if(usersToUpdate.length === 0) {
-                statusLabel.innerHTML = "<span style='color:red;'>❌ لم أجد عمود 'رقم الموظف'.</span>"; return;
+                statubel.innerHTML = "<span style='color:red;'>❌ لم أجد عمود 'رقم الموظف'.</span>"; return;
             }
 
-            statusLabel.innerHTML = `⏳ جاري معالجة وتصحيح بيانات ${usersToUpdate.length} موظف...`;
+            statubel.innerHTML = `⏳ جاري معالجة وتصحيح بيانات ${usersToUpdate.length} موظف...`;
             if (allUsersData.length === 0) allUsersData = await (await fetch('/api/users')).json();
 
             let successCount = 0;
             
             for (let i = 0; i < usersToUpdate.length; i++) {
                 const u = usersToUpdate[i];
-                statusLabel.innerHTML = `<i class="fas fa-sync fa-spin"></i> جاري مزامنة وتصحيح الحسابات (${i + 1} من ${usersToUpdate.length})...`;
+                statubel.innerHTML = `<i class="fas fa-sync fa-spin"></i> جاري مزامنة وتصحيح الحسابات (${i + 1} من ${usersToUpdate.length})...`;
                 
                 const existingUser = allUsersData.find(x => String(x.username) === String(u.username));
                 
@@ -10098,7 +10102,7 @@ async function uploadComprehensiveUsersExcel(event) {
                 successCount++;
             }
 
-            statusLabel.innerHTML = `<span style='color:green;'>✅ تمت المزامنة بنجاح! تم تصحيح ${successCount} سجل.</span>`;
+            statubel.innerHTML = `<span style='color:green;'>✅ تمت المزامنة بنجاح! تم تصحيح ${successCount} سجل.</span>`;
             
             // تحديث الذاكرة
             allUsersData = await (await fetch('/api/users')).json(); 
@@ -10106,7 +10110,7 @@ async function uploadComprehensiveUsersExcel(event) {
 
         } catch (error) {
             console.error(error);
-            statusLabel.innerHTML = "<span style='color:red;'>❌ خطأ غير متوقع في معالجة الملف.</span>";
+            statubel.innerHTML = "<span style='color:red;'>❌ خطأ غير متوقع في معالجة الملف.</span>";
         }
         event.target.value = ''; 
     };
@@ -10352,7 +10356,7 @@ async function loadAdminReport() {
 }
 
 // 3. رسم الجدول
-// ==================== ⏱️ محرك حساب المدة الزمنية المستغرقة (SLA) ====================
+// ==================== ⏱️ محرك حساب المدة الزمنية المستغرقة () ====================
 function calculateRequestDuration(startDateStr, resolveDateStr) {
     if (!startDateStr || !resolveDateStr) return '-';
 
