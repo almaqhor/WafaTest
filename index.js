@@ -244,7 +244,71 @@ app.post('/auth/v1/login', async (req, res) => {
     res.status(500).json({ success: false, message: "خطأ في قاعدة البيانات: " + error.message });
   }
 });
+// ======================================================================
+// 🔐 مسار تسجيل الدخول (SQL Version - مع خاصية التأسيس التلقائي)
+// ======================================================================
+app.post('/api/login', async (req, res) => {
+    try {
+        const { username, password } = req.body;
 
+        if (!username || !password) {
+            return res.json({ success: false, message: 'الرجاء إدخال اسم المستخدم وكلمة المرور' });
+        }
+
+        // 💡 السحر الإمبراطوري: التأسيس التلقائي لحساب الإدمن الأول
+        const usersCount = await prisma.employee.count();
+        if (usersCount === 0 && username === 'admin' && password === '123') {
+            console.log("🛠️ جاري تأسيس حساب الإمبراطور (الإدمن) الأول في السحابة...");
+            await prisma.employee.create({
+                data: {
+                    username: 'admin',
+                    password: '123',
+                    name: 'الإدارة العليا',
+                    role: 'admin',
+                    roleArabic: 'ادمن',
+                    status: 'نشط',
+                    isActive: true,
+                    branch: 'المركز الرئيسي',
+                    department: 'الإدارة',
+                    directManager: 'System'
+                }
+            });
+        }
+
+        // 1. البحث عن المستخدم في درع الـ SQL
+        const user = await prisma.employee.findFirst({
+            where: {
+                username: String(username).trim(),
+                password: String(password).trim()
+            }
+        });
+
+        // 2. التحقق من الهوية والرد
+        if (user) {
+            // التحقق مما إذا كان الحساب موقوفاً
+            if (user.isActive === false || user.status === 'مستقيل' || user.status === 'terminated') {
+                return res.json({ success: false, message: 'هذا الحساب موقوف أو غير نشط.' });
+            }
+
+            // إزالة كلمة المرور من الرد لأسباب أمنية قبل إرسالها للمتصفح
+            const safeUser = { ...user };
+            delete safeUser.password;
+
+            // توثيق عملية الدخول بنجاح (اختياري)
+            if (typeof safeLogAudit === 'function') {
+                safeLogAudit(user.name, 'تسجيل دخول', 'تسجيل دخول ناجح للنظام', 'System');
+            }
+
+            res.json({ success: true, user: safeUser });
+        } else {
+            res.json({ success: false, message: 'اسم المستخدم أو كلمة المرور غير صحيحة.' });
+        }
+
+    } catch (error) {
+        console.error("❌ خطأ فادح في مسار تسجيل الدخول (SQL):", error);
+        res.status(500).json({ success: false, message: 'حدث خطأ داخلي في السيرفر أثناء محاولة تسجيل الدخول.' });
+    }
+});
 // 📁 3. تعريف الملفات الثابتة (بعد المسارات البرمجية)
 const DATA_DIR = process.env.DATA_DIR || __dirname;
 const uploadsDir = path.join(DATA_DIR, 'uploads'); 
