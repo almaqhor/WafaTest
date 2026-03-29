@@ -4,8 +4,10 @@
   "description": "Hyper Al-Wafa HR System",
   "main": "index.js",
   "scripts": {
-    "start": "node index.js",
-    "postinstall": "prisma generate"}
+"scripts": {
+    "postinstall": "prisma generate", 
+    "start": "prisma db push && node index.js"
+  }
   "keywords": [],
   "author": "",
   "license": "ISC",
