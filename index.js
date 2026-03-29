@@ -3580,15 +3580,30 @@ app.post('/api/missing-attendance', async (req, res) => {
         const todayRiyadh = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Riyadh' }));
         todayRiyadh.setHours(0,0,0,0);
 
-        // جلب جميع تحضيرات الفريق في هذا النطاق الزمني دفعة واحدة (أسرع بـ 100 مرة من اللوب)
+        // ⚡ التعديل الجوهري هنا: البحث عبر العلاقات (Relation Query)
         const teamAttendances = await prisma.attendance.findMany({
             where: {
-                username: { in: teamUsernames }
+                employee: { 
+                    username: { in: teamUsernames } 
+                }
+            },
+            include: {
+                employee: true // نطلب من السيرفر إرفاق بيانات الموظف مع تحضيره لكي نعرف الـ username
             }
         });
 
-        // تحويل التحضيرات إلى "خريطة سريعة" (Set) للبحث في أجزاء من الملي ثانية
-        const attendanceMap = new Set(teamAttendances.map(a => `${a.username}_${a.date}`));
+        // تحويل التحضيرات إلى "خريطة سريعة" (Set)
+        const attendanceMap = new Set(teamAttendances.map(a => {
+            // Prisma تعيد التاريخ كـ (Object)، يجب تحويله لنص ليتطابق مع الرادار
+            const d = new Date(a.date);
+            const yyyy = d.getFullYear();
+            const mm = String(d.getMonth() + 1).padStart(2, '0');
+            const dd = String(d.getDate()).padStart(2, '0');
+            const formattedDate = `${yyyy}-${mm}-${dd}`;
+            
+            // نستخدم a.employee.username لأن الـ username موجود داخل علاقة الموظف
+            return `${a.employee.username}_${formattedDate}`;
+        }));
 
         const missingRecords = [];
 
