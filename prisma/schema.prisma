@@ -62,12 +62,7 @@ model Employee {
   emergencyNumber    String?  // رقم الطوارئ
   emergencyRelation  String?  // صلة القرابة
   lastLogin          String?  // آخر دخول
-  housingAllowance   String?
-  otherAllowance     String?
-  workingDays        String?
-  offDays            String?
   policyConfirmed    Boolean  @default(false)
-  status             String?
   
   // العلاقات (Relations)
   // العلاقات (تأكد أنها موجودة لكي لا ينهار الربط)
