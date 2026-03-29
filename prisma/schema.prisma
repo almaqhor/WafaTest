@@ -62,13 +62,22 @@ model Employee {
   emergencyNumber    String?  // رقم الطوارئ
   emergencyRelation  String?  // صلة القرابة
   lastLogin          String?  // آخر دخول
-
+  housingAllowance   String?
+  otherAllowance     String?
+  workingDays        String?
+  offDays            String?
+  policyConfirmed    Boolean  @default(false)
+  status             String?
+  
+  // العلاقات (Relations)
   // العلاقات (تأكد أنها موجودة لكي لا ينهار الربط)
   attendances        Attendance[]
   leaves             Leave[]
   penalties          Penalty[]
-exitInterviews     ExitInterview[]
-requests           RequestTicket[]
+  exitInterviews     ExitInterview[]
+  requests           RequestTicket[]
+
+  @@index([idNumber])
 }
 
 // تأكد أن الموديلات الأخرى (Attendance, Leave...) 
@@ -190,26 +199,26 @@ model RequestTicket {
 
   employee                Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
 }
+// جدول التوظيف (جميع الحقول إجبارية - لا يوجد ?)
 model Recruitment {
-  id          Int       @id @default(autoincrement())
-  candidateId String    @unique // لتعويض 'CAN-123456'
-  name        String
-  idNumber    String?   // الهوية
-  dobG        String?   // الميلاد ميلادي
-  dobHijri    String?   // الميلاد هجري
-  phone       String?   // الجوال
-  email       String?   // الإيميل
-  city        String?   // المدينة
-  jobTitle    String?   // المسمى الوظيفي
+  id               Int      @id @default(autoincrement())
+  candidateId      String   @unique 
+  name             String
+  idNumber         String   // إجباري
+  dobG             String   // إجباري
+  dobHijri         String   // إجباري
+  phone            String   // إجباري
+  email            String   // إجباري
+  city             String   // إجباري
+  jobTitle         String   // إجباري
   
-  status      String    @default("pending") // pending, accepted, rejected, offered
-  hrComment   String?
-  hrName      String?
-  actionDate  DateTime?
-  createdAt   DateTime  @default(now())
+  status           String   @default("pending")
+  hrComment        String?  // (هذا فقط اختياري لأنه يضاف لاحقاً من الموارد)
+  hrName           String?  // (وهذا أيضاً)
+  actionDate       DateTime?
+  createdAt        DateTime @default(now())
 
-  // 🕵️ ميزة الاستخبارات: هل هذا المرشح موظف حالي/سابق؟
-  isFormerEmployee Boolean @default(false)
+  isFormerEmployee Boolean  @default(false)
 }
 model SystemConfig {
   id    Int    @id @default(autoincrement())
