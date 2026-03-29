@@ -1332,7 +1332,7 @@
             <select id="edit-pen-category" class="comment-input" onchange="cascadeHrEditForm()"></select>
 
             <label class="form-label">المخالفة الصحيحة:</label>
-            <select id="edit-pen-violation" class="comment-input" onchange="checkHrEditPenalty()" disabled>
+            <select id="edit-pen-violation" onchange="checkHrEditPenalty()">
                 <option value="">-- اختر التصنيف أولاً --</option>
             </select>
 
@@ -7927,91 +7927,138 @@ async function openHrEditTicketModal(ticketId) {
         }
 
         // 3. الاتصال بالسيرفر لحساب التكرار والعقوبة (للمخالفة الجديدة)
-        async function checkHrEditPenalty() {
-    const vio = document.getElementById('edit-pen-violation').value;
-    const cat = document.getElementById('edit-pen-category').value;
-    if(!vio) return;
+   // ======================================================================
+// 3. الاتصال بالسيرفر لحساب التكرار والعقوبة (للمخالفة الجديدة) 🧮
+// ======================================================================
+async function checkHrEditPenalty() {
+    const vioSelect = document.getElementById('edit-pen-violation');
+    const catSelect = document.getElementById('edit-pen-category');
+    
+    if (!vioSelect || !catSelect) return;
+
+    const vio = vioSelect.value.trim();
+    const cat = catSelect.value.trim();
+    if (!vio) return;
+
+    // إظهار رسالة تحميل للمستخدم
+    const resultText = document.getElementById('edit-pen-result-text');
+    const resultBox = document.getElementById('edit-pen-result');
+    resultText.innerHTML = "⏳ جاري حساب التكرار والعقوبة من اللائحة...";
+    resultBox.style.display = 'block';
 
     const p = currentLoadedPenalties.find(x => x.id === currentEditingTicketId);
-    // 🔥 تأمين سحب الرقم الوظيفي لإرساله للسيرفر
-    const empUsername = p.employee ? p.employee.username : p.empUsername; 
+    if (!p) return;
+
+    // استخراج الرقم الوظيفي بأمان (SQL Relations)
+    const empUsername = p.employee ? String(p.employee.username) : String(p.empUsername); 
 
     try {
+        // 1. حساب التكرار من السيرفر (SQL)
         const calcRes = await (await fetch('/api/calculate-penalty', {
             method: 'POST', headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ empUsername: empUsername, violationName: vio }) // 👈 التعديل هنا
+            body: JSON.stringify({ empUsername: empUsername, violationName: vio })
         })).json();
 
-        if(calcRes.success) {
+        if (calcRes.success) {
             let occurrence = calcRes.currentOccurrence;
-            let matrix = { v1: '-', v2: '-', v3: '-', v4: '-' };
-            if (typeof realPenaltyMatrix !== 'undefined' && realPenaltyMatrix.length > 0) {
-                const catObj = realPenaltyMatrix.find(c => c.category === cat);
+            let basePenalty = '-';
+
+            // 2. قراءة العقوبة من اللائحة (Matrix) المحفوظة في الذاكرة
+            if (window.realPenaltyMatrix && window.realPenaltyMatrix.length > 0) {
+                const catObj = window.realPenaltyMatrix.find(c => c.category === cat);
                 if (catObj) {
                     const vioObj = catObj.violations.find(v => v.name === vio);
-                    if (vioObj) matrix = vioObj;
+                    if (vioObj) {
+                        // استخراج العقوبة حسب رقم التكرار
+                        if (occurrence === 1) basePenalty = vioObj.v1;
+                        else if (occurrence === 2) basePenalty = vioObj.v2;
+                        else if (occurrence === 3) basePenalty = vioObj.v3;
+                        else if (occurrence >= 4) basePenalty = vioObj.v4;
+                    }
                 }
             }
 
-            let basePenalty = matrix.v1;
-            if(occurrence === 2) basePenalty = matrix.v2;
-            if(occurrence === 3) basePenalty = matrix.v3;
-            if(occurrence >= 4) basePenalty = matrix.v4;
+            // إذا فشل في العثور على العقوبة في الماتريكس
+            if (basePenalty === '-') {
+                resultText.innerHTML = `التكرار: المرة (${occurrence}) | <span style="color:#c0392b;">⚠️ تنبيه: هذه المخالفة غير مسجلة في لائحة العقوبات (Matrix).</span>`;
+            } else {
+                resultText.innerHTML = `التكرار: المرة (${occurrence}) | العقوبة المستحقة: <span style="color:#c0392b; font-weight:bold;">${formatPenaltyValue(basePenalty)}</span>`;
+            }
 
-            document.getElementById('edit-pen-result-text').innerHTML = `التكرار: المرة (${occurrence}) | العقوبة المستحقة: <span style="color:#c0392b;">${formatPenaltyValue(basePenalty)}</span>`;
-            document.getElementById('edit-pen-result').style.display = 'block';
-
+            // 3. تخزين القيم في الحقول المخفية لترسلها دالة الحفظ لاحقاً
             document.getElementById('edit-pen-hidden-occ').value = occurrence;
             document.getElementById('edit-pen-hidden-pen').value = basePenalty;
             document.getElementById('edit-pen-hidden-last-date').value = calcRes.lastViolationDate || "لا يوجد";
             document.getElementById('edit-pen-hidden-last-pen').value = calcRes.lastViolationPenalty || "لا يوجد";
+        } else {
+            resultText.innerHTML = `<span style="color:#c0392b;">❌ حدث خطأ أثناء فحص سجلات الموظف.</span>`;
         }
-    } catch(e) { alert("فشل الاتصال بخادم اللائحة."); }
+    } catch(e) { 
+        resultText.innerHTML = `<span style="color:#c0392b;">❌ فشل الاتصال بالسيرفر.</span>`;
+    }
 }
+
+// ======================================================================
+// 4. إرسال التعديل النهائي والاعتماد (مع درع الحماية) 🛡️
+// ======================================================================
+async function submitHrEditPenalty() {
+    const cat = document.getElementById('edit-pen-category').value;
+    const vio = document.getElementById('edit-pen-violation').value;
+    const comment = document.getElementById('edit-pen-hr-comment').value;
+
+    if(!vio || comment.trim() === '') {
+        return alert("🛑 الرجاء اختيار المخالفة الجديدة وكتابة سبب التعديل للتوثيق الإداري.");
+    }
+
+    let appliedPenalty = document.getElementById('edit-pen-hidden-pen').value;
+    let occurrence = document.getElementById('edit-pen-hidden-occ').value;
+
+    // 🔥 الدرع الذكي: إذا استعجل المستخدم وضغط "حفظ" قبل أن تنتهي الحسبة!
+    if (!appliedPenalty || appliedPenalty === "" || appliedPenalty === "-") {
+        console.log("⏳ يتم الآن فرض حساب العقوبة الإجباري...");
+        await checkHrEditPenalty(); // نجبر الكود على الحساب وننتظره
         
+        appliedPenalty = document.getElementById('edit-pen-hidden-pen').value;
+        occurrence = document.getElementById('edit-pen-hidden-occ').value;
 
-        // 4. إرسال التعديل النهائي والاعتماد
-        async function submitHrEditPenalty() {
-            const cat = document.getElementById('edit-pen-category').value;
-            const vio = document.getElementById('edit-pen-violation').value;
-            const comment = document.getElementById('edit-pen-hr-comment').value;
-
-            if(!vio || comment.trim() === '') return alert("🛑 الرجاء اختيار المخالفة الجديدة وكتابة سبب التعديل للتوثيق الإداري.");
-
-            const occurrence = document.getElementById('edit-pen-hidden-occ').value;
-            const appliedPenalty = document.getElementById('edit-pen-hidden-pen').value;
-            const displayPenalty = formatPenaltyValue(appliedPenalty);
-            const lastDate = document.getElementById('edit-pen-hidden-last-date').value;
-            const lastPen = document.getElementById('edit-pen-hidden-last-pen').value;
-
-            const payload = {
-                ticketId: currentEditingTicketId,
-                newCategory: cat,
-                newViolationName: vio,
-                newOccurrence: occurrence,
-                newAppliedPenalty: appliedPenalty,
-                newDisplayPenalty: displayPenalty,
-                newLastDate: lastDate,
-                newLastPen: lastPen,
-                hrComment: comment,
-                hrName: globalEmpName
-            };
-
-            try {
-                const response = await fetch('/api/hr-edit-penalty', {
-                    method: 'POST', headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify(payload)
-                });
-                const res = await response.json();
-                if(res.success) {
-                    alert("✅ " + res.message);
-                    document.getElementById('penalty-edit-modal').style.display = 'none';
-                    loadManagerPenaltiesHistory(); // تحديث الجدول فوراً
-                } else {
-                    alert("❌ " + res.message);
-                }
-            } catch(e) { alert("❌ فشل الاتصال بالسيرفر."); }
+        if (!appliedPenalty || appliedPenalty === "" || appliedPenalty === "-") {
+            return alert("❌ خطأ: لم يتم العثور على عقوبة محددة لهذه المخالفة في اللائحة (Matrix).");
         }
+    }
+
+    const displayPenalty = formatPenaltyValue(appliedPenalty);
+    const lastDate = document.getElementById('edit-pen-hidden-last-date').value;
+    const lastPen = document.getElementById('edit-pen-hidden-last-pen').value;
+
+    // هذا هو البايلود الصحيح لشاشة التعديل (Edit)
+    const payload = {
+        ticketId: currentEditingTicketId,
+        newCategory: cat,
+        newViolationName: vio,
+        newOccurrence: occurrence,
+        newAppliedPenalty: appliedPenalty,
+        newDisplayPenalty: displayPenalty,
+        newLastDate: lastDate,
+        newLastPen: lastPen,
+        hrComment: comment,
+        hrName: typeof globalEmpName !== 'undefined' ? globalEmpName : 'موظف الموارد'
+    };
+
+    try {
+        const response = await fetch('/api/hr-edit-penalty', {
+            method: 'POST', headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(payload)
+        });
+        const res = await response.json();
+        if(res.success) {
+            alert("✅ " + res.message);
+            document.getElementById('penalty-edit-modal').style.display = 'none';
+            loadManagerPenaltiesHistory(); // تحديث الجدول فوراً
+        } else {
+            alert("❌ " + res.message);
+        }
+    } catch(e) { alert("❌ فشل الاتصال بالسيرفر."); }
+}
 
         // ==================== ⚖️ محرك الميزان (نسخة SQL) ====================
 let currentBalancingTicketId = null;
