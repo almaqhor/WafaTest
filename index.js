@@ -2943,120 +2943,110 @@ app.post('/api/calculate-penalty', (req, res) => {
         res.json({ success: false, message: "حدث خطأ في السيرفر أثناء فحص السجلات." });
     }
 });
-// ==================== (HR) تحديث حالة المخالفة ====================
-app.post('/api/update-penalty-status', (req, res) => {
-    try {
-        const { ticketId, newStatus, hrComment, hrName } = req.body;
-        
-        let penalty = penaltiesHistoryDB.find(p => p.id === ticketId);
-        if (!penalty) return res.json({ success: false, message: "لم يتم العثور على التذكرة." });
 
-        penalty.status = newStatus;
-        penalty.hrComment = hrComment || "";
-        penalty.hrName = hrName || "";
-        penalty.hrActionDate = new Date().toISOString();
 
-        // 🔥 تم الإصلاح هنا: استخدام penaltiesHistoryFile المعرف مسبقاً
-        fs.writeFileSync(penaltiesHistoryFile, JSON.stringify(penaltiesHistoryDB, null, 2));
-        res.json({ success: true, message: `تم تحديث التذكرة بنجاح إلى: ${newStatus}` });
-    } catch (error) {
-        console.error("Error updating penalty:", error);
-        res.json({ success: false, message: "حدث خطأ أثناء تحديث التذكرة." });
-    }
-});
 
-// ==================== (HR / Admin) حذف المخالفة نهائياً ====================
-app.post('/api/delete-penalty', (req, res) => {
-    try {
-        const { ticketId } = req.body;
-        
-        // 1. البحث عن رقم (فهرس) التذكرة داخل المصفوفة
-        const index = penaltiesHistoryDB.findIndex(p => p.id === ticketId);
-        
-        // 2. إذا وجدناها، نقوم بقصها (حذفها) من المصفوفة في مكانها
-        if (index !== -1) {
-            penaltiesHistoryDB.splice(index, 1);
-        }
-
-        // 🔥 تم الإصلاح هنا: استخدام penaltiesHistoryFile المعرف مسبقاً
-        fs.writeFileSync(penaltiesHistoryFile, JSON.stringify(penaltiesHistoryDB, null, 2));
-        
-        res.json({ success: true, message: "تم حذف المخالفة نهائياً من السجلات." });
-    } catch (error) {
-        console.error("Delete Error:", error); 
-        res.json({ success: false, message: "حدث خطأ أثناء محاولة الحذف." });
-    }
-});
-// ==================== (HR) محرك تعديل نوع المخالفة وإعادة الحساب ====================
-app.post('/api/hr-edit-penalty', (req, res) => {
-    try {
-        const { ticketId, newCategory, newViolationName, newOccurrence, newAppliedPenalty, newDisplayPenalty, newLastDate, newLastPen, hrComment, hrName } = req.body;
-        
-        let penalty = penaltiesHistoryDB.find(p => p.id === ticketId);
-        if (!penalty) return res.json({ success: false, message: "لم يتم العثور على التذكرة." });
-
-        // حفظ المخالفة القديمة في التعليق للتوثيق القانوني (Audit)
-        const oldViolationInfo = `[تعديل من الموارد البشرية]: تم تغيير المخالفة من (${penalty.violationName}) إلى (${newViolationName}). المبرر: ${hrComment}`;
-
-        // تحديث البيانات الجذرية للمخالفة
-        penalty.category = newCategory;
-        penalty.violationName = newViolationName;
-        penalty.actualOccurrence = newOccurrence;
-        penalty.appliedPenalty = newAppliedPenalty;
-        penalty.displayPenalty = newDisplayPenalty;
-        penalty.lastViolationDate = newLastDate;
-        penalty.lastViolationPenalty = newLastPen;
-        
-        // تحديث حالة الاعتماد وتوقيع موظف الموارد
-        penalty.status = 'معتمدة من الموارد (معدلة)';
-        penalty.hrComment = oldViolationInfo; // دمجنا التوثيق مع مبرر موظف الموارد
-        penalty.hrName = hrName;
-        penalty.hrActionDate = new Date().toISOString();
-
-        // الحفظ في قاعدة البيانات
-        fs.writeFileSync(path.join(DATA_DIR, 'penaltiesHistory.json'), JSON.stringify(penaltiesHistoryDB, null, 2));
-        res.json({ success: true, message: "تم تصحيح المخالفة، وإعادة حساب العقوبة، واعتمادها بنجاح!" });
-    } catch (error) {
-        console.error("Error editing penalty:", error);
-        res.json({ success: false, message: "حدث خطأ أثناء تعديل التذكرة." });
-    }
-});
-
-// ==================== (HR) محرك الميزان ⚖️ - تعديل مقدار العقوبة يدوياً ====================
-app.post('/api/hr-balance-penalty', (req, res) => {
+// ======================================================================
+// ⚖️ 1. محرك الميزان (تعديل استثنائي للعقوبة) - نسخة SQL
+// ======================================================================
+app.post('/api/hr-balance-penalty', async (req, res) => {
     try {
         const { ticketId, newAppliedPenalty, newDisplayPenalty, hrComment, hrName } = req.body;
-        
-        let penalty = penaltiesHistoryDB.find(p => p.id === ticketId);
-        if (!penalty) return res.json({ success: false, message: "لم يتم العثور على التذكرة." });
 
-        // حفظ العقوبة القديمة في التعليق للتوثيق القانوني
-        const oldPenaltyInfo = `[تعديل استثنائي للعقوبة]: تم تغيير العقوبة من (${penalty.displayPenalty || penalty.appliedPenalty}) إلى (${newDisplayPenalty}). المبرر: ${hrComment}`;
+        // تحديث التذكرة في SQL باستخدام المعرف الرقمي
+        const updatedTicket = await prisma.penalty.update({
+            where: { id: parseInt(ticketId) }, // 🔗 تحويل الـ ID إلى رقم
+            data: {
+                appliedPenalty: String(newAppliedPenalty),
+                displayPenalty: String(newDisplayPenalty),
+                hrComment: hrComment,
+                hrName: hrName,
+                status: 'مغلقة (معدلة استثنائياً)' // تحديث الحالة لتدل على التعديل
+            }
+        });
 
-        // تحديث بيانات العقوبة
-        penalty.appliedPenalty = newAppliedPenalty;
-        penalty.displayPenalty = newDisplayPenalty;
-        
-        // تحديث حالة الاعتماد وتوقيع موظف الموارد
-        penalty.status = 'معتمدة من الموارد (استثناء)';
-        penalty.hrComment = oldPenaltyInfo; 
-        penalty.hrName = hrName;
-        penalty.hrActionDate = new Date().toISOString();
-
-        // الحفظ في قاعدة البيانات
-        fs.writeFileSync(penaltiesHistoryFile, JSON.stringify(penaltiesHistoryDB, null, 2));
-        
-        // توثيق العملية في سجل الرقابة السري
-        if (typeof safeLogAudit === 'function') {
-            safeLogAudit(hrName, 'تعديل عقوبة استثنائي', penalty.empUsername, `للتذكرة ${ticketId}`);
-        }
-
-        res.json({ success: true, message: "تم تعديل العقوبة واعتماد الإشعار بنجاح!" });
+        res.json({ success: true, message: "تم تعديل العقوبة بالميزان بنجاح وتوثيق الإجراء." });
     } catch (error) {
-        console.error("Error balancing penalty:", error);
-        res.json({ success: false, message: "حدث خطأ أثناء تعديل العقوبة." });
+        console.error("❌ خطأ الميزان:", error);
+        res.json({ success: false, message: "لم يتم العثور على التذكرة أو حدث خطأ في قاعدة البيانات." });
     }
 });
+
+// ======================================================================
+// ✏️ 2. محرك تصحيح المخالفات (تغيير نوع المخالفة) - نسخة SQL
+// ======================================================================
+app.post('/api/hr-edit-penalty', async (req, res) => {
+    try {
+        const { 
+            ticketId, newCategory, newViolationName, newOccurrence, 
+            newAppliedPenalty, newDisplayPenalty, hrComment, hrName 
+        } = req.body;
+
+        await prisma.penalty.update({
+            where: { id: parseInt(ticketId) },
+            data: {
+                category: String(newCategory),
+                violationName: String(newViolationName),
+                actualOccurrence: parseInt(newOccurrence) || 1,
+                appliedPenalty: String(newAppliedPenalty),
+                displayPenalty: String(newDisplayPenalty),
+                hrComment: hrComment,
+                hrName: hrName,
+                status: 'مغلقة (مصححة إدارياً)'
+            }
+        });
+
+        res.json({ success: true, message: "تم تصحيح المخالفة وإعادة ضبط العقوبة بنجاح." });
+    } catch (error) {
+        console.error("❌ خطأ تصحيح المخالفة:", error);
+        res.json({ success: false, message: "حدث خطأ أثناء تصحيح التذكرة في قاعدة البيانات." });
+    }
+});
+
+// ======================================================================
+// 🛡️ 3. محرك اعتماد أو رفض الموارد البشرية - نسخة SQL
+// ======================================================================
+app.post('/api/update-penalty-status', async (req, res) => {
+    try {
+        const { ticketId, newStatus, hrComment, hrName } = req.body;
+
+        await prisma.penalty.update({
+            where: { id: parseInt(ticketId) },
+            data: {
+                status: String(newStatus),
+                hrComment: hrComment,
+                hrName: hrName
+            }
+        });
+
+        res.json({ success: true, message: `تم تحديث حالة التذكرة إلى: ${newStatus}` });
+    } catch (error) {
+        console.error("❌ خطأ اعتماد التذكرة:", error);
+        res.json({ success: false, message: "حدث خطأ أثناء تحديث حالة التذكرة." });
+    }
+});
+
+// ======================================================================
+// 🗑️ 4. محرك حذف المخالفة نهائياً - نسخة SQL
+// ======================================================================
+app.post('/api/delete-penalty', async (req, res) => {
+    try {
+        const { ticketId } = req.body;
+
+        await prisma.penalty.delete({
+            where: { id: parseInt(ticketId) }
+        });
+
+        res.json({ success: true, message: "تم حذف إشعار المخالفة من النظام نهائياً." });
+    } catch (error) {
+        console.error("❌ خطأ حذف التذكرة:", error);
+        res.json({ success: false, message: "حدث خطأ أثناء الحذف، قد تكون التذكرة محذوفة بالفعل." });
+    }
+});
+
+
+
+
 // ==================== (HR) محرك تحليل الغيابات المطور (V3) حسب المادة 80 ====================
 app.get('/api/analyze-absences', (req, res) => {
     try {
