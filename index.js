@@ -1512,45 +1512,83 @@ app.get('/api/attendance-codes', (req, res) => res.json(attendanceCodesDB));
 
 
 // ======================================================================
-// 3. مسار رفع الأرشيف (آلة الزمن الذكية - إكسيل)
+// 📊 مسار استقبال ملف إكسيل التحضير التاريخي (SQL Version)
 // ======================================================================
-app.post('/api/upload-historical-attendance', (req, res) => {
+app.post('/api/upload-historical-attendance', async (req, res) => {
     try {
         const { historicalData } = req.body;
+
+        if (!historicalData || !Array.isArray(historicalData) || historicalData.length === 0) {
+            return res.json({ success: false, message: 'البيانات المرسلة فارغة أو غير صالحة.' });
+        }
+
         let added = 0;
         let updated = 0;
 
-        if (!historicalData || !Array.isArray(historicalData)) {
-            return res.json({ success: false, message: "بيانات غير صالحة" });
-        }
-
-        historicalData.forEach(newRecord => {
-            // البحث عما إذا كان هناك تحضير سابق لنفس الموظف في نفس اليوم
-            const existingIndex = attendanceDB.findIndex(a => 
-                String(a.username) === String(newRecord.username) && a.date === newRecord.date
-            );
-            
-            if (existingIndex > -1) {
-                // تحديث السجل القديم
-                attendanceDB[existingIndex].code = newRecord.code;
-                // توثيق أن التعديل تم عبر الأرشيف
-                attendanceDB[existingIndex].managerName = newRecord.managerName || 'أرشيف النظام (إكسيل)';
-                updated++;
-            } else {
-                // إضافة سجل جديد
-                if (!newRecord.managerName) newRecord.managerName = 'أرشيف النظام (إكسيل)';
-                attendanceDB.push(newRecord);
-                added++;
-            }
+        // 💡 1. الذكاء الاصطناعي للأداء: جلب هويات الموظفين بضربة واحدة بدلاً من البحث الفردي
+        const usernames = [...new Set(historicalData.map(d => String(d.username)))];
+        
+        const employees = await prisma.employee.findMany({
+            where: { username: { in: usernames } },
+            select: { id: true, username: true } // نحتاج فقط الآي دي والرقم الوظيفي
         });
 
-        // حفظ قاعدة البيانات في الملف
-        fs.writeFileSync(attendanceFile, JSON.stringify(attendanceDB, null, 2));
+        // تحويل الموظفين إلى خريطة (Map) لسرعة الوصول (O(1))
+        const empMap = {};
+        employees.forEach(emp => {
+            empMap[emp.username] = emp.id;
+        });
+
+        // 💡 2. معالجة الإكسيل وإدخاله لـ SQL
+        for (const record of historicalData) {
+            const empId = empMap[String(record.username)];
+            
+            // إذا كان الموظف غير موجود في قاعدة بياناتنا (ربما موظف قديم جداً أو محذوف)، نتخطاه
+            if (!empId) continue; 
+
+            // البحث: هل لهذا الموظف تحضير مسبق في نفس هذا اليوم؟
+            const existingRecord = await prisma.attendance.findFirst({
+                where: {
+                    employeeId: empId,
+                    date: record.date
+                }
+            });
+
+            if (existingRecord) {
+                // تحديث السجل الموجود
+                await prisma.attendance.update({
+                    where: { id: existingRecord.id },
+                    data: { 
+                        code: record.code,
+                        note: 'مرفوع آلياً من الإكسيل (تحديث)'
+                    }
+                });
+                updated++;
+            } else {
+                // إنشاء سجل جديد
+                await prisma.attendance.create({
+                    data: {
+                        employeeId: empId,
+                        date: record.date,
+                        code: record.code,
+                        note: 'مرفوع آلياً من الإكسيل',
+                        timestamp: new Date() // توثيق وقت الرفع
+                    }
+                });
+                added++;
+            }
+        }
+
+        // 🛡️ توثيق أمني للعملية
+        if (typeof safeLogAudit === 'function') {
+            safeLogAudit('مدير النظام', 'رفع إكسيل تحضير', `تم إضافة ${added} وتحديث ${updated} سجل`, 'SQL Database');
+        }
 
         res.json({ success: true, added, updated });
+
     } catch (error) {
-        console.error("Error in /api/upload-historical-attendance:", error);
-        res.json({ success: false, message: error.message });
+        console.error('❌ خطأ فادح أثناء رفع الإكسيل التاريخي للـ SQL:', error);
+        res.status(500).json({ success: false, message: 'حدث خطأ داخلي في السيرفر أثناء الكتابة في SQL.' });
     }
 });
 // ======================================================================
