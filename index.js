@@ -2784,13 +2784,13 @@ app.post('/api/update-single-penalty', (req, res) => {
 });
 
 // ======================================================================
-// 🚀 محرك رفع واعتماد المخالفات الجديد (The Final Boss - SQL)
+// 🚀 محرك رفع واعتماد المخالفات (النسخة المتوافقة تماماً مع Schema)
 // ======================================================================
 app.post('/api/submit-penalty', async (req, res) => {
     try {
         const payload = req.body;
 
-        // 1. العثور على الموظف للحصول على المفتاح الأجنبي (employeeId)
+        // 1. العثور على الموظف
         const employee = await prisma.employee.findUnique({
             where: { username: String(payload.empUsername) }
         });
@@ -2799,10 +2799,10 @@ app.post('/api/submit-penalty', async (req, res) => {
             return res.json({ success: false, message: "❌ لم يتم العثور على بيانات الموظف في قاعدة البيانات." });
         }
 
-        // 2. ترويض التاريخ (تحويل النص إلى كائن زمني صارم لـ Prisma)
+        // 2. ترويض التاريخ
         const strictViolationDate = new Date(payload.violationDate + 'T00:00:00Z');
 
-        // 3. 🛡️ الجدار الأمني: البحث في SQL عن تكرار لنفس الموظف في نفس اليوم
+        // 3. 🛡️ الجدار الأمني: منع التكرار
         const isDuplicate = await prisma.penalty.findFirst({
             where: {
                 employeeId: employee.id,
@@ -2816,56 +2816,41 @@ app.post('/api/submit-penalty', async (req, res) => {
             return res.json({ success: false, message: "🛑 تم رفع هذه المخالفة مسبقاً لهذا الموظف في نفس اليوم! يرجى التحقق من السجل." });
         }
 
-        // 4. الحفظ في قاعدة البيانات بقوة العلاقات (SQL Relations)
+        // 4. الحفظ في قاعدة البيانات (مطابق للـ Schema حرفياً)
         await prisma.penalty.create({
             data: {
-                // 🔗 الربط المباشر بجدول الموظفين
-                employeeId: employee.id, 
+                employeeId: employee.id, // الرابط مع الموظف
                 
-                // بيانات المدير
-                managerName: payload.managerName || 'غير مسجل',
-                managerSignature: payload.managerSignature || '',
-                
-                // بيانات المخالفة
-                category: payload.category,
-                violationName: payload.violationName,
-                violationDate: strictViolationDate, // التاريخ المروض
-                
-                // الحسبة والعقوبة
-                actualOccurrence: parseInt(payload.actualOccurrence) || 1,
-                appliedPenalty: String(payload.appliedPenalty || ''),
+                violationName: String(payload.violationName),
+                category: String(payload.category),
                 displayPenalty: String(payload.displayPenalty || ''),
+                managerName: String(payload.managerName || 'غير مسجل'),
+                violationDate: strictViolationDate,
+                managerComment: String(payload.managerComment || ''),
                 
-                // التوثيق
-                managerComment: payload.managerComment || '',
                 isAdmit: Boolean(payload.isAdmit),
                 requestLessPunishment: Boolean(payload.requestLessPunishment),
                 
-                // السجل التاريخي للمخالفة السابقة
-                lastViolationDate: payload.lastViolationDate || 'لا يوجد',
-                lastViolationPenalty: String(payload.lastViolationPenalty || 'لا يوجد'),
+                actualOccurrence: parseInt(payload.actualOccurrence) || 1,
+                appliedPenalty: String(payload.appliedPenalty || ''),
+                status: String(payload.status || 'بانتظار الموارد البشرية'),
                 
-                status: payload.status || 'بانتظار الموارد البشرية',
+                // 🖼️ توجيه المرفق للاسم الصحيح في الـ Schema
+                attachment: String(payload.attachmentBase64 || ''),
                 
-                // 🖼️ حفظ المرفق (التأكد من التوافق مع اسم العمود في schema لديك، غالباً سيكون attachment)
-                attachmentBase64: payload.attachmentBase64 || '', 
+                // هذه الحقول مطلوبة في الـ Schema كـ String، نرسلها فارغة مبدئياً
+                hrComment: '', 
+                hrName: '',
                 
                 timestamp: new Date()
             }
         });
         
-        // 5. الرد بنجاح العملية
         res.json({ success: true, message: "✅ تم رفع المخالفة بنجاح وتوثيقها في النظام!" });
 
     } catch (error) {
         console.error("❌ Error submitting penalty:", error);
-        
-        // التقاط أخطاء Prisma للعمود غير الموجود (تحسباً لاختلاف أسماء الأعمدة في schema)
-        if (error.message.includes('Unknown argument')) {
-            return res.json({ success: false, message: "حدث خطأ هندسي: يرجى التأكد من تطابق أسماء الحقول مع Schema (مثل attachmentBase64)." });
-        }
-        
-        res.json({ success: false, message: "حدث خطأ داخلي في السيرفر أثناء رفع المخالفة." });
+        res.json({ success: false, message: "حدث خطأ داخلي في السيرفر أثناء رفع المخالفة. تأكد من صحة البيانات." });
     }
 });
 
