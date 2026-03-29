@@ -7380,10 +7380,10 @@ async function runEOSFetch(payload) {
         }
         
 // ======================================================================
-// 🔍 محرك فلترة ورسم جدول الجزاءات (نسخة مدرعة ضد الـ Undefined)
+// 🔍 1. محرك فلترة ورسم جدول الجزاءات (النسخة المتوافقة مع SQL)
 // ======================================================================
 async function filterManagerPenalties() {
-    // 1. جلب القيم من الفلاتر (مع حماية إضافية لو كان الفلتر غير موجود بالشاشة)
+    // 1. جلب القيم من الفلاتر
     const searchInput = document.getElementById('filter-pen-emp-search');
     const statusInput = document.getElementById('filter-pen-status');
     const fromInput = document.getElementById('filter-pen-from');
@@ -7396,9 +7396,9 @@ async function filterManagerPenalties() {
 
     // 2. الفلترة
     currentFilteredPenalties = currentLoadedPenalties.filter(p => {
-        // 🛡️ درع الحماية: تأمين المتغيرات قبل استخدام toLowerCase()
-        const safeName = (p.empName || '').toLowerCase();
-        const safeUsername = String(p.empUsername || '').toLowerCase();
+        // 🔥 السحر هنا: استخراج الاسم والرقم من جدول الموظفين المرتبط (Relations)
+        const safeName = (p.employee && p.employee.name ? p.employee.name : '').toLowerCase();
+        const safeUsername = (p.employee && p.employee.username ? String(p.employee.username) : '').toLowerCase();
         const safeStatus = (p.status || '');
         
         const matchSearch = safeName.includes(searchQ) || safeUsername.includes(searchQ);
@@ -7421,8 +7421,6 @@ async function filterManagerPenalties() {
 
     if (currentFilteredPenalties.length === 0) {
         tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:20px; font-weight:bold; color:#7f8c8d;">لا توجد سجلات مطابقة للفترة المحددة.</td></tr>';
-        
-        // إخفاء اللوحة إذا كانت البيانات فارغة
         const dashboardDiv = document.getElementById('admin-penalties-dashboard');
         if(dashboardDiv) dashboardDiv.style.display = 'none';
         return;
@@ -7433,54 +7431,53 @@ async function filterManagerPenalties() {
     const isHrOrAdmin = (currentRoleArabic === 'ادمن' || currentRoleArabic === 'موظف موارد' || currentRoleArabic === 'موظف ادارة');
 
     currentFilteredPenalties.forEach(p => {
-    // 1. استخراج بيانات الموظف بأمان (لأن السيرفر أرسلها بفضل include)
-    const empName = p.employee ? p.employee.name : 'موظف محذوف';
-    const empUsername = p.employee ? p.employee.username : '-';
-    const admitText = p.isAdmit 
-        ? '<span style="color:#27ae60; font-weight:bold;"><i class="fas fa-check-circle"></i> نعم (مُقر)</span>' 
-        : '<span style="color:#c0392b; font-weight:bold;"><i class="fas fa-times-circle"></i> لا (يرفض الإقرار)</span>';    
+        // استخراج بيانات الموظف للرسم بأمان
+        const empName = p.employee ? p.employee.name : 'موظف محذوف';
+        const empUsername = p.employee ? p.employee.username : '-';
+        
+        const admitText = p.isAdmit 
+            ? '<span style="color:#27ae60; font-weight:bold;"><i class="fas fa-check-circle"></i> نعم (مُقر)</span>' 
+            : '<span style="color:#c0392b; font-weight:bold;"><i class="fas fa-times-circle"></i> لا (يرفض الإقرار)</span>';    
+        
         const safeStatusForBadge = p.status || '';
-    let statusBadge = safeStatusForBadge.includes('بانتظار') 
-        ? `<span class="status-badge" style="background:#fdebd0; color:#d35400;">${safeStatusForBadge}</span>` 
-        : `<span class="status-badge" style="background:#d5f5e3; color:#27ae60;">${safeStatusForBadge}</span>`;
-       
+        let statusBadge = safeStatusForBadge.includes('بانتظار') 
+            ? `<span class="status-badge" style="background:#fdebd0; color:#d35400;">${safeStatusForBadge}</span>` 
+            : `<span class="status-badge" style="background:#d5f5e3; color:#27ae60;">${safeStatusForBadge}</span>`;
+            
+        // أزرار الإجراءات
+        let actionButtons = `<button onclick="viewPenaltyDetails(${p.id})" class="action-btn view-btn" title="التفاصيل"><i class="fas fa-eye"></i></button>`;        
         
-        
-    // 👁️ زر التفاصيل
-let actionButtons = `<button onclick="viewPenaltyDetails(${p.id})" class="action-btn view-btn" title="التفاصيل"><i class="fas fa-eye"></i></button>`;        
-        // 🖨️ زر الطباعة
         if (safeStatusForBadge.includes('معتمدة') || safeStatusForBadge.includes('مغلقة')) {
-            actionButtons += `<button onclick="printPenaltyNotice('${p.id}')" class="action-btn print-btn" title="طباعة الإشعار"><i class="fas fa-print"></i></button>`;
+            actionButtons += `<button onclick="printPenaltyNotice(${p.id})" class="action-btn print-btn" title="طباعة الإشعار"><i class="fas fa-print"></i></button>`;
         }
         
-        // 🛡️ صلاحيات HR والآدمن
         if (isHrOrAdmin) {
-            actionButtons += `<button onclick="openBalancePenaltyModal('${p.id}')" class="action-btn balance-btn" style="color:#8e44ad;" title="الميزان (تعديل استثنائي للعقوبة)"><i class="fas fa-balance-scale"></i></button>`;
-            actionButtons += `<button onclick="openHrEditTicketModal('${p.id}')" class="action-btn edit-btn" style="color:#f39c12;" title="تصحيح نوع المخالفة"><i class="fas fa-edit"></i></button>`;
-            actionButtons += `<button onclick="deletePenaltyTicket('${p.id}')" class="action-btn delete-btn" style="color:#e74c3c;" title="حذف الإشعار"><i class="fas fa-trash"></i></button>`;
+            actionButtons += `<button onclick="openBalancePenaltyModal(${p.id})" class="action-btn balance-btn" style="color:#8e44ad;" title="الميزان (تعديل استثنائي)"><i class="fas fa-balance-scale"></i></button>`;
+            actionButtons += `<button onclick="openHrEditTicketModal(${p.id})" class="action-btn edit-btn" style="color:#f39c12;" title="تصحيح نوع المخالفة"><i class="fas fa-edit"></i></button>`;
+            actionButtons += `<button onclick="deletePenaltyTicket(${p.id})" class="action-btn delete-btn" style="color:#e74c3c;" title="حذف الإشعار"><i class="fas fa-trash"></i></button>`;
         }
 
         html += `<tr>
-        <td style="font-weight:bold; color:#2980b9; font-size:12px;">${p.id}</td>
-        <td style="font-weight:bold; font-size:12px;">${p.violationDate}</td>
-        <td>
-            <strong>${empName}</strong><br>
-            <span style="font-size:11px; color:#777;">${empUsername}</span>
-        </td>
-        <td style="color:#c0392b; font-size:13px; font-weight:bold;">${p.violationName}</td>
-        <td>${admitText}</td>
-        <td>${statusBadge}</td>
-        <td style="text-align:center; white-space:nowrap;">${actionButtons}</td>
-    </tr>`;
+            <td style="font-weight:bold; color:#2980b9; font-size:12px;">${p.id}</td>
+            <td style="font-weight:bold; font-size:12px;">${p.violationDate}</td>
+            <td>
+                <strong>${empName}</strong><br>
+                <span style="font-size:11px; color:#777;">${empUsername}</span>
+            </td>
+            <td style="color:#c0392b; font-size:13px; font-weight:bold;">${p.violationName}</td>
+            <td>${admitText}</td>
+            <td>${statusBadge}</td>
+            <td style="text-align:center; white-space:nowrap;">${actionButtons}</td>
+        </tr>`;
     });
     
     tbody.innerHTML = html;
     
-    // استدعاء اللوحة التحليلية وتمرير البيانات المفلترة لها
     if(typeof renderPenaltiesDashboard === 'function') {
        await renderPenaltiesDashboard(currentFilteredPenalties);
     }
 }
+        
                 // ==================== محرك المزامنة التاريخية للغيابات ====================
         async function syncHistoricalAbsences() {
             if(!confirm('⚠️ هل أنت متأكد من سحب جميع الغيابات المرفوعة في النظام وتحويلها إلى (قرارات خصم معتمدة)؟\nالنظام ذكي ولن يكرر الغيابات المسحوبة سابقاً.')) return;
@@ -7636,212 +7633,180 @@ let actionButtons = `<button onclick="viewPenaltyDetails(${p.id})" class="action
             XLSX.writeFile(wb, fileName);
         }
 
-        
-        
+       // ==================== 🖨️ محرك الطباعة الفورية للإشعار (نسخة SQL) ====================
+function printPenaltyNotice(ticketId) {
+    const p = currentLoadedPenalties.find(x => x.id === ticketId);
+    if(!p) return alert("خطأ في جلب بيانات التذكرة للطباعة.");
 
-        // ==================== محرك الطباعة الفورية للإشعار ====================
-        function printPenaltyNotice(ticketId) {
-            const p = currentLoadedPenalties.find(x => x.id === ticketId);
-            if(!p) return alert("خطأ في جلب بيانات التذكرة للطباعة.");
+    // 🔥 استخراج بيانات الموظف عبر العلاقات بأمان
+    const empName = p.employee ? p.employee.name : 'موظف محذوف';
+    const empUsername = p.employee ? p.employee.username : '-';
 
-            // تعبئة القالب المخفي
-            document.getElementById('print-pen-id').innerText = p.id;
-            document.getElementById('print-pen-issue-date').innerText = new Date().toISOString().split('T')[0];
-            document.getElementById('print-pen-emp-name').innerText = p.empName;
-            document.getElementById('print-pen-emp-id').innerText = p.empUsername;
-            document.getElementById('print-pen-date').innerText = p.violationDate;
-            document.getElementById('print-pen-name').innerText = p.violationName;
-            document.getElementById('print-pen-count').innerText = p.actualOccurrence || "1";
-            //document.getElementById('print-pen-comment').innerText = p.managerComment;
-            
-            // العقوبة (نأخذ النص الجميل الذي صنعناه سابقاً أو الأساسية)
-            document.getElementById('print-pen-action').innerHTML = p.displayPenalty || formatPenaltyValue(p.appliedPenalty);
-            
-            document.getElementById('print-pen-manager').innerText = p.managerName;
-            document.getElementById('print-pen-hr-status').innerText = p.status;
-            document.getElementById('print-pen-system-date').innerText = new Date().toLocaleString('ar-SA');
-            // إظهار أو إخفاء سطر المخالفة السابقة في الطباعة
-            const printLastRow = document.getElementById('print-pen-last-row');
-            if (p.actualOccurrence >= 2 && p.lastViolationDate && p.lastViolationDate !== "لا يوجد") {
-                printLastRow.style.display = 'table-row';
-                document.getElementById('print-pen-last-date').innerText = p.lastViolationDate;
-                document.getElementById('print-pen-last-action').innerText = p.lastViolationPenalty || "غير مسجل";
-            } else {
-                printLastRow.style.display = 'none';
-            }
+    // تعبئة القالب المخفي
+    document.getElementById('print-pen-id').innerText = p.id;
+    document.getElementById('print-pen-issue-date').innerText = new Date().toISOString().split('T')[0];
+    document.getElementById('print-pen-emp-name').innerText = empName; // 👈 التعديل هنا
+    document.getElementById('print-pen-emp-id').innerText = empUsername; // 👈 التعديل هنا
+    document.getElementById('print-pen-date').innerText = p.violationDate;
+    document.getElementById('print-pen-name').innerText = p.violationName;
+    document.getElementById('print-pen-count').innerText = p.actualOccurrence || "1";
+    
+    // العقوبة
+    document.getElementById('print-pen-action').innerHTML = p.displayPenalty || formatPenaltyValue(p.appliedPenalty);
+    
+    document.getElementById('print-pen-manager').innerText = p.managerName;
+    document.getElementById('print-pen-hr-status').innerText = p.status;
+    document.getElementById('print-pen-system-date').innerText = new Date().toLocaleString('ar-SA');
+    
+    // إظهار أو إخفاء سطر المخالفة السابقة
+    const printLastRow = document.getElementById('print-pen-last-row');
+    if (p.actualOccurrence >= 2 && p.lastViolationDate && p.lastViolationDate !== "لا يوجد") {
+        printLastRow.style.display = 'table-row';
+        document.getElementById('print-pen-last-date').innerText = p.lastViolationDate;
+        document.getElementById('print-pen-last-action').innerText = p.lastViolationPenalty || "غير مسجل";
+    } else {
+        printLastRow.style.display = 'none';
+    }
 
-            // إظهار تعليق الموارد البشرية في الطباعة (إن وجد)
-            const printHrSection = document.getElementById('print-hr-section');
-            if (p.hrComment && p.hrComment.trim() !== '') {
-                printHrSection.style.display = 'block';
-                document.getElementById('print-pen-hr-comment').innerText = p.hrComment;
-            } else {
-                printHrSection.style.display = 'none';
-            }
+    // إظهار تعليق الموارد البشرية (إن وجد)
+    const printHrSection = document.getElementById('print-hr-section');
+    if (p.hrComment && p.hrComment.trim() !== '') {
+        printHrSection.style.display = 'block';
+        document.getElementById('print-pen-hr-comment').innerText = p.hrComment;
+    } else {
+        printHrSection.style.display = 'none';
+    }
 
-            // تحديث التوقيع السفلي (تثبيت اسم المعتمد بناءً على نوع الاعتماد)
-            if (p.status === 'معتمدة آلياً') {
-                document.getElementById('print-pen-hr-status').innerHTML = '<span style="color:#27ae60;">اعتماد آلي (النظام)</span>';
-            } else {
-                // إذا اعتمدها موظف الموارد، يظهر اسمه تحت الحالة
-                document.getElementById('print-pen-hr-status').innerHTML = `<span style="color:#27ae60;">${p.status}</span><br><span style="font-size:13px; color:#555; font-weight:normal;">بواسطة: ${p.hrName || 'موظف الموارد البشرية'}</span>`;
-            }
-            // ==================== 🧠 سحر التوجيه الجمالي لخطابات التبرير والغياب ====================
-            const decisionTitle = document.getElementById('print-decision-title');
-            const decisionBox = document.getElementById('print-decision-box');
-            const commentRow = document.getElementById('print-pen-comment-row');
-            const legalTextBox = document.getElementById('print-legal-text-box');
-            const normalCommentCell = document.getElementById('print-pen-comment');
-            
-            if (p.category === 'الغياب والتأخير (المادة 80)') {
-                // 🟢 هندسة الغياب الآلي والمادة 80: إخفاء الجدول الصغير وعرض العقوبة بنسق رسمي
-                decisionBox.style.display = 'none';
-                commentRow.style.display = 'none'; 
-                
-                decisionTitle.innerText = 'نص الإنذار والإجراء الإداري المتخذ';
-                
-                legalTextBox.style.display = 'block'; 
-                // 🛠️ دمجنا تعليق المدير + الخصم المقرر ببرواز أنيق
-                // 🛠️ فصلنا النص ليكون كالخطاب الرسمي، وصغرنا عرض البرواز ليكون كـ (الختم) في المنتصف
-                legalTextBox.innerHTML = `
-                    <div style="margin-bottom: 25px; text-align: right; white-space: pre-wrap;">
-                        ${p.managerComment.trim()}
-                    </div>
-                    <div style="text-align:center; font-size:18px; font-weight:bold; color:#c0392b; padding:15px; border:2px dashed #c0392b; background:#fdf2e9; border-radius:8px; width: 80%; margin: 0 auto;">
-                        الإجراء المعتمد: ${p.displayPenalty || formatPenaltyValue(p.appliedPenalty)}
-                    </div>
-                `;
-                
-            } else {
-                // 🟠 هندسة المخالفات العادية: إرجاع كل شيء لوضعه الطبيعي
-                decisionBox.style.display = 'block';
-                commentRow.style.display = 'table-row'; 
-                
-                decisionTitle.innerText = 'القرار الإداري والعقوبة المطبقة';
-                
-                legalTextBox.style.display = 'none'; 
-                normalCommentCell.innerText = p.managerComment; 
-                
-                document.getElementById('print-pen-action').innerHTML = p.displayPenalty || formatPenaltyValue(p.appliedPenalty);
-            }
-            // =======================================================================================
-            // =======================================================================================
-            // =======================================================================================
-            // عملية الطباعة النظيفة (نافذة جديدة)
-            // عملية الطباعة النظيفة (مع التحكم بحجم الـ A4)
-            const printContent = document.getElementById('print-penalty-template').innerHTML;
-            const originalWindow = window.open('', '', 'width=900,height=700');
-            
-            originalWindow.document.write('<html><head><title>طباعة إشعار مخالفة</title>');
-            
-            // 🔥 السحر هنا: حقن كود التصغير (Zoom) بنسبة 85% وإلغاء هوامش المتصفح الافتراضية 🔥
-            originalWindow.document.write(`
-                <style>
-                    body { 
-                        font-family: 'Tajawal', Arial, sans-serif; 
-                        direction: rtl; 
-                        background: #fff;
-                    } 
-                    @media print { 
-                        @page { 
-                            size: A4; 
-                            margin: 10mm; /* تقليل هوامش الورقة البيضاء */
-                        }
-                        body { 
-                            -webkit-print-color-adjust: exact; 
-                            zoom: 85%; /* تصغير المحتوى ليتسع في صفحة واحدة */
-                        }
-                        /* دعم إضافي لمتصفح فايرفوكس */
-                        @-moz-document url-prefix() {
-                            body {
-                                transform: scale(0.85);
-                                transform-origin: top center;
-                            }
-                        }
-                    }
-                </style>
-            `);
-            
-            originalWindow.document.write('</head><body>');
-            originalWindow.document.write(printContent);
-            originalWindow.document.write('</body></html>');
-            originalWindow.document.close();
-            
-            // انتظار تحميل الخطوط ثم الطباعة
-            setTimeout(() => {
-                originalWindow.print();
-                // اختياري: إغلاق النافذة آلياً بعد الطباعة
-                // originalWindow.close(); 
-            }, 500);
-        }
-        // ==================== دالة عرض تفاصيل المخالفة (زر العين 👁️) ====================
-        function viewPenaltyDetails(ticketId) {
-            // البحث عن التذكرة في المصفوفة المحملة حالياً
-            const p = currentLoadedPenalties.find(x => x.id === ticketId);
-            if (!p) return alert("❌ حدث خطأ، لم يتم العثور على بيانات التذكرة.");
+    // تحديث التوقيع السفلي
+    if (p.status === 'معتمدة آلياً') {
+        document.getElementById('print-pen-hr-status').innerHTML = '<span style="color:#27ae60;">اعتماد آلي (النظام)</span>';
+    } else {
+        document.getElementById('print-pen-hr-status').innerHTML = `<span style="color:#27ae60;">${p.status}</span><br><span style="font-size:13px; color:#555; font-weight:normal;">بواسطة: ${p.hrName || 'موظف الموارد البشرية'}</span>`;
+    }
 
-            // 1. تعبئة البيانات النصية
-            document.getElementById('det-pen-id').innerText = p.id;
-            document.getElementById('det-pen-sys-date').innerText = new Date(p.timestamp).toLocaleString('ar-SA');
-            document.getElementById('det-pen-emp-name').innerText = p.empName + ` (${p.empUsername})`;
-            document.getElementById('det-pen-vio-name').innerText = p.violationName;
-            document.getElementById('det-pen-date').innerText = p.violationDate;
-            document.getElementById('det-pen-count').innerText = p.actualOccurrence || "1";
-            document.getElementById('det-pen-manager').innerText = p.managerName;
-            document.getElementById('det-pen-comment').innerText = p.managerComment;
+    // ==================== 🧠 سحر التوجيه الجمالي لخطابات التبرير والغياب ====================
+    const decisionTitle = document.getElementById('print-decision-title');
+    const decisionBox = document.getElementById('print-decision-box');
+    const commentRow = document.getElementById('print-pen-comment-row');
+    const legalTextBox = document.getElementById('print-legal-text-box');
+    const normalCommentCell = document.getElementById('print-pen-comment');
+    
+    if (p.category === 'الغياب والتأخير (المادة 80)' || p.category === 'تسوية غيابات للرواتب') {
+        decisionBox.style.display = 'none';
+        commentRow.style.display = 'none'; 
+        decisionTitle.innerText = 'نص الإنذار والإجراء الإداري المتخذ';
+        legalTextBox.style.display = 'block'; 
+        legalTextBox.innerHTML = `
+            <div style="margin-bottom: 25px; text-align: right; white-space: pre-wrap;">
+                ${(p.managerComment || '').trim()}
+            </div>
+            <div style="text-align:center; font-size:18px; font-weight:bold; color:#c0392b; padding:15px; border:2px dashed #c0392b; background:#fdf2e9; border-radius:8px; width: 80%; margin: 0 auto;">
+                الإجراء المعتمد: ${p.displayPenalty || formatPenaltyValue(p.appliedPenalty)}
+            </div>
+        `;
+    } else {
+        decisionBox.style.display = 'block';
+        commentRow.style.display = 'table-row'; 
+        decisionTitle.innerText = 'القرار الإداري والعقوبة المطبقة';
+        legalTextBox.style.display = 'none'; 
+        normalCommentCell.innerText = p.managerComment; 
+        document.getElementById('print-pen-action').innerHTML = p.displayPenalty || formatPenaltyValue(p.appliedPenalty);
+    }
 
-            document.getElementById('det-pen-admit').innerHTML = p.isAdmit ? '<span style="color:#27ae60; font-weight:bold;">مقر</span>' : '<span style="color:#c0392b; font-weight:bold;">غير مقر</span>';
-
-            // تصميم شارة الحالة
-            let statusHtml = '';
-            if(p.status.includes('بانتظار')) statusHtml = `<span style="background:#fdebd0; color:#d35400; padding:4px 8px; border-radius:4px;">${p.status}</span>`;
-            else if(p.status.includes('مغلقة') || p.status.includes('معتمدة')) statusHtml = `<span style="background:#d5f5e3; color:#27ae60; padding:4px 8px; border-radius:4px;">${p.status}</span>`;
-            else statusHtml = `<span style="background:#fadbd8; color:#c0392b; padding:4px 8px; border-radius:4px;">${p.status}</span>`;
-            document.getElementById('det-pen-status').innerHTML = statusHtml;
-
-            // 2. معالجة وعرض المرفق (صورة أو PDF)
-            // 2. معالجة وعرض المرفق (صورة أو PDF) المحدثة
-            const attachmentContainer = document.getElementById('det-pen-attachment-container');
-            const attachmentData = p.attachmentBase64 || p.attachment; // 🛠️ قراءة المتغير الجديد أو القديم
-            
-            if (attachmentData && attachmentData.trim() !== '') {
-                // فحص نوع الملف من الـ Base64
-                if (attachmentData.startsWith('data:application/pdf')) {
-                    attachmentContainer.innerHTML = `<a href="${attachmentData}" download="Attachment.pdf" style="display:inline-block; background:#e74c3c; color:white; padding:10px 20px; border-radius:5px; text-decoration:none; font-weight:bold;"><i class="fas fa-file-pdf"></i> تحميل ملف الـ PDF (إفادة الموظف)</a>`;
-                } else {
-                    attachmentContainer.innerHTML = `<img src="${attachmentData}" style="max-width:100%; max-height:300px; border-radius:5px; box-shadow:0 2px 5px rgba(0,0,0,0.1); cursor:pointer;" onclick="const w = window.open(''); w.document.write('<img src=\\'${attachmentData}\\' style=\\'max-width:100%\\'>');" title="اضغط لتكبير الصورة">`;
+    // عملية الطباعة
+    const printContent = document.getElementById('print-penalty-template').innerHTML;
+    const originalWindow = window.open('', '', 'width=900,height=700');
+    originalWindow.document.write('<html><head><title>طباعة إشعار مخالفة</title>');
+    originalWindow.document.write(`
+        <style>
+            body { font-family: 'Tajawal', Arial, sans-serif; direction: rtl; background: #fff; } 
+            @media print { 
+                @page { size: A4; margin: 10mm; }
+                body { -webkit-print-color-adjust: exact; zoom: 85%; }
+                @-moz-document url-prefix() {
+                    body { transform: scale(0.85); transform-origin: top center; }
                 }
-            } else {
-                attachmentContainer.innerHTML = '<span style="color:#7f8c8d;">لا يوجد مرفق</span>';
             }
+        </style>
+    `);
+    originalWindow.document.write('</head><body>');
+    originalWindow.document.write(printContent);
+    originalWindow.document.write('</body></html>');
+    originalWindow.document.close();
+    
+    setTimeout(() => { originalWindow.print(); }, 500);
+} 
+        
 
-            // 3. إظهار لوحة الموارد البشرية (إذا كان المستخدم HR والطلب معلقاً)
-            const currentRoleArabic = typeof globalRoleArabic !== 'undefined' ? globalRoleArabic : localStorage.getItem('roleArabic');
-            const currentRole = typeof globalRole !== 'undefined' ? globalRole : localStorage.getItem('role');
-            const isHrOrAdmin = (currentRole === 'admin' || currentRoleArabic === 'ادمن' || currentRoleArabic === 'موظف موارد' || currentRoleArabic === 'موظف ادارة');
-            
-            const hrPanel = document.getElementById('hr-action-panel');
-            if (isHrOrAdmin && p.status === 'بانتظار الموارد البشرية') {
-                hrPanel.style.display = 'block';
-            } else {
-                hrPanel.style.display = 'none';
-            }
-            // إظهار أو إخفاء بيانات المخالفة السابقة
-            const lastVioContainer = document.getElementById('det-pen-last-vio-container');
-            if (p.actualOccurrence >= 2 && p.lastViolationDate && p.lastViolationDate !== "لا يوجد") {
-                lastVioContainer.style.display = 'block';
-                document.getElementById('det-pen-last-date').innerText = p.lastViolationDate;
-                document.getElementById('det-pen-last-action').innerText = p.lastViolationPenalty || "غير مسجل";
-            } else {
-                lastVioContainer.style.display = 'none';
-            }
-            // فتح النافذة
-            // حفظ رقم التذكرة في الحقل المخفي للـ HR
-            document.getElementById('current-hr-ticket-id').value = p.id;
-            document.getElementById('hr-pen-comment').value = p.hrComment || ""; // عرض التعليق السابق إن وجد
-            document.getElementById('penalty-details-modal').style.display = 'flex';
+// ==================== 👁️ دالة عرض تفاصيل المخالفة (زر العين - نسخة SQL) ====================
+function viewPenaltyDetails(ticketId) {
+    const p = currentLoadedPenalties.find(x => x.id === ticketId);
+    if (!p) return alert("❌ حدث خطأ، لم يتم العثور على بيانات التذكرة.");
+
+    // 🔥 استخراج بيانات الموظف عبر العلاقات
+    const empName = p.employee ? p.employee.name : 'موظف محذوف';
+    const empUsername = p.employee ? p.employee.username : '-';
+
+    // 1. تعبئة البيانات النصية
+    document.getElementById('det-pen-id').innerText = p.id;
+    document.getElementById('det-pen-sys-date').innerText = new Date(p.timestamp).toLocaleString('ar-SA');
+    document.getElementById('det-pen-emp-name').innerText = `${empName} (${empUsername})`; // 👈 التعديل هنا
+    document.getElementById('det-pen-vio-name').innerText = p.violationName;
+    document.getElementById('det-pen-date').innerText = p.violationDate;
+    document.getElementById('det-pen-count').innerText = p.actualOccurrence || "1";
+    document.getElementById('det-pen-manager').innerText = p.managerName;
+    document.getElementById('det-pen-comment').innerText = p.managerComment;
+
+    document.getElementById('det-pen-admit').innerHTML = p.isAdmit ? '<span style="color:#27ae60; font-weight:bold;">مقر</span>' : '<span style="color:#c0392b; font-weight:bold;">غير مقر</span>';
+
+    // تصميم شارة الحالة
+    let statusHtml = '';
+    if(p.status.includes('بانتظار')) statusHtml = `<span style="background:#fdebd0; color:#d35400; padding:4px 8px; border-radius:4px;">${p.status}</span>`;
+    else if(p.status.includes('مغلقة') || p.status.includes('معتمدة')) statusHtml = `<span style="background:#d5f5e3; color:#27ae60; padding:4px 8px; border-radius:4px;">${p.status}</span>`;
+    else statusHtml = `<span style="background:#fadbd8; color:#c0392b; padding:4px 8px; border-radius:4px;">${p.status}</span>`;
+    document.getElementById('det-pen-status').innerHTML = statusHtml;
+
+    // 2. معالجة وعرض المرفق (صورة أو PDF)
+    const attachmentContainer = document.getElementById('det-pen-attachment-container');
+    const attachmentData = p.attachmentBase64 || p.attachment; 
+    
+    if (attachmentData && attachmentData.trim() !== '') {
+        if (attachmentData.startsWith('data:application/pdf')) {
+            attachmentContainer.innerHTML = `<a href="${attachmentData}" download="Attachment.pdf" style="display:inline-block; background:#e74c3c; color:white; padding:10px 20px; border-radius:5px; text-decoration:none; font-weight:bold;"><i class="fas fa-file-pdf"></i> تحميل ملف الـ PDF (إفادة الموظف)</a>`;
+        } else {
+            attachmentContainer.innerHTML = `<img src="${attachmentData}" style="max-width:100%; max-height:300px; border-radius:5px; box-shadow:0 2px 5px rgba(0,0,0,0.1); cursor:pointer;" onclick="const w = window.open(''); w.document.write('<img src=\\'${attachmentData}\\' style=\\'max-width:100%\\'>');" title="اضغط لتكبير الصورة">`;
         }
-        // ==================== (HR) إرسال قرار الموارد البشرية ====================
+    } else {
+        attachmentContainer.innerHTML = '<span style="color:#7f8c8d;">لا يوجد مرفق</span>';
+    }
+
+    // 3. إظهار لوحة الموارد البشرية
+    const currentRoleArabic = typeof globalRoleArabic !== 'undefined' ? globalRoleArabic : localStorage.getItem('roleArabic');
+    const currentRole = typeof globalRole !== 'undefined' ? globalRole : localStorage.getItem('role');
+    const isHrOrAdmin = (currentRole === 'admin' || currentRoleArabic === 'ادمن' || currentRoleArabic === 'موظف موارد' || currentRoleArabic === 'موظف ادارة');
+    
+    const hrPanel = document.getElementById('hr-action-panel');
+    if (isHrOrAdmin && p.status === 'بانتظار الموارد البشرية') {
+        hrPanel.style.display = 'block';
+    } else {
+        hrPanel.style.display = 'none';
+    }
+
+    // إظهار بيانات المخالفة السابقة
+    const lastVioContainer = document.getElementById('det-pen-last-vio-container');
+    if (p.actualOccurrence >= 2 && p.lastViolationDate && p.lastViolationDate !== "لا يوجد") {
+        lastVioContainer.style.display = 'block';
+        document.getElementById('det-pen-last-date').innerText = p.lastViolationDate;
+        document.getElementById('det-pen-last-action').innerText = p.lastViolationPenalty || "غير مسجل";
+    } else {
+        lastVioContainer.style.display = 'none';
+    }
+
+    // حفظ التذكرة للـ HR وفتح النافذة
+    document.getElementById('current-hr-ticket-id').value = p.id;
+    document.getElementById('hr-pen-comment').value = p.hrComment || ""; 
+    document.getElementById('penalty-details-modal').style.display = 'flex';
+}
         // ==================== (HR) إرسال قرار الموارد البشرية ====================
         async function submitHrAction(newStatus) {
             const ticketId = document.getElementById('current-hr-ticket-id').value;
@@ -7894,28 +7859,26 @@ let actionButtons = `<button onclick="viewPenaltyDetails(${p.id})" class="action
             }
         }
         // ==================== محرك تصحيح المخالفات (للموارد البشرية) ✏️ ====================
-        // ==================== محرك تصحيح المخالفات (للموارد البشرية) ✏️ ====================
+// ==================== ✏️ محرك تصحيح المخالفات (نسخة SQL) ====================
 let currentEditingTicketId = null;
 
-// 1. فتح نافذة التعديل وتعبئة البيانات القديمة (تم تغيير اسم الدالة لمنع التعارض)
 async function openHrEditTicketModal(ticketId) {
     const p = currentLoadedPenalties.find(x => x.id === ticketId);
     if(!p) return;
     currentEditingTicketId = ticketId;
 
+    // 🔥 استخراج بيانات الموظف
+    const empName = p.employee ? p.employee.name : 'موظف محذوف';
+
     document.getElementById('edit-pen-id').innerText = p.id;
-    document.getElementById('edit-pen-emp').innerText = p.empName;
+    document.getElementById('edit-pen-emp').innerText = empName; // 👈 التعديل هنا
     document.getElementById('edit-pen-old-vio').innerText = p.violationName;
     
     try {
-        // 🔥 جلب لائحة المخالفات الحية من السيرفر فوراً 🔥
         const response = await fetch('/api/penalty-matrix');
         const matrixData = await response.json();
-        
-        // حفظها في متغير عام لكي تستخدمها دالة (cascadeHrEditForm) عند اختيار التصنيف
         window.realPenaltyMatrix = matrixData;
 
-        // تعبئة قائمة التصنيفات
         const catSelect = document.getElementById('edit-pen-category');
         catSelect.innerHTML = '<option value="">-- اختر التصنيف الجديد --</option>' + 
             matrixData.map(c => `<option value="${c.category}">${c.category}</option>`).join('');
@@ -7965,46 +7928,46 @@ async function openHrEditTicketModal(ticketId) {
 
         // 3. الاتصال بالسيرفر لحساب التكرار والعقوبة (للمخالفة الجديدة)
         async function checkHrEditPenalty() {
-            const vio = document.getElementById('edit-pen-violation').value;
-            const cat = document.getElementById('edit-pen-category').value;
-            if(!vio) return;
+    const vio = document.getElementById('edit-pen-violation').value;
+    const cat = document.getElementById('edit-pen-category').value;
+    if(!vio) return;
 
-            const p = currentLoadedPenalties.find(x => x.id === currentEditingTicketId);
+    const p = currentLoadedPenalties.find(x => x.id === currentEditingTicketId);
+    // 🔥 تأمين سحب الرقم الوظيفي لإرساله للسيرفر
+    const empUsername = p.employee ? p.employee.username : p.empUsername; 
 
-            try {
-                const calcRes = await (await fetch('/api/calculate-penalty', {
-                    method: 'POST', headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ empUsername: p.empUsername, violationName: vio })
-                })).json();
+    try {
+        const calcRes = await (await fetch('/api/calculate-penalty', {
+            method: 'POST', headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ empUsername: empUsername, violationName: vio }) // 👈 التعديل هنا
+        })).json();
 
-                if(calcRes.success) {
-                    let occurrence = calcRes.currentOccurrence;
-                    
-                    // 🔥 إصلاح خطأ المتغير: نستخدم realPenaltyMatrix مباشرة
-                    let matrix = { v1: '-', v2: '-', v3: '-', v4: '-' };
-                    if (typeof realPenaltyMatrix !== 'undefined' && realPenaltyMatrix.length > 0) {
-                        const catObj = realPenaltyMatrix.find(c => c.category === cat);
-                        if (catObj) {
-                            const vioObj = catObj.violations.find(v => v.name === vio);
-                            if (vioObj) matrix = vioObj;
-                        }
-                    }
-
-                    let basePenalty = matrix.v1;
-                    if(occurrence === 2) basePenalty = matrix.v2;
-                    if(occurrence === 3) basePenalty = matrix.v3;
-                    if(occurrence >= 4) basePenalty = matrix.v4;
-
-                    document.getElementById('edit-pen-result-text').innerHTML = `التكرار: المرة (${occurrence}) | العقوبة المستحقة: <span style="color:#c0392b;">${formatPenaltyValue(basePenalty)}</span>`;
-                    document.getElementById('edit-pen-result').style.display = 'block';
-
-                    document.getElementById('edit-pen-hidden-occ').value = occurrence;
-                    document.getElementById('edit-pen-hidden-pen').value = basePenalty;
-                    document.getElementById('edit-pen-hidden-last-date').value = calcRes.lastViolationDate || "لا يوجد";
-                    document.getElementById('edit-pen-hidden-last-pen').value = calcRes.lastViolationPenalty || "لا يوجد";
+        if(calcRes.success) {
+            let occurrence = calcRes.currentOccurrence;
+            let matrix = { v1: '-', v2: '-', v3: '-', v4: '-' };
+            if (typeof realPenaltyMatrix !== 'undefined' && realPenaltyMatrix.length > 0) {
+                const catObj = realPenaltyMatrix.find(c => c.category === cat);
+                if (catObj) {
+                    const vioObj = catObj.violations.find(v => v.name === vio);
+                    if (vioObj) matrix = vioObj;
                 }
-            } catch(e) { alert("فشل الاتصال بخادم اللائحة."); }
+            }
+
+            let basePenalty = matrix.v1;
+            if(occurrence === 2) basePenalty = matrix.v2;
+            if(occurrence === 3) basePenalty = matrix.v3;
+            if(occurrence >= 4) basePenalty = matrix.v4;
+
+            document.getElementById('edit-pen-result-text').innerHTML = `التكرار: المرة (${occurrence}) | العقوبة المستحقة: <span style="color:#c0392b;">${formatPenaltyValue(basePenalty)}</span>`;
+            document.getElementById('edit-pen-result').style.display = 'block';
+
+            document.getElementById('edit-pen-hidden-occ').value = occurrence;
+            document.getElementById('edit-pen-hidden-pen').value = basePenalty;
+            document.getElementById('edit-pen-hidden-last-date').value = calcRes.lastViolationDate || "لا يوجد";
+            document.getElementById('edit-pen-hidden-last-pen').value = calcRes.lastViolationPenalty || "لا يوجد";
         }
+    } catch(e) { alert("فشل الاتصال بخادم اللائحة."); }
+}
         
 
         // 4. إرسال التعديل النهائي والاعتماد
@@ -8049,67 +8012,66 @@ async function openHrEditTicketModal(ticketId) {
                 }
             } catch(e) { alert("❌ فشل الاتصال بالسيرفر."); }
         }
-        // ==================== محرك الميزان ⚖️ (تعديل مقدار العقوبة الاستثنائي) ====================
-        let currentBalancingTicketId = null;
 
-        async function openBalancePenaltyModal(ticketId) {
-            const p = currentLoadedPenalties.find(x => x.id === ticketId);
-            if(!p) return;
-            currentBalancingTicketId = ticketId;
+        // ==================== ⚖️ محرك الميزان (نسخة SQL) ====================
+let currentBalancingTicketId = null;
 
-            document.getElementById('bal-pen-id').innerText = p.id;
-            document.getElementById('bal-pen-emp').innerText = p.empName;
-            document.getElementById('bal-pen-old-action').innerText = p.displayPenalty || formatPenaltyValue(p.appliedPenalty);
-            document.getElementById('bal-pen-hr-comment').value = '';
+async function openBalancePenaltyModal(ticketId) {
+    const p = currentLoadedPenalties.find(x => x.id === ticketId);
+    if(!p) return;
+    currentBalancingTicketId = ticketId;
 
-            try {
-                // 1. جلب اللائحة إذا لم تكن محملة
-                let matrix = window.realPenaltyMatrix;
-                if (!matrix || matrix.length === 0) {
-                    matrix = await (await fetch('/api/penalty-matrix')).json();
-                    window.realPenaltyMatrix = matrix;
-                }
+    // 🔥 استخراج بيانات الموظف
+    const empName = p.employee ? p.employee.name : 'موظف محذوف';
 
-                // 2. البحث عن المخالفة في اللائحة
-                const catObj = matrix.find(c => c.category === p.category);
-                const vioObj = catObj ? catObj.violations.find(v => v.name === p.violationName) : null;
+    document.getElementById('bal-pen-id').innerText = p.id;
+    document.getElementById('bal-pen-emp').innerText = empName; // 👈 التعديل هنا
+    document.getElementById('bal-pen-old-action').innerText = p.displayPenalty || formatPenaltyValue(p.appliedPenalty);
+    document.getElementById('bal-pen-hr-comment').value = '';
 
-                const selectEl = document.getElementById('bal-pen-new-action');
-                let options = new Set(); // نستخدم Set لمنع تكرار نفس العقوبة في القائمة
-
-                // 3. إضافة الثابت القانوني دائماً
-                options.add('انذار كتابي'); 
-
-                // 4. السحب التدريجي للعقوبات (للتكرار الحالي وما دونه فقط)
-                if (vioObj) {
-                    const occ = p.actualOccurrence || 1;
-                    if (occ >= 1) options.add(vioObj.v1);
-                    if (occ >= 2) options.add(vioObj.v2);
-                    if (occ >= 3) options.add(vioObj.v3);
-                    if (occ >= 4) options.add(vioObj.v4);
-                } else {
-                    options.add(p.appliedPenalty); // احتياطياً لو حُذفت المخالفة من اللائحة
-                }
-
-                // 5. تحويل الخيارات إلى قائمة منسدلة أنيقة
-                let optionsHtml = '<option value="">-- اختر العقوبة المخففة --</option>';
-                options.forEach(opt => {
-                    if (opt && opt !== '-') { // استبعاد القيم الفارغة
-                        const displayOpt = formatPenaltyValue(opt);
-                        optionsHtml += `<option value="${opt}">${displayOpt}</option>`;
-                    }
-                });
-
-                selectEl.innerHTML = optionsHtml;
-
-            } catch(e) {
-                console.error(e);
-                alert("❌ تعذر جلب اللائحة للمطابقة القانونية.");
-                return;
-            }
-
-            document.getElementById('balance-penalty-modal').style.display = 'flex';
+    try {
+        let matrix = window.realPenaltyMatrix;
+        if (!matrix || matrix.length === 0) {
+            matrix = await (await fetch('/api/penalty-matrix')).json();
+            window.realPenaltyMatrix = matrix;
         }
+
+        const catObj = matrix.find(c => c.category === p.category);
+        const vioObj = catObj ? catObj.violations.find(v => v.name === p.violationName) : null;
+
+        const selectEl = document.getElementById('bal-pen-new-action');
+        let options = new Set(); 
+
+        options.add('انذار كتابي'); 
+
+        if (vioObj) {
+            const occ = p.actualOccurrence || 1;
+            if (occ >= 1) options.add(vioObj.v1);
+            if (occ >= 2) options.add(vioObj.v2);
+            if (occ >= 3) options.add(vioObj.v3);
+            if (occ >= 4) options.add(vioObj.v4);
+        } else {
+            options.add(p.appliedPenalty); 
+        }
+
+        let optionsHtml = '<option value="">-- اختر العقوبة المخففة --</option>';
+        options.forEach(opt => {
+            if (opt && opt !== '-') { 
+                const displayOpt = formatPenaltyValue(opt);
+                optionsHtml += `<option value="${opt}">${displayOpt}</option>`;
+            }
+        });
+
+        selectEl.innerHTML = optionsHtml;
+
+    } catch(e) {
+        console.error(e);
+        alert("❌ تعذر جلب اللائحة للمطابقة القانونية.");
+        return;
+    }
+
+    document.getElementById('balance-penalty-modal').style.display = 'flex';
+}
 
         async function submitBalancePenalty() {
             const newAction = document.getElementById('bal-pen-new-action').value.trim();
