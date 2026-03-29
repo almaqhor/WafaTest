@@ -542,16 +542,35 @@ app.post('/api/user-add', async (req, res) => {
     }
 });
 
-// 🌟 مسار تسجيل موافقة الموظف على الإقرار 🌟
-app.post('/api/confirm-policy', (req, res) => {
-    const { username } = req.body;
-    const index = usersDB.findIndex(u => u.username === username);
-    if (index > -1) {
-        usersDB[index].policyConfirmed = true; // تحويل المتغير إلى صحيح
-        fs.writeFileSync(usersFile, JSON.stringify(usersDB, null, 2));
-        res.json({ success: true });
-    } else {
-        res.status(404).json({ success: false });
+// ======================================================================
+// 🌟 مسار تسجيل موافقة الموظف على الإقرار (SQL Version) 🌟
+// ======================================================================
+app.post('/api/confirm-policy', async (req, res) => {
+    try {
+        const { username } = req.body;
+
+        // ⚡ السحر هنا: أمر update يبحث عن الموظف ويحدث حالته في سطر واحد
+        const updatedUser = await prisma.employee.update({
+            where: { username: String(username) },
+            data: { policyConfirmed: true }
+        });
+
+        // 🛡️ تسجيل الحدث استخباراتياً (اختياري، لتعرف متى وافق الموظف)
+        if (typeof safeLogAudit === 'function') {
+            safeLogAudit(username, 'تأكيد الإقرار', `تمت الموافقة على الدستور والسياسات`, 'SQL System');
+        }
+
+        res.json({ success: true, message: 'تم تسجيل الموافقة بنجاح' });
+
+    } catch (error) {
+        console.error('❌ خطأ في تحديث موافقة الموظف (SQL):', error);
+        
+        // P2025 هو كود الخطأ في Prisma إذا كان المستخدم غير موجود
+        if (error.code === 'P2025') {
+            return res.status(404).json({ success: false, message: 'الموظف غير موجود في قاعدة البيانات' });
+        }
+        
+        res.status(500).json({ success: false, message: 'حدث خطأ في السيرفر أثناء تحديث البيانات.' });
     }
 });
 
