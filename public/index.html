@@ -7493,145 +7493,155 @@ async function filterManagerPenalties() {
             } catch(e) { alert("❌ حدث خطأ بالاتصال."); }
         }
 
-        // ==================== طباعة تقرير الحسميات (الرواتب) ====================
-        function printDeductionsReport() {
-            if (!currentFilteredPenalties || currentFilteredPenalties.length === 0) return alert("لا توجد بيانات للطباعة!");
+        // ==================== 🖨️ طباعة تقرير الحسميات المجمع (نسخة العلاقات SQL) ====================
+function printDeductionsReport() {
+    if (!currentFilteredPenalties || currentFilteredPenalties.length === 0) return alert("لا توجد بيانات للطباعة!");
+    
+    const fromD = document.getElementById('filter-pen-from').value || 'بداية السجلات';
+    const toD = document.getElementById('filter-pen-to').value || 'تاريخ اليوم';
+
+    // تجميع الخصميات لطباعتها
+    let tableHtml = '';
+    currentFilteredPenalties.forEach((p, index) => {
+        // 🔥 الإصلاح الجوهري: سحب بيانات الموظف من العلاقات بأمان
+        const safeUsername = p.employee ? String(p.employee.username) : String(p.empUsername || '-');
+        const safeName = p.employee ? p.employee.name : (p.empName || 'موظف محذوف');
+
+        let cleanPenalty = (p.displayPenalty || formatPenaltyValue(p.appliedPenalty) || "بدون").replace(/<[^>]*>?/gm, '');
+        
+        tableHtml += `<tr>
+            <td style="padding:8px; border:1px solid #ddd; text-align:center;">${index + 1}</td>
+            <td style="padding:8px; border:1px solid #ddd; text-align:center;">${safeUsername}</td>
+            <td style="padding:8px; border:1px solid #ddd; font-weight:bold;">${safeName}</td>
+            <td style="padding:8px; border:1px solid #ddd; text-align:center;">${p.violationDate}</td>
+            <td style="padding:8px; border:1px solid #ddd; color:#c0392b;">${p.violationName}</td>
+            <td style="padding:8px; border:1px solid #ddd; font-weight:bold; color:#27ae60; text-align:center;">${cleanPenalty}</td>
+        </tr>`;
+    });
+
+    let printWindow = window.open('', '', 'width=900,height=700');
+    printWindow.document.write(`
+        <html dir="rtl" lang="ar">
+        <head>
+            <title>تقرير حسميات الرواتب</title>
+            <style>body{font-family:'Segoe UI', Tahoma, sans-serif; padding:40px; color:#333;}</style>
+        </head>
+        <body>
+            <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:3px solid #007f3d; padding-bottom:15px; margin-bottom:20px;">
+                <div>
+                    <h1 style="margin:0; color:#007f3d;">ALWAFA</h1>
+                    <p style="margin:5px 0 0 0; font-weight:bold; color:#555;">تقرير الحسميات والجزاءات المعتمدة</p>
+                </div>
+                <div style="text-align:left; font-size:14px;">
+                    <strong>الفترة:</strong> من ${fromD} إلى ${toD}<br>
+                    <strong>تاريخ الطباعة:</strong> ${new Date().toLocaleDateString('en-GB')}
+                </div>
+            </div>
             
-            const fromD = document.getElementById('filter-pen-from').value || 'بداية السجلات';
-            const toD = document.getElementById('filter-pen-to').value || 'تاريخ اليوم';
+            <table style="width:100%; border-collapse:collapse; text-align:right;" border="1">
+                <thead style="background:#f4f4f4;">
+                    <tr>
+                        <th style="padding:10px; border:1px solid #ddd; text-align:center;">م</th>
+                        <th style="padding:10px; border:1px solid #ddd; text-align:center;">الرقم</th>
+                        <th style="padding:10px; border:1px solid #ddd;">الموظف</th>
+                        <th style="padding:10px; border:1px solid #ddd; text-align:center;">تاريخ الواقعة</th>
+                        <th style="padding:10px; border:1px solid #ddd;">البيان (المخالفة)</th>
+                        <th style="padding:10px; border:1px solid #ddd; text-align:center;">الخصم المقرر</th>
+                    </tr>
+                </thead>
+                <tbody>${tableHtml}</tbody>
+            </table>
+            
+            <div style="margin-top:50px; display:flex; justify-content:space-around; font-weight:bold;">
+                <div style="text-align:center;">إعداد الموارد البشرية<br><br>_________________</div>
+                <div style="text-align:center;">اعتماد الإدارة المالية<br><br>_________________</div>
+            </div>
+        </body>
+        </html>
+    `);
+    printWindow.document.close();
+    setTimeout(() => { printWindow.print(); }, 500);
+}
 
-            // تجميع الخصميات لطباعتها
-            let tableHtml = '';
-            currentFilteredPenalties.forEach((p, index) => {
-                let cleanPenalty = (p.displayPenalty || formatPenaltyValue(p.appliedPenalty) || "بدون").replace(/<[^>]*>?/gm, '');
-                tableHtml += `<tr>
-                    <td style="padding:8px; border:1px solid #ddd;">${index + 1}</td>
-                    <td style="padding:8px; border:1px solid #ddd;">${p.empUsername}</td>
-                    <td style="padding:8px; border:1px solid #ddd; font-weight:bold;">${p.empName}</td>
-                    <td style="padding:8px; border:1px solid #ddd;">${p.violationDate}</td>
-                    <td style="padding:8px; border:1px solid #ddd; color:#c0392b;">${p.violationName}</td>
-                    <td style="padding:8px; border:1px solid #ddd; font-weight:bold; color:#27ae60;">${cleanPenalty}</td>
-                </tr>`;
-            });
+// ==================== 📊 محرك تصدير خلاصة الخصميات للإكسيل (نسخة العلاقات SQL) ====================
+function exportPenaltiesToExcel() {
+    if (!currentFilteredPenalties || currentFilteredPenalties.length === 0) {
+        return alert("لا توجد بيانات مطابقة لتصديرها!");
+    }
 
-            let printWindow = window.open('', '', 'width=900,height=700');
-            printWindow.document.write(`
-                <html dir="rtl" lang="ar">
-                <head>
-                    <title>تقرير حسميات الرواتب</title>
-                    <style>body{font-family:'Segoe UI', Tahoma, sans-serif; padding:40px; color:#333;}</style>
-                </head>
-                <body>
-                    <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:3px solid #007f3d; padding-bottom:15px; margin-bottom:20px;">
-                        <div>
-                            <h1 style="margin:0; color:#007f3d;">ALWAFA</h1>
-                            <p style="margin:5px 0 0 0; font-weight:bold; color:#555;">تقرير الحسميات والجزاءات المعتمدة</p>
-                        </div>
-                        <div style="text-align:left; font-size:14px;">
-                            <strong>الفترة:</strong> من ${fromD} إلى ${toD}<br>
-                            <strong>تاريخ الطباعة:</strong> ${new Date().toLocaleDateString('en-GB')}
-                        </div>
-                    </div>
-                    
-                    <table style="width:100%; border-collapse:collapse; text-align:right;" border="1">
-                        <thead style="background:#f4f4f4;">
-                            <tr>
-                                <th style="padding:10px; border:1px solid #ddd;">م</th>
-                                <th style="padding:10px; border:1px solid #ddd;">الرقم</th>
-                                <th style="padding:10px; border:1px solid #ddd;">الموظف</th>
-                                <th style="padding:10px; border:1px solid #ddd;">تاريخ الواقعة</th>
-                                <th style="padding:10px; border:1px solid #ddd;">البيان (المخالفة)</th>
-                                <th style="padding:10px; border:1px solid #ddd;">الخصم المقرر</th>
-                            </tr>
-                        </thead>
-                        <tbody>${tableHtml}</tbody>
-                    </table>
-                    
-                    <div style="margin-top:50px; display:flex; justify-content:space-around; font-weight:bold;">
-                        <div style="text-align:center;">إعداد الموارد البشرية<br><br>_________________</div>
-                        <div style="text-align:center;">اعتماد الإدارة المالية<br><br>_________________</div>
-                    </div>
-                </body>
-                </html>
-            `);
-            printWindow.document.close();
-            setTimeout(() => { printWindow.print(); }, 500);
+    // 1. تجميع الخصميات لكل موظف (Grouping & Summing)
+    const employeeTotals = {};
+
+    currentFilteredPenalties.forEach(p => {
+        // 🔥 الإصلاح الجوهري هنا: استخراج الاسم والرقم الوظيفي من جدول العلاقات بأمان
+        const safeUsername = p.employee ? String(p.employee.username) : String(p.empUsername || 'غير_معروف');
+        const safeName = p.employee ? p.employee.name : (p.empName || 'موظف محذوف');
+
+        // استخراج الرقم من العقوبة المطبقة (سواء كانت "1"، أو "خصم 2 أيام")
+        let penaltyVal = parseFloat(p.appliedPenalty);
+        
+        // إذا كانت العقوبة نصية (مثل: إنذار، فصل) وليست رقماً، نعتبرها 0
+        if (isNaN(penaltyVal)) {
+            // محاولة سحب الرقم من النص الجمالي كحل احتياطي
+            const match = p.displayPenalty ? p.displayPenalty.match(/\d+(\.\d+)?/) : null;
+            penaltyVal = match ? parseFloat(match[0]) : 0;
         }
 
-        // ==================== 3. محرك تصدير خلاصة الخصميات للرواتب (المطور) ====================
-        function exportPenaltiesToExcel() {
-            if (!currentFilteredPenalties || currentFilteredPenalties.length === 0) {
-                return alert("لا توجد بيانات مطابقة لتصديرها!");
-            }
-
-            // 1. تجميع الخصميات لكل موظف (Grouping & Summing)
-            const employeeTotals = {};
-
-            currentFilteredPenalties.forEach(p => {
-                // استخراج الرقم من العقوبة المطبقة (سواء كانت "1"، أو "خصم 2 أيام")
-                let penaltyVal = parseFloat(p.appliedPenalty);
-                
-                // إذا كانت العقوبة نصية (مثل: إنذار، فصل) وليست رقماً، نعتبرها 0
-                if (isNaN(penaltyVal)) {
-                    // محاولة سحب الرقم من النص الجمالي كحل احتياطي
-                    const match = p.displayPenalty ? p.displayPenalty.match(/\d+(\.\d+)?/) : null;
-                    penaltyVal = match ? parseFloat(match[0]) : 0;
-                }
-
-                if (!employeeTotals[p.empUsername]) {
-                    employeeTotals[p.empUsername] = {
-                        id: p.empUsername,
-                        name: p.empName,
-                        totalPenalty: 0
-                    };
-                }
-                
-                // جمع الكسور والأرقام
-                employeeTotals[p.empUsername].totalPenalty += penaltyVal;
-            });
-
-            // 2. تجهيز مصفوفة الإكسيل (3 أعمدة فقط)
-            const headers = ["الرقم الوظيفي", "الاسم", "مجموع الحسميات (أيام)"];
-            const aoa = [headers];
-
-            Object.values(employeeTotals).forEach(emp => {
-                // 🔥 السحر هنا: التقريب للأدنى (Math.floor) يحول 4.9 إلى 4
-                const finalDeduction = Math.floor(emp.totalPenalty);
-                
-                // نضيف الموظف للإكسيل فقط إذا كان لديه أيام خصم بعد التقريب (لتنظيف المسير)
-                if (finalDeduction > 0) {
-                    aoa.push([
-                        emp.id,
-                        emp.name,
-                        finalDeduction
-                    ]);
-                }
-            });
-
-            if (aoa.length === 1) {
-                return alert("✅ السجل نظيف: لا توجد أي خصميات مالية (أيام) لتصديرها بعد تجميع البيانات.");
-            }
-
-            // 3. بناء ملف الإكسيل وتصديره
-            const ws = XLSX.utils.aoa_to_sheet(aoa);
-
-            // هندسة عرض الأعمدة لتبدو أنيقة
-            ws['!cols'] = [
-                {wch: 15}, // الرقم الوظيفي
-                {wch: 35}, // الاسم
-                {wch: 25}  // الحسميات
-            ];
-
-            // توجيه الشيت من اليمين لليسار
-            if(!ws['!views']) ws['!views'] = [];
-            ws['!views'].push({ rightToLeft: true });
-
-            const wb = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(wb, ws, "خلاصة الرواتب");
-            
-            const fileName = `خلاصة_خصميات_مسير_الرواتب_${new Date().toISOString().split('T')[0]}.xlsx`;
-            XLSX.writeFile(wb, fileName);
+        // نستخدم safeUsername كمفتاح لتجميع خصميات نفس الموظف
+        if (!employeeTotals[safeUsername]) {
+            employeeTotals[safeUsername] = {
+                id: safeUsername,
+                name: safeName,
+                totalPenalty: 0
+            };
         }
+        
+        // جمع الكسور والأرقام
+        employeeTotals[safeUsername].totalPenalty += penaltyVal;
+    });
+
+    // 2. تجهيز مصفوفة الإكسيل (3 أعمدة فقط)
+    const headers = ["الرقم الوظيفي", "الاسم", "مجموع الحسميات (أيام)"];
+    const aoa = [headers];
+
+    Object.values(employeeTotals).forEach(emp => {
+        // 🔥 السحر هنا: التقريب للأدنى (Math.floor) يحول 4.9 إلى 4 (حسب سياسة الخصم)
+        const finalDeduction = Math.floor(emp.totalPenalty);
+        
+        // نضيف الموظف للإكسيل فقط إذا كان لديه أيام خصم بعد التقريب (لتنظيف المسير)
+        if (finalDeduction > 0) {
+            aoa.push([
+                emp.id,
+                emp.name,
+                finalDeduction
+            ]);
+        }
+    });
+
+    if (aoa.length === 1) {
+        return alert("✅ السجل نظيف: لا توجد أي خصميات مالية (أيام) لتصديرها بعد تجميع البيانات.");
+    }
+
+    // 3. بناء ملف الإكسيل وتصديره
+    const ws = XLSX.utils.aoa_to_sheet(aoa);
+
+    // هندسة عرض الأعمدة لتبدو أنيقة
+    ws['!cols'] = [
+        {wch: 15}, // الرقم الوظيفي
+        {wch: 35}, // الاسم
+        {wch: 25}  // الحسميات
+    ];
+
+    // توجيه الشيت من اليمين لليسار
+    if(!ws['!views']) ws['!views'] = [];
+    ws['!views'].push({ rightToLeft: true });
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "خلاصة الرواتب");
+    
+    const fileName = `خلاصة_خصميات_مسير_الرواتب_${new Date().toISOString().split('T')[0]}.xlsx`;
+    XLSX.writeFile(wb, fileName);
+}
 
        // ==================== 🖨️ محرك الطباعة الفورية للإشعار (نسخة SQL) ====================
 function printPenaltyNotice(ticketId) {
