@@ -2587,42 +2587,74 @@ app.post('/api/get-pending-attendance', async (req, res) => {
 
 
 // ======================================================================
-// 🚨 محرك التعديل العاجل للتحضير (مع مراقب الجزاءات الآلي) 🚨
+// 🚨 محرك التعديل العاجل للتحضير (متوافق مع البايلود الفعلي + الاستخبارات)
 // ======================================================================
 app.post('/api/urgent-edit-attendance', async (req, res) => {
     try {
-        const { empUsername, editDate, oldStatus, newStatus, reason } = req.body;
+        // 1. استقبال البايلود الفعلي بأسماء المتغيرات الصحيحة
+        const { username, date, newCode, byUser, reason } = req.body;
 
-        // 1. العثور على الموظف (لربط العلاقات بشكل صحيح)
+        if (!username || !date || !newCode) {
+            return res.json({ success: false, message: "بيانات التعديل ناقصة." });
+        }
+
+        // 2. العثور على الموظف (لربط العلاقات)
         const employee = await prisma.employee.findUnique({
-            where: { username: String(empUsername) }
+            where: { username: String(username) }
         });
 
         if (!employee) return res.json({ success: false, message: "لم يتم العثور على الموظف." });
 
         // ترويض التاريخ
-        const strictDate = new Date(editDate + 'T00:00:00Z');
+        const strictDate = new Date(date + 'T00:00:00Z');
 
         // =========================================================
-        // 🛠️ هنا يتم كود تحديث التحضير الخاص بك (Update Attendance)
-        // (افترض أنك تقوم بتحديث جدول التحضير هنا)
+        // 🕵️‍♂️ الاستخبارات: جلب الحالة القديمة من قاعدة البيانات
         // =========================================================
+        const existingAttendance = await prisma.attendance.findFirst({
+            where: {
+                employeeId: employee.id,
+                date: strictDate
+            }
+        });
 
-        let sosMessage = ""; // رسالة الاستغاثة (التنبيه) التي ستعود للواجهة الأمامية
+        // إذا لم يكن هناك تحضير مسبق، نعتبر الحالة القديمة "غير مسجل"
+        const oldCode = existingAttendance ? existingAttendance.status : 'غير مسجل'; 
+        // ⚠️ ملاحظة: تأكد أن اسم العمود في جدول التحضير هو status أو قم بتغييره لـ code حسب الـ Schema الخاص بك
+
+        // =========================================================
+        // 🛠️ تحديث جدول التحضير
+        // =========================================================
+        if (existingAttendance) {
+            await prisma.attendance.update({
+                where: { id: existingAttendance.id },
+                data: { status: newCode } // أو code: newCode
+            });
+        } else {
+            // إذا لم يكن له تحضير أصلاً، نقوم بإنشائه
+            await prisma.attendance.create({
+                data: {
+                    employeeId: employee.id,
+                    date: strictDate,
+                    status: newCode
+                }
+            });
+        }
+
+        let sosMessage = ""; 
 
         // =========================================================
         // 💣 تفكيك الألغام (مزامنة الجزاءات الآلية)
         // =========================================================
 
-        // 🟢 اللغم الأول: تعديل من (غياب) إلى (أي شيء آخر عدا بلا أجر) -> إعدام المخالفة!
-        if (oldStatus === 'A' && newStatus !== 'A' && newStatus !== 'بلا أجر') {
+        // 🟢 اللغم الأول: تعديل من (غياب) إلى (أي شيء آخر) -> إعدام المخالفة!
+        if (oldCode === 'A' && newCode !== 'A' && newCode !== 'بلا أجر') {
             
-            // البحث عن المخالفة وإزالتها (عملية مسح نظيفة)
             const deleted = await prisma.penalty.deleteMany({
                 where: {
                     employeeId: employee.id,
                     violationDate: strictDate,
-                    category: 'الغياب والتأخير (المادة 80)' // أو 'تسوية غيابات للرواتب' حسب نظامك
+                    category: { in: ['الغياب والتأخير (المادة 80)', 'تسوية غيابات للرواتب'] }
                 }
             });
 
@@ -2631,10 +2663,9 @@ app.post('/api/urgent-edit-attendance', async (req, res) => {
             }
         }
 
-        // 🔴 اللغم الثاني: تعديل من (أي شيء) إلى (غياب أو بلا أجر) -> إطلاق صاروخ المخالفة!
-        else if ((newStatus === 'A' || newStatus === 'بلا أجر') && oldStatus !== 'A' && oldStatus !== 'بلا أجر') {
+        // 🔴 اللغم الثاني: تعديل من (حاضر/إجازة) إلى (غياب/بلا أجر) -> إطلاق المخالفة!
+        else if ((newCode === 'A' || newCode === 'بلا أجر') && oldCode !== 'A' && oldCode !== 'بلا أجر') {
             
-            // التأكد من عدم وجود مخالفة مسبقاً لمنع التكرار
             const existingPenalty = await prisma.penalty.findFirst({
                 where: { employeeId: employee.id, violationDate: strictDate }
             });
@@ -2643,14 +2674,14 @@ app.post('/api/urgent-edit-attendance', async (req, res) => {
                 await prisma.penalty.create({
                     data: {
                         employeeId: employee.id,
-                        managerName: 'النظام الآلي (تعديل عاجل)',
+                        managerName: byUser || 'النظام الآلي (تعديل عاجل)',
                         violationDate: strictDate,
                         category: 'الغياب والتأخير (المادة 80)',
                         violationName: 'غياب 1 يوم',
-                        managerComment: `تم إنشاء المخالفة آلياً بسبب التعديل العاجل للتحضير من (${oldStatus}) إلى (${newStatus}). السبب المذكور: ${reason || 'غير محدد'}`,
+                        managerComment: `تم إنشاء المخالفة آلياً بسبب التعديل العاجل للتحضير من (${oldCode}) إلى (${newCode}). السبب: ${reason || 'تعديل إداري'}`,
                         isAdmit: false,
                         requestLessPunishment: false,
-                        actualOccurrence: 1, // يمكنك ربطها بدالة حساب التكرار لو أردت دقة أعلى
+                        actualOccurrence: 1, 
                         appliedPenalty: '1',
                         displayPenalty: 'خصم 1 يوم',
                         status: 'بانتظار الموارد البشرية',
@@ -2660,16 +2691,14 @@ app.post('/api/urgent-edit-attendance', async (req, res) => {
                         timestamp: new Date()
                     }
                 });
-                sosMessage = "\n⚠️ نداء استغاثة تحذيري: تم إصدار إشعار مخالفة غياب آلياً بناءً على هذا التعديل، وهي الآن بانتظار الاعتماد.";
+                sosMessage = "\n⚠️ نداء استغاثة تحذيري: تم إصدار إشعار مخالفة غياب آلياً بناءً على هذا التعديل.";
             }
         }
 
-        // =========================================================
-        
-        // إرسال الرد للواجهة الأمامية مع رسالة الاستغاثة المدمجة
+        // إرسال الرد
         res.json({ 
             success: true, 
-            message: `تم تحديث حالة التحضير بنجاح إلى (${newStatus}). ${sosMessage}` 
+            message: `تم التعديل إلى (${newCode}). ${sosMessage}` 
         });
 
     } catch (error) {
