@@ -632,6 +632,9 @@
                         <button class="tab-btn" onclick="switchCandTab('accepted')" style="color:#27ae60;"><i class="fas fa-user-check"></i> المقبولون</button>
                         <button class="tab-btn" onclick="switchCandTab('rejected')" style="color:#e74c3c;"><i class="fas fa-user-times"></i> المرفوضون</button>
                         <button class="tab-btn" onclick="switchCandTab('needs')" style="color:#8e44ad;"><i class="fas fa-chart-pie"></i> الفروع والاحتياج</button>
+                        <button class="tab-btn" onclick="switchCandTab('hr-reports')" style="background-color: #34495e; color: white;">
+    <i class="fas fa-chart-line"></i> تقارير أداء مسؤولي التوظيف
+</button>
                     </div>
 
                     <div id="candidates-tab-content">
@@ -664,6 +667,8 @@
                         <div style="background:white; padding:20px; border-radius:8px; box-shadow:0 2px 5px rgba(0,0,0,0.05);">
                             <div id="candidates-container" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 15px;">
                                 </div>
+                        </div>
+                        <div id="hr-reports-tab-content" style="display:none; padding: 20px; background: #fdfdfd; border-radius: 8px; border: 1px solid #ddd; margin-top: 15px;">
                         </div>
                     </div>
 
@@ -8463,20 +8468,27 @@ async function openBalancePenaltyModal(ticketId) {
         let branchTargets = {};
 
         function switchCandTab(status) {
-            document.querySelectorAll('#interviews-view .tab-btn').forEach(b => b.classList.remove('active'));
-            event.currentTarget.classList.add('active');
-            currentCandStatus = status;
-            
-            if (status === 'needs') {
-                document.getElementById('candidates-tab-content').style.display = 'none';
-                document.getElementById('needs-tab-content').style.display = 'block';
-                loadBranchNeeds(); // تشغيل محرك الاحتياج
-            } else {
-                document.getElementById('needs-tab-content').style.display = 'none';
-                document.getElementById('candidates-tab-content').style.display = 'block';
-                applyCandFilters(); // العودة للمرشحين
-            }
-        }
+    document.querySelectorAll('#interviews-view .tab-btn').forEach(b => b.classList.remove('active'));
+    event.currentTarget.classList.add('active');
+    currentCandStatus = status;
+    
+    // إخفاء جميع الشاشات أولاً (عملية مسح تكتيكي)
+    document.getElementById('candidates-tab-content').style.display = 'none';
+    document.getElementById('needs-tab-content').style.display = 'none';
+    document.getElementById('hr-reports-tab-content').style.display = 'none';
+
+    // توجيه القوات حسب التبويب المختار
+    if (status === 'needs') {
+        document.getElementById('needs-tab-content').style.display = 'block';
+        loadBranchNeeds(); 
+    } else if (status === 'hr-reports') {
+        document.getElementById('hr-reports-tab-content').style.display = 'block';
+        renderHrReport(); // 🚀 تشغيل محرك التقارير الجديد
+    } else {
+        document.getElementById('candidates-tab-content').style.display = 'block';
+        applyCandFilters(); 
+    }
+}
 
         async function loadBranchNeeds() {
             try {
@@ -10390,6 +10402,103 @@ async function submitMissingResolution() {
 
 // 🚨 ملاحظة: لا تنسَ إضافة case 'missing': في دالة switchAttendanceTab(tab) 
 // لكي تقوم بإخفاء الجداول الأخرى وإظهار document.getElementById('missing-attendance-section').style.display = 'block';
+// ======================================================================
+// 📊 محرك تقارير أداء مسؤولي التوظيف (KPIs)
+// ======================================================================
+function renderHrReport() {
+    const container = document.getElementById('hr-reports-tab-content');
+    let reportData = {};
+
+    // 1. تجميع البيانات بذكاء (Grouping Data)
+    allCandidates.forEach(c => {
+        // نتجاهل المعلقين ونحسب فقط من تم عمل مقابلة لهم واتخاذ قرار
+        if (!c.hrName || c.status === 'pending') return; 
+        
+        if (!reportData[c.hrName]) {
+            reportData[c.hrName] = { total: 0, accepted: 0, rejected: 0, offered: 0 };
+        }
+        
+        reportData[c.hrName].total++;
+        if (c.status === 'accepted') reportData[c.hrName].accepted++;
+        if (c.status === 'rejected') reportData[c.hrName].rejected++;
+        if (c.status === 'offered') reportData[c.hrName].offered++; // من تم توظيفه فعلياً
+    });
+
+    // 2. بناء واجهة التقرير المدرعة
+    let html = `
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+            <h3 style="color:#2c3e50; margin:0;"><i class="fas fa-chart-bar"></i> إحصائيات المقابلات حسب مسؤول الموارد البشرية</h3>
+            <button onclick="printHrReport()" style="background:#2980b9; color:white; border:none; padding:10px 20px; border-radius:5px; cursor:pointer; font-weight:bold; box-shadow:0 4px 6px rgba(41,128,185,0.2);">
+                <i class="fas fa-print"></i> طباعة التقرير (PDF)
+            </button>
+        </div>
+        <div style="overflow-x:auto;">
+            <table border="1" style="width:100%; text-align:center; border-collapse:collapse; background:white; font-size:14px; border: 1px solid #ddd;">
+                <thead style="background:#34495e; color:white;">
+                    <tr>
+                        <th style="padding:15px; border:1px solid #ddd;">اسم مسؤول التوظيف</th>
+                        <th style="padding:15px; border:1px solid #ddd;">إجمالي المقابلات المجراة</th>
+                        <th style="padding:15px; border:1px solid #ddd; color:#2ecc71;">تم قبولهم مبدئياً</th>
+                        <th style="padding:15px; border:1px solid #ddd; color:#f1c40f;">تم توظيفهم (Offered)</th>
+                        <th style="padding:15px; border:1px solid #ddd; color:#e74c3c;">تم رفضهم</th>
+                    </tr>
+                </thead>
+                <tbody>
+    `;
+
+    // 3. حقن البيانات في الجدول
+    for (const [hr, stats] of Object.entries(reportData)) {
+        html += `
+            <tr style="border-bottom:1px solid #eee;">
+                <td style="padding:15px; font-weight:bold; color:#2c3e50;">${hr}</td>
+                <td style="padding:15px; font-weight:bold; font-size:16px;">${stats.total}</td>
+                <td style="padding:15px; color:#27ae60; font-weight:bold;">${stats.accepted}</td>
+                <td style="padding:15px; color:#f39c12; font-weight:bold;">${stats.offered}</td>
+                <td style="padding:15px; color:#c0392b; font-weight:bold;">${stats.rejected}</td>
+            </tr>
+        `;
+    }
+
+    if (Object.keys(reportData).length === 0) {
+        html += `<tr><td colspan="5" style="padding:30px; color:#7f8c8d; font-weight:bold;">لا توجد مقابلات مقيمة حتى الآن ليتم عرضها في التقرير.</td></tr>`;
+    }
+
+    html += `</tbody></table></div>`;
+    container.innerHTML = html;
+}
+
+// ======================================================================
+// 🖨️ دالة سحب التقرير (طباعة احترافية نظيفة)
+// ======================================================================
+function printHrReport() {
+    // إخفاء الأزرار قبل الطباعة
+    const printContent = document.getElementById('hr-reports-tab-content').innerHTML;
+    const originalContent = document.body.innerHTML;
+    
+    document.body.innerHTML = `
+        <div style="padding:40px; direction:rtl; font-family:'Tajawal', tahoma, sans-serif;">
+            <div style="text-align:center; margin-bottom: 30px;">
+                <h1 style="color:#2c3e50; margin:0;">شركة هايبر الوفاء</h1>
+                <h3 style="color:#7f8c8d; margin-top:5px;">تقرير أداء مسؤولي التوظيف والمقابلات</h3>
+                <p style="color:#888; font-size:12px;">تاريخ استخراج التقرير: ${new Date().toLocaleString('ar-SA')}</p>
+            </div>
+            ${printContent.replace(/<button[^>]*>.*?<\/button>/gi, '')} <div style="margin-top:50px; display:flex; justify-content:space-between;">
+                <div style="text-align:center;">
+                    <p>إعداد التقرير</p>
+                    <p>.......................</p>
+                </div>
+                <div style="text-align:center;">
+                    <p>مدير الموارد البشرية</p>
+                    <p>.......................</p>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    window.print();
+    location.reload(); // إعادة تحميل قمرة القيادة لاستعادة الواجهة الأساسية
+}
+
         
 </script>
 </body>
