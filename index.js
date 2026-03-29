@@ -2587,18 +2587,17 @@ app.post('/api/get-pending-attendance', async (req, res) => {
 
 
 // ======================================================================
-// 🚨 محرك التعديل العاجل للتحضير (متوافق مع البايلود الفعلي + الاستخبارات)
+// 🚨 محرك التعديل العاجل للتحضير (النسخة المتطابقة مع Schema 100%)
 // ======================================================================
 app.post('/api/urgent-edit-attendance', async (req, res) => {
     try {
-        // 1. استقبال البايلود الفعلي بأسماء المتغيرات الصحيحة
-        const { username, date, newCode, byUser, reason } = req.body;
+        const { username, date, newCode, byUser } = req.body;
 
         if (!username || !date || !newCode) {
             return res.json({ success: false, message: "بيانات التعديل ناقصة." });
         }
 
-        // 2. العثور على الموظف (لربط العلاقات)
+        // 1. العثور على الموظف
         const employee = await prisma.employee.findUnique({
             where: { username: String(username) }
         });
@@ -2609,7 +2608,7 @@ app.post('/api/urgent-edit-attendance', async (req, res) => {
         const strictDate = new Date(date + 'T00:00:00Z');
 
         // =========================================================
-        // 🕵️‍♂️ الاستخبارات: جلب الحالة القديمة من قاعدة البيانات
+        // 🕵️‍♂️ الاستخبارات: جلب الحالة القديمة
         // =========================================================
         const existingAttendance = await prisma.attendance.findFirst({
             where: {
@@ -2618,25 +2617,30 @@ app.post('/api/urgent-edit-attendance', async (req, res) => {
             }
         });
 
-        // إذا لم يكن هناك تحضير مسبق، نعتبر الحالة القديمة "غير مسجل"
-        const oldCode = existingAttendance ? existingAttendance.status : 'غير مسجل'; 
-        // ⚠️ ملاحظة: تأكد أن اسم العمود في جدول التحضير هو status أو قم بتغييره لـ code حسب الـ Schema الخاص بك
+        // 🔥 قراءة الـ code بدلاً من status
+        const oldCode = existingAttendance ? existingAttendance.code : 'غير مسجل'; 
 
         // =========================================================
-        // 🛠️ تحديث جدول التحضير
+        // 🛠️ تحديث أو إنشاء التحضير في قاعدة البيانات
         // =========================================================
         if (existingAttendance) {
             await prisma.attendance.update({
                 where: { id: existingAttendance.id },
-                data: { status: newCode } // أو code: newCode
+                data: { 
+                    code: String(newCode),
+                    timestamp: new Date(), // تحديث وقت التعديل
+                    note: `تم التعديل بواسطة ${byUser || 'النظام'}`
+                }
             });
         } else {
-            // إذا لم يكن له تحضير أصلاً، نقوم بإنشائه
+            // 🔥 إنشاء تحضير جديد مع تلبية جميع الحقول الإجبارية في الـ Schema
             await prisma.attendance.create({
                 data: {
                     employeeId: employee.id,
                     date: strictDate,
-                    status: newCode
+                    code: String(newCode),
+                    timestamp: new Date(),
+                    note: `تحضير عاجل بواسطة ${byUser || 'النظام'}`
                 }
             });
         }
@@ -2644,10 +2648,10 @@ app.post('/api/urgent-edit-attendance', async (req, res) => {
         let sosMessage = ""; 
 
         // =========================================================
-        // 💣 تفكيك الألغام (مزامنة الجزاءات الآلية)
+        // 💣 المزامنة المعقدة للجزاءات (نداء الاستغاثة)
         // =========================================================
 
-        // 🟢 اللغم الأول: تعديل من (غياب) إلى (أي شيء آخر) -> إعدام المخالفة!
+        // 🟢 اللغم الأول: تعديل من (غياب) إلى (أي شيء آخر) -> تنظيف السجل وإعدام المخالفة
         if (oldCode === 'A' && newCode !== 'A' && newCode !== 'بلا أجر') {
             
             const deleted = await prisma.penalty.deleteMany({
@@ -2663,27 +2667,28 @@ app.post('/api/urgent-edit-attendance', async (req, res) => {
             }
         }
 
-        // 🔴 اللغم الثاني: تعديل من (حاضر/إجازة) إلى (غياب/بلا أجر) -> إطلاق المخالفة!
+        // 🔴 اللغم الثاني: تعديل من (حاضر/إجازة) إلى (غياب/بلا أجر) -> إطلاق صاروخ المخالفة
         else if ((newCode === 'A' || newCode === 'بلا أجر') && oldCode !== 'A' && oldCode !== 'بلا أجر') {
             
             const existingPenalty = await prisma.penalty.findFirst({
                 where: { employeeId: employee.id, violationDate: strictDate }
             });
 
+            // 🔥 إنشاء المخالفة بتلبية كافة الحقول الإجبارية في جدول Penalty
             if (!existingPenalty) {
                 await prisma.penalty.create({
                     data: {
                         employeeId: employee.id,
-                        managerName: byUser || 'النظام الآلي (تعديل عاجل)',
-                        violationDate: strictDate,
-                        category: 'الغياب والتأخير (المادة 80)',
                         violationName: 'غياب 1 يوم',
-                        managerComment: `تم إنشاء المخالفة آلياً بسبب التعديل العاجل للتحضير من (${oldCode}) إلى (${newCode}). السبب: ${reason || 'تعديل إداري'}`,
+                        category: 'الغياب والتأخير (المادة 80)',
+                        displayPenalty: 'خصم 1 يوم',
+                        managerName: String(byUser || 'النظام الآلي'),
+                        violationDate: strictDate,
+                        managerComment: `تم إنشاء المخالفة آلياً بسبب التعديل العاجل للتحضير من (${oldCode}) إلى (${newCode}).`,
                         isAdmit: false,
                         requestLessPunishment: false,
                         actualOccurrence: 1, 
                         appliedPenalty: '1',
-                        displayPenalty: 'خصم 1 يوم',
                         status: 'بانتظار الموارد البشرية',
                         attachment: '',
                         hrComment: '',
@@ -2695,10 +2700,10 @@ app.post('/api/urgent-edit-attendance', async (req, res) => {
             }
         }
 
-        // إرسال الرد
+        // إرسال الرد للواجهة الأمامية
         res.json({ 
             success: true, 
-            message: `تم التعديل إلى (${newCode}). ${sosMessage}` 
+            message: `تم تحديث التحضير إلى (${newCode}) بنجاح. ${sosMessage}` 
         });
 
     } catch (error) {
