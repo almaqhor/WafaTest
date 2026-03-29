@@ -8718,19 +8718,73 @@ async function actionCandidate(candidateId, status) {
 
         
 
-        // 🔥 الدالة السحرية لنقل بيانات المقبول إلى نموذج العرض الوظيفي
-        function magicJobOffer(name, idNumber, position, city, phone) {
-            openJobOfferModal(); // نفتح النافذة أولاً
-            // ثم نحقن البيانات فيها!
-            setTimeout(() => {
-                document.getElementById('jo-name').value = name;
-                document.getElementById('jo-id').value = idNumber;
-                document.getElementById('jo-position').value = position;
-                document.getElementById('jo-city').value = city;
-                updateJoBranchDropdown(); // لتحديث الفروع بناءً على المدينة
-                // يمكنك حفظ الجوال في حقل مخفي إذا أردت إضافته لبيانات الموظف لاحقاً
-            }, 100);
+        // ======================================================================
+// 🎩 محرك إصدار العروض الوظيفية (من ATS إلى جدول الموظفين مباشرة)
+// ======================================================================
+async function magicJobOffer(name, idNumber, jobTitle, city, phone) {
+    // 1. جمع البيانات المالية والإدارية من موظف الموارد (يمكنك تحويلها لـ Modal لاحقاً إن أحببت)
+    const branch = prompt(`إلى أي فرع سيتم توجيه (${name})؟\nالمدينة الحالية للمرشح: ${city}`, city);
+    if (!branch) return; // تراجع إذا ضغط إلغاء
+
+    const basicSalary = prompt(`كم الراتب الأساسي المقرر للموظف (${name})؟`, "4000");
+    if (!basicSalary) return;
+
+    const housingAllowance = prompt(`بدل السكن المقرر (اضغط موافق إذا كان 0):`, "0");
+    const otherAllowance = prompt(`بدلات أخرى (اضغط موافق إذا كان 0):`, "0");
+
+    // 2. ⚡ السحر: توليد رقم وظيفي وباسورد مبدئي
+    const newUsername = "EMP-" + Math.floor(10000 + Math.random() * 90000); 
+    const defaultPassword = "Ww" + String(idNumber).slice(-6); // الباسورد هو Ww + آخر 6 أرقام من هويته
+
+    // 3. تجهيز البايلود المتوافق 100% مع مسار api/user-add
+    const payload = {
+        username: newUsername,
+        name: name,
+        password: defaultPassword,
+        idNumber: idNumber,
+        city: city,
+        branch: branch,
+        jobTitle: jobTitle,
+        roleArabic: "موظف",
+        
+        basicSalary: basicSalary,
+        housingAllowance: housingAllowance || "0",
+        otherAllowance: otherAllowance || "0",
+        workingDays: "6",
+        offDays: "1",
+        
+        isActive: false, // لا يزال عرضاً وظيفياً
+        policyConfirmed: false,
+        status: "Job Offer",
+        
+        byUser: typeof globalEmpName !== 'undefined' ? globalEmpName : 'النظام'
+    };
+
+    // 4. إرسال الطلب لغرفة المحركات (SQL)
+    const confirmMsg = `سيتم إصدار عرض وظيفي كالتالي:\n- الاسم: ${name}\n- الرقم الوظيفي المولد: ${newUsername}\n- الراتب الأساسي: ${basicSalary}\n\nهل أنت متأكد من الاعتماد؟`;
+    
+    if (confirm(confirmMsg)) {
+        try {
+            const response = await fetch('/api/user-add', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            const res = await response.json();
+
+            if (res.success) {
+                alert(`✅ ${res.message}\n\n🎉 الرقم الوظيفي: ${newUsername}\n🔑 كلمة المرور المؤقتة: ${defaultPassword}`);
+                // تحديث قائمة المرشحين لإخفاء من تم تحويله
+                if(typeof loadCandidates === 'function') loadCandidates('accepted'); 
+            } else {
+                alert(`❌ فشل الإصدار: ${res.message}`);
+            }
+        } catch (e) {
+            console.error(e);
+            alert("❌ حدث خطأ في الاتصال بالسيرفر أثناء إصدار العرض.");
         }
+    }
+}
         // ==================== 🖨️ محرك طباعة نماذج إنهاء الخدمة ====================
         function printEosDoc(docType) {
             if (!currentEOSReport) return alert("لا توجد بيانات حالية للطباعة. يرجى إنهاء خدمة موظف أولاً.");
