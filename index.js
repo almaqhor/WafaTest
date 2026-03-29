@@ -2901,24 +2901,30 @@ history = await prisma.penalty.findMany({
 });
 
 // ======================================================================
-// 🧮 محرك حساب تكرار المخالفة (البحث في SQL + الفلترة الذكية)
+// 🧮 محرك حساب تكرار المخالفة (البحث المتقدم عبر العلاقات SQL)
 // ======================================================================
 app.post('/api/calculate-penalty', async (req, res) => {
     try {
         const { empUsername, violationName } = req.body;
 
-        // 1. جلب كل مخالفات الموظف من قاعدة البيانات (SQL)
+        if (!empUsername || !violationName) {
+            return res.json({ success: false, message: "بيانات الموظف أو المخالفة مفقودة." });
+        }
+
+        // 1. جلب كل مخالفات الموظف عبر علاقة الموظفين (employee)
         const allEmpViolations = await prisma.penalty.findMany({
             where: {
-                empUsername: String(empUsername),
-                status: { not: 'مرفوضة' } // 🛡️ استبعاد المخالفات المرفوضة من الحسبة
+                // 🔥 السحر هنا: نبحث داخل الجدول المرتبط (Employee) عن الرقم الوظيفي
+                employee: {
+                    username: String(empUsername)
+                },
+                status: { not: 'مرفوضة' } // 🛡️ استبعاد المخالفات المرفوضة
             },
-            orderBy: { violationDate: 'desc' } // 📅 الترتيب من الأحدث للأقدم مباشرة من قاعدة البيانات
+            orderBy: { violationDate: 'desc' } // 📅 الترتيب من الأحدث للأقدم
         });
 
-        // 2. الفلترة الذكية في الذاكرة (للحفاظ على هندستك الخاصة بالغيابات المتصلة والمنفردة)
+        // 2. الفلترة الذكية (للحفاظ على هندستك للغيابات المتصلة والمنفردة)
         const matchedViolations = allEmpViolations.filter(p => {
-            // 🔥 السر هنا: مطابقة ذكية للغيابات
             if (violationName.includes('متصل') && p.violationName && p.violationName.includes('متصل')) return true;
             if (violationName.includes('منفرد') && p.violationName && p.violationName.includes('منفرد')) return true;
             
@@ -2934,7 +2940,7 @@ app.post('/api/calculate-penalty', async (req, res) => {
         if (previousCount > 0) {
             const lastVio = matchedViolations[0];
             
-            // تنظيف صيغة التاريخ إذا كان قادماً كـ DateTime من SQL
+            // تنظيف صيغة التاريخ
             if (lastVio.violationDate instanceof Date) {
                 lastDate = lastVio.violationDate.toISOString().split('T')[0];
             } else if (typeof lastVio.violationDate === 'string' && lastVio.violationDate.includes('T')) {
@@ -2956,7 +2962,7 @@ app.post('/api/calculate-penalty', async (req, res) => {
 
     } catch (error) {
         console.error("❌ خطأ في حساب التكرار (SQL):", error);
-        res.json({ success: false, message: "حدث خطأ في السيرفر أثناء فحص سجلات قاعدة البيانات." });
+        res.json({ success: false, message: `خطأ قاعدة البيانات: ${error.message}` });
     }
 });
 
