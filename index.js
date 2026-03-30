@@ -987,7 +987,7 @@ app.post('/api/attendance-team', async (req, res) => {
 });
 
 // ======================================================================
-// 🔄 مسار تحديث بيانات المستخدم (SQL Version - يدعم تغيير الرقم الوظيفي)
+// 🔄 مسار تحديث بيانات المستخدم (SQL Version - مزود ببوابة التنقية الرقمية)
 // ======================================================================
 app.post('/api/user-update', async (req, res) => {
     try {
@@ -1022,16 +1022,34 @@ app.post('/api/user-update', async (req, res) => {
             newIsActive = true;  
         }
 
-        // حماية الإمبراطور (الإدمن)
         if (req.body.roleArabic === 'ادمن' || req.body.role === 'admin' || user.role === 'admin') {
             newIsActive = true;
         }
 
-        // 4. تجهيز البيانات للتحديث (تنظيف الحقول المؤقتة)
+        // 4. تجهيز البيانات للتحديث
         const updateData = { ...req.body };
         delete updateData.oldUsername;
-        delete updateData.byUser; // لا نحفظ من قام بالتعديل داخل ملف الموظف نفسه
+        delete updateData.byUser; 
         updateData.isActive = newIsActive;
+
+        // 🛡️ بوابة التنقية: تحويل النصوص إلى أرقام (Type Casting) 🛡️
+        
+        // أ) الحقول التي يجب أن تكون أرقاماً صحيحة (بدون فواصل)
+        const intFields = ['workingDays', 'offDays'];
+        intFields.forEach(field => {
+            if (updateData[field] !== undefined) {
+                // إذا كان الحقل فارغاً نرسل null، وإلا نحوله لرقم صحيح
+                updateData[field] = updateData[field] === "" ? null : parseInt(updateData[field], 10);
+            }
+        });
+
+        // ب) الحقول التي يجب أن تكون أرقاماً عشرية (تقبل كسور مثل الرواتب والإجازات)
+        const floatFields = ['basicSalary', 'housingAllowance', 'otherAllowance', 'salaryE', 'gosiFees', 'baladiyahFees', 'leaveCredit', 'usedLeaves', 'leaveBalance'];
+        floatFields.forEach(field => {
+            if (updateData[field] !== undefined) {
+                updateData[field] = updateData[field] === "" ? null : parseFloat(updateData[field]);
+            }
+        });
 
         // 5. الضربة القاضية: تحديث السجل في SQL
         await prisma.employee.update({
