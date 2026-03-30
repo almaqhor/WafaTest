@@ -1988,6 +1988,8 @@
             <option value="6">6. خطاب فترة تجربة (ترشيح لترقية)</option>
             <option value="7">7. تعريف بالراتب (مفصل)</option>
             <option value="8">8. إعادة طباعة (العرض الوظيفي - Job Offer)</option>
+            <option value="9">9. خطاب إنهاء خدمات (عدم اجتياز تجربة)</option>
+            <option value="10">10. خطة التوجيه والتدريب للموظف الجديد</option>
         </select>
 
         <div id="print-dynamic-inputs" style="display:none; background:#f9f9f9; padding:15px; border-radius:8px; border:1px dashed #3498db; margin-bottom:20px;">
@@ -6662,7 +6664,17 @@ async function renderPenaltiesDashboard(penalties) {
                         <div style="text-align:center;">توقيع الموظف<br><span style="font-size:14px; color:#888;">Employee Signature</span><br><br><span style="color:#007f3d; font-size:16px;">${user.name}</span><br>_________________</div>
                     </div>
                 `;
-            }
+            } else if (formType === "9") {
+        // تشغيل محرك الطباعة لخطاب الاستغناء
+        printOfficialDocument('termination', username);
+        document.getElementById('print-forms-modal').style.display = 'none'; // إغلاق المودال بعد التنفيذ
+        
+    } else if (formType === "10") {
+        // تشغيل محرك الطباعة لخطة التوجيه
+        printOfficialDocument('orientation', username);
+        document.getElementById('print-forms-modal').style.display = 'none';
+        
+    }
                  // --------- المحرك الذكي للطباعة وتوليد الـ PDF ---------
             const pageHtml = `
             <html dir="rtl" lang="ar">
@@ -10781,7 +10793,172 @@ async function submitAdminRequestUpdate() {
         alert("❌ حدث خطأ في الاتصال بقاعدة البيانات.");
     }
 }
+  // ======================================================================
+// 🖨️ محرك الطباعة الملكي (A4 Print Engine)
+// ======================================================================
+function printOfficialDocument(docType, username) {
+    // 1. البحث عن الموظف في المصفوفة الحالية
+    const emp = allUsersData.find(u => u.username === username);
+    if (!emp) {
+        return alert("عذراً، لم يتم العثور على بيانات الموظف للطباعة!");
+    }
+
+    // 2. تجهيز التواريخ
+    const today = new Date().toLocaleDateString('ar-SA');
+    
+    // 3. الترويسة المشتركة (شعار الشركة وبيانات الموظف)
+    const headerHTML = `
+        <div style="text-align: center; border-bottom: 2px solid #2c3e50; padding-bottom: 15px; margin-bottom: 25px;">
+            <h1 style="margin: 0; color: #2c3e50;">شركة هايبر الوفاء</h1>
+            <h3 style="margin: 5px 0 0 0; color: #7f8c8d;">إدارة الموارد البشرية - Human Resources</h3>
+        </div>
         
+        <table style="width: 100%; border-collapse: collapse; margin-bottom: 30px; font-size: 14px;" border="1">
+            <tr>
+                <td style="padding: 10px; background: #ecf0f1; font-weight: bold; width: 15%;">اسم الموظف:</td>
+                <td style="padding: 10px; width: 35%;"><strong>${emp.name}</strong></td>
+                <td style="padding: 10px; background: #ecf0f1; font-weight: bold; width: 15%;">الرقم الوظيفي:</td>
+                <td style="padding: 10px; width: 35%;">${emp.username}</td>
+            </tr>
+            <tr>
+                <td style="padding: 10px; background: #ecf0f1; font-weight: bold;">المسمى الوظيفي:</td>
+                <td style="padding: 10px;">${emp.jobTitle || 'غير مسجل'}</td>
+                <td style="padding: 10px; background: #ecf0f1; font-weight: bold;">الفرع / الإدارة:</td>
+                <td style="padding: 10px;">${emp.branch || 'غير مسجل'}</td>
+            </tr>
+            <tr>
+                <td style="padding: 10px; background: #ecf0f1; font-weight: bold;">تاريخ الالتحاق:</td>
+                <td style="padding: 10px;">${emp.joinDate || 'غير مسجل'}</td>
+                <td style="padding: 10px; background: #ecf0f1; font-weight: bold;">المدير المباشر:</td>
+                <td style="padding: 10px;">${emp.directManager || 'غير مسجل'}</td>
+            </tr>
+        </table>
+    `;
+
+    let bodyHTML = '';
+
+    // 4. بناء محتوى الخطاب بناءً على النوع
+    if (docType === 'termination') {
+        bodyHTML = `
+            <h2 style="text-align: center; text-decoration: underline; margin-bottom: 30px; color: #c0392b;">خطاب إنهاء خدمات خلال فترة التجربة</h2>
+            <p style="font-size: 18px; line-height: 2; text-align: justify; margin-bottom: 40px;">
+                المكرم / <strong>${emp.name}</strong> المحترم،<br><br>
+                بالإشارة إلى المادة (53) من نظام العمل السعودي، نفيدكم بالاستغناء عن خدماتكم وذلك لعدم تجاوزكم فترة التجربة، اعتباراً من تاريخ هذا الخطاب.<br><br>
+                نأمل منكم التنسيق مع الرئيس المباشر لتسليم عهدتكم لاستكمال إجراءات المخالصة النظامية.<br><br>
+                وتفضلوا بقبول فائق الاحترام والتقدير، ونتمنى لكم النجاح والتوفيق في وظيفة أخرى، مع أطيب التمنيات.
+            </p>
+            <div style="display: flex; justify-content: space-between; margin-top: 80px; font-size: 16px;">
+                <div style="text-align: center;">
+                    <strong>توقيع الموظف بالاستلام:</strong><br><br><br>
+                    .........................................<br>
+                    التاريخ: &nbsp;&nbsp;&nbsp;&nbsp; / &nbsp;&nbsp;&nbsp;&nbsp; / &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+                </div>
+                <div style="text-align: center;">
+                    <strong>إدارة الموارد البشرية:</strong><br><br><br>
+                    .........................................<br>
+                    التاريخ: ${today}
+                </div>
+            </div>
+        `;
+    } 
+    else if (docType === 'orientation') {
+        // تصميم مربعات الاختيار للطباعة
+        const box = `<div style="display:inline-block; width:15px; height:15px; border:1px solid #333; margin-left:8px; vertical-align:middle;"></div>`;
+        
+        bodyHTML = `
+            <h2 style="text-align: center; text-decoration: underline; margin-bottom: 25px; color: #27ae60;">خطة التوجيه والتدريب للموظف الجديد</h2>
+            
+            <div style="display: flex; gap: 20px;">
+                <div style="flex: 1; border: 1px solid #ccc; padding: 15px; border-radius: 5px;">
+                    <h3 style="margin-top:0; border-bottom:1px solid #ccc; padding-bottom:5px;">أ- الموارد البشرية</h3>
+                    <ul style="list-style:none; padding:0; line-height: 1.8; font-size: 14px;">
+                        <li>${box} 3. عرض العمل الموقع</li>
+                        <li>${box} 4. الهوية الوطنية</li>
+                        <li>${box} 5. العنوان الوطني</li>
+                        <li>${box} 6. رقم الحساب المصرفي</li>
+                        <li>${box} 7. شهادة الدراسة</li>
+                        <li>${box} 8. التحقق من التأمينات / قوى</li>
+                        <li>${box} 9. الملف الشخصي</li>
+                        <li>${box} 10. قواعد السلوك</li>
+                        <li>${box} 11. استمارة التأمين الطبي</li>
+                        <li>${box} 12. نموذج المباشرة</li>
+                        <li>${box} 13. إقرار البلدية</li>
+                        <li>${box} 15. تأكيد عقد قوى والتأمينات</li>
+                        <li>${box} 16. بطاقة العمل</li>
+                        <li>${box} التسجيل بطاقات وجدارات</li>
+                    </ul>
+                </div>
+
+                <div style="flex: 1; display: flex; flex-direction: column; gap: 20px;">
+                    <div style="border: 1px solid #ccc; padding: 15px; border-radius: 5px;">
+                        <h3 style="margin-top:0; border-bottom:1px solid #ccc; padding-bottom:5px;">ب- التدريب</h3>
+                        <ul style="list-style:none; padding:0; line-height: 1.8; font-size: 14px;">
+                            <li>${box} 1. الوصف الوظيفي والمهام</li>
+                            <li>${box} 2. التعليمات الوظيفية</li>
+                            <li>${box} 3. التدريب التقديمي</li>
+                            <li>${box} 4. سياسات الشركة</li>
+                            <li>${box} 5. سياسات المتاجر</li>
+                        </ul>
+                    </div>
+
+                    <div style="border: 1px solid #ccc; padding: 15px; border-radius: 5px;">
+                        <h3 style="margin-top:0; border-bottom:1px solid #ccc; padding-bottom:5px;">جـ- المتاجر</h3>
+                        <ul style="list-style:none; padding:0; line-height: 1.8; font-size: 14px;">
+                            <li>${box} 1. مقابلة مدير الفرع والموظفين</li>
+                            <li>${box} 2. موقع صندوق الإسعافات</li>
+                            <li>${box} 3. كشف الحضور وفترات الراحة</li>
+                            <li>${box} 4. التدريب بالموقع</li>
+                            <li>${box} 5. الانضمام لبرامج التواصل</li>
+                            <li>${box} 6. تقديم أقسام المتاجر</li>
+                            <li>${box} 7. مراجعة سياسة الوظيفة</li>
+                            <li>${box} 8. جهاز إثبات الحضور</li>
+                            <li>${box} 9. جدول العمل</li>
+                            <li>${box} 10. سياسات بطاقة الوفاء</li>
+                            <li>${box} 11. مكان العمل</li>
+                            <li>${box} 12. أماكن الراحة ودورات المياة</li>
+                            <li>${box} 13. بوابات المتجر</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            
+            <div style="margin-top: 30px; padding-top: 15px; border-top: 1px dashed #ccc; text-align: center; font-size: 14px;">
+                <strong>إقرار:</strong> أقر أنا الموظف الموضحة بياناتي أعلاه بأنني قد أتممت جميع بنود التوجيه والتدريب المذكورة.<br><br>
+                <strong>توقيع الموظف:</strong> ............................... &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <strong>توقيع المدير المباشر:</strong> ...............................
+            </div>
+        `;
+    }
+
+    // 5. فتح نافذة الطباعة المنبثقة (Popup Window)
+    const printWindow = window.open('', '_blank', 'width=900,height=700');
+    printWindow.document.write(`
+        <html dir="rtl" lang="ar">
+        <head>
+            <title>طباعة نموذج - ${emp.name}</title>
+            <style>
+                body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 40px; color: #333; }
+                @media print {
+                    body { padding: 0; }
+                    @page { margin: 1cm; size: A4; }
+                }
+            </style>
+        </head>
+        <body>
+            ${headerHTML}
+            ${bodyHTML}
+            <script>
+                // أمر آلي لفتح نافذة الطباعة بمجرد تحميل الصفحة
+                window.onload = function() {
+                    window.print();
+                    // إغلاق النافذة تلقائياً بعد الطباعة (اختياري، يمكنك حذف السطر التالي إذا أردت بقاءها مفتوحة)
+                    // setTimeout(() => window.close(), 500);
+                };
+            </script>
+        </body>
+        </html>
+    `);
+    printWindow.document.close();
+}      
 </script>
 </body>
 </html>
