@@ -4312,14 +4312,15 @@ app.post('/api/admin-update-request', async (req, res) => {
         res.status(500).json({ success: false, message: 'حدث خطأ في السيرفر أثناء تحديث الطلب' });
     }
 });
+
 // ======================================================================
-// 🧹 سلاح التطهير: مسار تنظيف التحضيرات المكررة (يعمل لمرة واحدة)
+// 🧹 سلاح التطهير: مسار تنظيف التحضيرات المكررة (تكتيك الدفعات - Chunking)
 // ======================================================================
 app.get('/api/clean-duplicates', async (req, res) => {
     try {
         // 1. جلب كل التحضيرات مرتبة من الأحدث (أكبر ID) إلى الأقدم
         const allAttendance = await prisma.attendance.findMany({
-            orderBy: { id: 'desc' } // الأحدث أولاً لكي نحتفظ به
+            orderBy: { id: 'desc' } 
         });
 
         const uniqueRecords = new Set();
@@ -4327,30 +4328,42 @@ app.get('/api/clean-duplicates', async (req, res) => {
 
         // 2. الفرز والبحث عن المكررات
         allAttendance.forEach(record => {
-            // تكوين مفتاح فريد: رقم الموظف + التاريخ
             const dateString = new Date(record.date).toISOString().split('T')[0];
             const uniqueKey = `${record.employeeId}_${dateString}`;
 
             if (uniqueRecords.has(uniqueKey)) {
-                // إذا رأينا هذا المفتاح من قبل، فهذا السجل مكرر (وقديم)، نجمعه للحذف
+                // تجميع السجلات المكررة للإعدام
                 duplicateIds.push(record.id);
             } else {
-                // أول مرة نرى هذا المفتاح (وهو الأحدث)، نحتفظ به في السجلات الآمنة
+                // الاحتفاظ بالسجل الأحدث
                 uniqueRecords.add(uniqueKey);
             }
         });
 
-        // 3. تنفيذ الإعدام للمكررات بضربة SQL واحدة
+        // 3. تكتيك "فرّق تسد": تقسيم المكررات إلى دفعات لتجنب اختناق السيكوال
+        const CHUNK_SIZE = 5000; // حجم الدفعة الواحدة
+        let deletedCount = 0;
+
         if (duplicateIds.length > 0) {
-            await prisma.attendance.deleteMany({
-                where: { id: { in: duplicateIds } }
-            });
+            console.log(`🎯 تم رصد ${duplicateIds.length} سجل مكرر. جاري التطهير على دفعات...`);
+            
+            for (let i = 0; i < duplicateIds.length; i += CHUNK_SIZE) {
+                const chunk = duplicateIds.slice(i, i + CHUNK_SIZE);
+                
+                // إطلاق النار على الدفعة الحالية
+                const result = await prisma.attendance.deleteMany({
+                    where: { id: { in: chunk } }
+                });
+                
+                deletedCount += result.count;
+                console.log(`💥 تم تدمير دفعة: ${chunk.length} سجل...`);
+            }
         }
 
         res.json({ 
             success: true, 
-            message: `تم تنظيف الساحة! تم العثور على ${duplicateIds.length} تحضير مكرر وحذفه بنجاح.`,
-            deletedCount: duplicateIds.length
+            message: `تم تنظيف الساحة بنجاح! تم تدمير ${deletedCount} تحضير مكرر على دفعات.`,
+            deletedCount: deletedCount
         });
 
     } catch (error) {
@@ -4358,5 +4371,6 @@ app.get('/api/clean-duplicates', async (req, res) => {
         res.json({ success: false, message: error.message });
     }
 });
+
 
 app.listen(process.env.PORT || 3000, '0.0.0.0', () => console.log(`🚀 السيرفر يعمل بنظام الرقابة الذكي والآمن!`));
