@@ -639,77 +639,109 @@ app.post('/api/confirm-policy', async (req, res) => {
 });
 
 // ======================================================================
-// 👨‍👩‍👧‍👦 مسار فحص التابعين (SQL Version)
+// 👥 مسار فحص التابعين (المرؤوسين) بناءً على الإدارة المباشرة
 // ======================================================================
 app.post('/api/check-dependents', async (req, res) => {
     try {
-        const { username } = req.body;
+        const { username } = req.body; // الواجهة ترسل الرقم الوظيفي مثل "300693"
         
-        // 1. تأمين: التأكد من وصول اسم المستخدم
         if (!username) {
             return res.json({ hasDependents: false, message: "لم يتم إرسال اسم المستخدم" });
         }
 
-        // 2. البحث في قاعدة بيانات SQL بدلاً من المصفوفة القديمة
+        // 1. البحث عن الموظف صاحب هذا الرقم لمعرفة "اسمه الحقيقي"
+        const manager = await prisma.employee.findFirst({
+            where: { username: String(username) }
+        });
+
+        if (!manager) {
+            return res.json({ hasDependents: false, message: "الموظف غير موجود في قاعدة البيانات" });
+        }
+
+        // 2. الاستعلام الاستخباراتي: كم عدد الموظفين الذين مديرهم المباشر هو هذا الموظف؟
+        // نستخدم manager.name لأن حقل directManager في العادة يحفظ اسم المدير
+        const subordinatesCount = await prisma.employee.count({
+            where: {
+                directManager: manager.name
+            }
+        });
+
+        console.log(`📊 الموظف ${manager.name} يدير ${subordinatesCount} موظفين.`);
+
+        // 3. النتيجة: إذا كان العدد أكبر من 0، إذن لديه تابعين (مرؤوسين)
+        const hasDependents = subordinatesCount > 0;
+
+        // إرجاع النتيجة للواجهة مع العدد الدقيق (كقيمة إضافية قد تفيدك لاحقاً)
+        res.json({ 
+            hasDependents: hasDependents,
+            subordinatesCount: subordinatesCount 
+        });
+
+    } catch (error) {
+        console.error("❌ خطأ داخلي في فحص المرؤوسين (SQL):", error);
+        res.status(500).json({ hasDependents: false, error: "حدث خطأ في السيرفر وتم تلافيه" });
+    }
+});
+
+// ======================================================================
+// ⏸️ مسار إيقاف/تنشيط الموظف مع نقل العهدة (SQL Version)
+// ======================================================================
+app.post('/api/user-toggle', async (req, res) => {
+    try {
+        const { username, replacementManager } = req.body;
+
+        if (!username) {
+            return res.json({ success: false, message: "اسم المستخدم مفقود" });
+        }
+
+        // 1. استطلاع الهدف: البحث عن الموظف لمعرفة حالته الحالية واسمه الحقيقي
         const user = await prisma.employee.findFirst({
             where: { username: String(username) }
         });
 
-        let hasDependents = false;
+        if (!user) {
+            return res.json({ success: false, message: "الموظف غير موجود في قاعدة البيانات" });
+        }
 
-        // 3. التحقق مما إذا كان الموظف موجوداً ولديه حقل تابعين
-        if (user && user.dependents) {
-            // في SQL قد يكون الـ JSON محفوظاً كنص أو ككائن، هذا السطر يتعامل مع الحالتين بأمان
-            let deps = typeof user.dependents === 'string' ? JSON.parse(user.dependents) : user.dependents;
+        // 2. تحديد الحالة الجديدة (عكس الحالة الحالية: إذا نشط يوقفه، وإذا موقوف ينشطه)
+        const newIsActiveStatus = !user.isActive;
+        const newStatusText = newIsActiveStatus ? 'نشط' : 'موقوف'; // أو 'مجاز' حسب رغبتك
+
+        // 3. نقل العهدة (يحدث فقط إذا كنا سنوقفه عن العمل، وتم إرسال مدير بديل)
+        if (newIsActiveStatus === false && replacementManager) {
+            console.log(`🔄 جاري نقل عهدة ${user.name} إلى ${replacementManager}...`);
             
-            if (Array.isArray(deps) && deps.length > 0) {
-                hasDependents = true;
-            }
-        } 
+            // أ) تحديث الموظفين التابعين له
+            await prisma.employee.updateMany({
+                where: { directManager: user.name },
+                data: { directManager: replacementManager }
+            });
 
-        // 4. الإرجاع السليم بصيغة JSON
-        res.json({ hasDependents: hasDependents });
+            // ب) تحديث الطلبات المفتوحة التي كانت تحت إدارته
+            await prisma.requestTicket.updateMany({
+                where: { 
+                    managerName: user.name, 
+                    status: { not: 'completed' } 
+                },
+                data: { managerName: replacementManager }
+            });
+        }
+
+        // 4. تنفيذ الضربة: تحديث حالة الموظف نفسه في قاعدة البيانات
+        await prisma.employee.update({
+            where: { id: user.id },
+            data: {
+                isActive: newIsActiveStatus,
+                status: newStatusText
+            }
+        });
+
+        res.json({ success: true, isActive: newIsActiveStatus, message: "تم تغيير حالة الموظف ونقل عهدته بنجاح" });
 
     } catch (error) {
-        // صيد الأخطاء
-        console.error("❌ خطأ داخلي في فحص التابعين (SQL):", error);
-        res.status(200).json({ hasDependents: false, error: "حدث خطأ في السيرفر وتم تلافيه" });
+        console.error("❌ خطأ داخلي في مسار إيقاف/تنشيط الموظف (SQL):", error);
+        res.status(500).json({ success: false, message: "حدث خطأ داخلي في السيرفر أثناء الإيقاف." });
     }
-});
-
-// 🌟 مسار إيقاف/تفعيل المستخدم 🌟
-app.post('/api/user-toggle', (req, res) => {
-    const { username, replacementManager } = req.body;
-    const userIndex = usersDB.findIndex(u => u.username === username);
-    if (userIndex > -1) {
-        const isCurrentlyActive = usersDB[userIndex].isActive !== false;
-        usersDB[userIndex].isActive = !isCurrentlyActive; 
-        
-        // نقل العهدة إذا كان مديراً وتم إيقافه
-        if (isCurrentlyActive && replacementManager) {
-            usersDB.forEach(u => { if (u.directManager === usersDB[userIndex].name) u.directManager = replacementManager; });
-            requestsDB.forEach(r => { if (r.managerName === usersDB[userIndex].name) r.managerName = replacementManager; });
-        }
-
-        // 🧹 التنظيف الذكي: الإغلاق الإجباري لطلبات الموظف إذا تم "إيقافه" 🧹
-        if (isCurrentlyActive) { // isCurrentlyActive يعني أنه كان مفعلاً والآن أصبح موقوفاً
-            let requestsModified = false;
-            requestsDB.forEach(r => {
-                if (r.empUsername === username && r.status !== 'completed') {
-                    r.status = 'completed';
-                    r.managerComment = "تم اغلاق الطلب لعدم فعالية حساب الموظف";
-                    r.resolveDate = new Date().toLocaleString('ar-SA');
-                    requestsModified = true;
-                }
-            });
-            if (requestsModified) {
-                fs.writeFileSync(requestsFile, JSON.stringify(requestsDB, null, 2));
-            }
-        }
-
-        fs.writeFileSync(usersFile, JSON.stringify(usersDB, null, 2));
-    }
-    res.json({ success: true });
 });
 
 
