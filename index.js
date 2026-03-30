@@ -984,52 +984,69 @@ app.post('/api/attendance-team', async (req, res) => {
     }
 });
 
-
-
-
-
-// ==================== تحديث بيانات المستخدم (يدعم تغيير الرقم الوظيفي) ====================
-app.post('/api/user-update', (req, res) => {
+// ======================================================================
+// 🔄 مسار تحديث بيانات المستخدم (SQL Version - يدعم تغيير الرقم الوظيفي)
+// ======================================================================
+app.post('/api/user-update', async (req, res) => {
     try {
         const oldUsername = req.body.oldUsername || req.body.username;
-        const index = usersDB.findIndex(u => u.username === oldUsername);
-        
-        if (index > -1) {
-            // التحقق إذا قام بتغيير الرقم الوظيفي لرقم موجود أصلاً
-            if (req.body.username !== oldUsername) {
-                const exists = usersDB.find(u => u.username === req.body.username);
-                if (exists) return res.json({ success: false, message: 'الرقم الوظيفي الجديد مسجل مسبقاً لموظف آخر!' });
-            }
+        const newUsername = req.body.username;
 
-            // تحديث البيانات وحذف حقل oldUsername المؤقت
-            usersDB[index] = { ...usersDB[index], ...req.body };
-            delete usersDB[index].oldUsername;
-            
-            // تحديث الفعالية بناءً على الحالة
-            const status = req.body.status;
-            if (status === 'Resign' || status === 'Terminated') {
-                usersDB[index].isActive = false; 
-            } else if (status === 'in Duty' || status === 'Job Offer') {
-                usersDB[index].isActive = true;  
-            }
+        // 1. تحديد الهدف
+        const user = await prisma.employee.findFirst({
+            where: { username: String(oldUsername) }
+        });
 
-            // حماية الإدمن
-            if (usersDB[index].roleArabic === 'ادمن' || usersDB[index].role === 'admin') {
-                usersDB[index].isActive = true;
-            }
-
-            fs.writeFileSync(usersFile, JSON.stringify(usersDB, null, 2));
-
-            // تسجيل الحدث بشكل آمن بعد نجاح التعديل
-            safeLogAudit(req.body.byUser, 'تعديل بيانات', `${req.body.name} (${req.body.username})`, 'تحديث ملف الموظف');
-
-            res.json({ success: true, message: 'تم التحديث بنجاح' });
-        } else {
-            res.json({ success: false, message: 'المستخدم غير موجود' });
+        if (!user) {
+            return res.json({ success: false, message: 'المستخدم غير موجود في قاعدة البيانات' });
         }
-    } catch (e) {
-        console.error('خطأ في التحديث:', e);
-        res.json({ success: false, message: 'حدث خطأ في السيرفر' });
+
+        // 2. تأمين: التحقق إذا قام بتغيير الرقم الوظيفي لرقم موجود أصلاً
+        if (newUsername !== oldUsername) {
+            const exists = await prisma.employee.findFirst({
+                where: { username: String(newUsername) }
+            });
+            if (exists) {
+                return res.json({ success: false, message: 'الرقم الوظيفي الجديد مسجل مسبقاً لموظف آخر!' });
+            }
+        }
+
+        // 3. تحديد حالة الفعالية
+        let newIsActive = user.isActive;
+        const status = req.body.status;
+        if (status === 'Resign' || status === 'Terminated' || status === 'مستقيل') {
+            newIsActive = false; 
+        } else if (status === 'in Duty' || status === 'Job Offer' || status === 'نشط') {
+            newIsActive = true;  
+        }
+
+        // حماية الإمبراطور (الإدمن)
+        if (req.body.roleArabic === 'ادمن' || req.body.role === 'admin' || user.role === 'admin') {
+            newIsActive = true;
+        }
+
+        // 4. تجهيز البيانات للتحديث (تنظيف الحقول المؤقتة)
+        const updateData = { ...req.body };
+        delete updateData.oldUsername;
+        delete updateData.byUser; // لا نحفظ من قام بالتعديل داخل ملف الموظف نفسه
+        updateData.isActive = newIsActive;
+
+        // 5. الضربة القاضية: تحديث السجل في SQL
+        await prisma.employee.update({
+            where: { id: user.id },
+            data: updateData
+        });
+
+        // 6. تسجيل الحدث
+        if (typeof safeLogAudit === 'function') {
+            safeLogAudit(req.body.byUser, 'تعديل بيانات', `${req.body.name} (${newUsername})`, 'تحديث ملف الموظف (SQL)');
+        }
+
+        res.json({ success: true, message: 'تم التحديث بنجاح' });
+
+    } catch (error) {
+        console.error('❌ خطأ في تحديث المستخدم (SQL):', error);
+        res.json({ success: false, message: 'حدث خطأ في السيرفر أثناء التحديث' });
     }
 });
 
@@ -2541,18 +2558,19 @@ app.post('/api/leave-edit', async (req, res) => {
     }
 });
 
-
-
-// =========================================================================================
-// ==================== محرك إنهاء الخدمة وتوليد مخالصة الكميات (EOS Engine) ====================
-app.post('/api/terminate-employee', (req, res) => {
+// ======================================================================
+// 🛑 محرك إنهاء الخدمة وتوليد مخالصة الكميات (EOS Engine - SQL Version)
+// ======================================================================
+app.post('/api/terminate-employee', async (req, res) => {
     try {
         const { username, lastWorkingDay, termType, termReason, byUser, replacementManager } = req.body;
         
-        const userIndex = usersDB.findIndex(u => u.username === username);
-        if (userIndex === -1) return res.json({ success: false, message: 'الموظف غير موجود في النظام.' });
-        
-        const user = usersDB[userIndex];
+        // 1. استدعاء الموظف من السحابة
+        const user = await prisma.employee.findFirst({
+            where: { username: String(username) }
+        });
+
+        if (!user) return res.json({ success: false, message: 'الموظف غير موجود في النظام.' });
         
         if (!user.joinDate) {
             return res.json({ success: false, message: 'عذراً، الموظف ليس لديه "تاريخ التحاق" مسجل في بياناته. يرجى تعديل ملفه أولاً.' });
@@ -2565,30 +2583,44 @@ app.post('/api/terminate-employee', (req, res) => {
             return res.json({ success: false, message: 'خطأ في تنسيق التواريخ المدخلة.' });
         }
 
-        // 🔥 1. صمام الأمان (التحقق من الإجازات المستقبلية)
-        const futureLeaves = leavesDB.filter(l => l.username === username && new Date(l.endDate) > leaveDate);
-        if (futureLeaves.length > 0) {
+        // 🔥 1. صمام الأمان (التحقق من الإجازات المستقبلية في جدول الإجازات)
+        const futureLeaves = await prisma.leave.findFirst({
+            where: {
+                username: String(username),
+                endDate: { gt: lastWorkingDay } // افتراض أن endDate محفوظ كنص YYYY-MM-DD
+            }
+        });
+
+        if (futureLeaves) {
             return res.json({ 
                 success: false, 
-                message: `عذراً، يوجد للموظف إجازة (${futureLeaves[0].type}) تنتهي في (${futureLeaves[0].endDate}) تتجاوز تاريخ آخر يوم عمل.\nيرجى حذفها أولاً من بوابة الإجازات.` 
+                message: `عذراً، يوجد للموظف إجازة (${futureLeaves.type}) تنتهي في (${futureLeaves.endDate}) تتجاوز تاريخ آخر يوم عمل.\nيرجى حذفها أولاً.` 
             });
         }
 
         // 🔥 نقل العهدة (إذا تم إرسال مدير بديل)
         if (replacementManager) {
             const deletedUserName = user.name;
-            usersDB.forEach(u => { if (u.directManager === deletedUserName) u.directManager = replacementManager; });
+            await prisma.employee.updateMany({
+                where: { directManager: deletedUserName },
+                data: { directManager: replacementManager }
+            });
             
-            // 🛠️ تم التصحيح هنا: استبدال B بـ requestsDB
-            requestsDB.forEach(r => { if (r.managerName === deletedUserName) r.managerName = replacementManager; });
+            await prisma.requestTicket.updateMany({
+                where: { managerName: deletedUserName },
+                data: { managerName: replacementManager }
+            });
         }
 
         // 2. المحرك الرياضي للإجازات
         const diffTimeForLeave = leaveDate - joinDate;
         const workedDaysForLeave = Math.floor(diffTimeForLeave / (1000 * 60 * 60 * 24));
         
+        let credit = 0;
+        let used = 0;
+        let leaveBalance = 0;
+
         if (workedDaysForLeave > 0) {
-            let credit = 0;
             if (workedDaysForLeave <= 1825) { 
                 credit = (workedDaysForLeave / 365) * 21;
             } else { 
@@ -2597,44 +2629,39 @@ app.post('/api/terminate-employee', (req, res) => {
                 credit = first5YearsCredit + ((remainingDays / 365) * 30);
             }
 
-            const myAnnualLeaves = leavesDB.filter(l => l.username === username && l.type === 'سنوية');
-            const used = myAnnualLeaves.reduce((sum, leave) => sum + parseInt(leave.duration || 0), 0);
-
-            user.leaveCredit = parseFloat(credit.toFixed(3));
-            user.usedLeaves = used;
-            user.leaveBalance = parseFloat((credit - used).toFixed(3));
+            // جلب كل الإجازات السنوية لحساب المستخدم
+            const myAnnualLeaves = await prisma.leave.findMany({
+                where: { username: String(username), type: 'سنوية' }
+            });
+            used = myAnnualLeaves.reduce((sum, leave) => sum + parseInt(leave.duration || 0), 0);
+            leaveBalance = parseFloat((credit - used).toFixed(3));
         }
 
-        // 3. تحديث بيانات الموظف
-        user.status = termType === 'استقالة' ? 'Resign' : 'Terminated';
-        user.isActive = false;
-        user.lastWorkingDay = lastWorkingDay;
-
         // 4. إغلاق جميع طلباته المفتوحة
-        let requestsModified = false;
-        
-        // 🛠️ تم التصحيح هنا: استبدال B بـ requestsDB
-        requestsDB.forEach(r => {
-            if (r.empUsername === username && r.status !== 'completed') {
-                r.status = 'completed';
-                r.managerComment = `تم الإغلاق آلياً لترك العمل (السبب: ${termReason})`;
-                r.resolveDate = new Date().toLocaleString('ar-SA');
-                requestsModified = true;
+        await prisma.requestTicket.updateMany({
+            where: { empUsername: String(username), status: { not: 'completed' } },
+            data: {
+                status: 'completed',
+                managerComment: `تم الإغلاق آلياً لترك العمل (السبب: ${termReason})`,
+                resolveDate: new Date().toLocaleString('en-CA', { timeZone: 'Asia/Riyadh' })
             }
         });
 
-        // 5. معالجة التحضير
-        attendanceDB.forEach(a => {
-            if (a.username === username) {
-                if (a.date === lastWorkingDay) {
-                    a.code = 'R'; 
-                    a.managerName = 'نظام (إنهاء خدمة)';
-                }
-                if (a.code === 'T' && new Date(a.date) <= leaveDate) {
-                    a.code = 'LOP'; 
-                    a.managerName = 'نظام (تسوية إنهاء)';
-                }
-            }
+        // 5. معالجة التحضير (بضربات SQL دقيقة بدلاً من اللوب)
+        // أ) تسجيل آخر يوم كـ R
+        await prisma.attendance.updateMany({
+            where: { username: String(username), date: lastWorkingDay },
+            data: { code: 'R', managerName: 'نظام (إنهاء خدمة)' }
+        });
+
+        // ب) تحويل أيام الـ T إلى LOP قبل تاريخ المغادرة
+        await prisma.attendance.updateMany({
+            where: { 
+                username: String(username), 
+                code: 'T',
+                date: { lte: lastWorkingDay } 
+            },
+            data: { code: 'LOP', managerName: 'نظام (تسوية إنهاء)' }
         });
 
         // 6. حساب مدة الخدمة
@@ -2665,26 +2692,32 @@ app.post('/api/terminate-employee', (req, res) => {
         }
         const finalGosiDisplay = `${gosiDaysAdj}${gosiNote}`;
 
-        // 8. استخراج أيام العمل
+        // 8. استخراج أيام العمل من قاعدة بيانات التحضير
         const currMonthStr = lastWorkingDay.substring(0, 7); 
         const prevMonthDate = new Date(leaveDate.getFullYear(), leaveDate.getMonth() - 1, 1);
         const prevMonthStr = prevMonthDate.toISOString().substring(0, 7);
 
+        // جلب تحضير الشهرين
+        const myAttendance = await prisma.attendance.findMany({
+            where: { 
+                username: String(username),
+                date: { gte: `${prevMonthStr}-01`, lte: `${currMonthStr}-31` }
+            }
+        });
+
         let currentMonthPayableDays = 0;
         let prevMonthDeductDays = 0;
 
-        attendanceDB.forEach(a => {
-            if (a.username === username) {
-                const aDate = new Date(a.date);
-                const dayNum = aDate.getDate();
-                const aMonthStr = a.date.substring(0, 7);
+        myAttendance.forEach(a => {
+            const aDate = new Date(a.date);
+            const dayNum = aDate.getDate();
+            const aMonthStr = a.date.substring(0, 7);
 
-                if (aMonthStr === currMonthStr && aDate <= leaveDate) {
-                    if (['D', 'SL', 'Off', 'V', 'CP', 'E'].includes(a.code)) currentMonthPayableDays++;
-                }
-                if (aMonthStr === prevMonthStr && dayNum >= 16) {
-                    if (['A', 'LOP'].includes(a.code)) prevMonthDeductDays++;
-                }
+            if (aMonthStr === currMonthStr && aDate <= leaveDate) {
+                if (['D', 'SL', 'Off', 'V', 'CP', 'E'].includes(a.code)) currentMonthPayableDays++;
+            }
+            if (aMonthStr === prevMonthStr && dayNum >= 16) {
+                if (['A', 'LOP'].includes(a.code)) prevMonthDeductDays++;
             }
         });
 
@@ -2693,6 +2726,20 @@ app.post('/api/terminate-employee', (req, res) => {
         if (workedDaysForLeave >= 360) {
             finalBaladiyahFee = 0;
         }
+
+        // 10. تحديث بيانات الموظف النهائية في SQL
+        await prisma.employee.update({
+            where: { id: user.id },
+            data: {
+                status: termType === 'استقالة' ? 'Resign' : 'Terminated',
+                isActive: false,
+                lastWorkingDay: lastWorkingDay,
+                leaveCredit: parseFloat(credit.toFixed(3)),
+                usedLeaves: used,
+                leaveBalance: leaveBalance,
+                baladiyahFees: finalBaladiyahFee // تحديث الرسوم إذا لزم الأمر
+            }
+        });
 
         const eosReport = {
             empId: user.username,
@@ -2706,31 +2753,25 @@ app.post('/api/terminate-employee', (req, res) => {
             gosiFeeMonth: user.gosiFees || 0,
             currentMonthPayableDays: currentMonthPayableDays,
             prevMonthDeductDays: prevMonthDeductDays,
-            leaveBalance: user.leaveBalance || 0,
+            leaveBalance: leaveBalance || 0,
             gosiDaysAdjustment: finalGosiDisplay,
             baladiyahFee: finalBaladiyahFee,
             bankName: user.bankName || 'غير مسجل',
             bankIban: user.bankIban || 'غير مسجل'
         };
 
-        // 10. الحفظ في قواعد البيانات
-        fs.writeFileSync(usersFile, JSON.stringify(usersDB, null, 2));
-        
-        // 🛠️ تم التصحيح هنا: استبدال B بـ requestsDB
-        if (requestsModified) fs.writeFileSync(requestsFile, JSON.stringify(requestsDB, null, 2));
-        
-        fs.writeFileSync(attendanceFile, JSON.stringify(attendanceDB, null, 2));
-
-        safeLogAudit(byUser, 'إنهاء خدمة', `${user.name} (${user.username})`, `النوع: ${termType}, آخر يوم: ${lastWorkingDay}`);
+        if (typeof safeLogAudit === 'function') {
+            safeLogAudit(byUser, 'إنهاء خدمة', `${user.name} (${user.username})`, `النوع: ${termType}, آخر يوم: ${lastWorkingDay}`);
+        }
 
         res.json({ success: true, report: eosReport });
 
     } catch (error) {
-        console.error("EOS Error:", error);
-        // تم إضافة طباعة الخطأ التفصيلي في الواجهة لنسهل على أنفسنا مستقبلاً
+        console.error("❌ EOS Error (SQL):", error);
         res.json({ success: false, message: 'حدث خطأ تقني في السيرفر: ' + error.message });
     }
 });
+
 
 // ======================================================================
 // 🛠️ دوال مساعدة لترجمة التواريخ بين الواجهة وقاعدة البيانات (المترجم الذكي)
