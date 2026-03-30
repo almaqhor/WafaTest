@@ -6668,22 +6668,23 @@ async function renderPenaltiesDashboard(penalties) {
                 formTitle = "خطاب إنهاء خدمات (فترة التجربة) / Probation Termination";
                 fileName = `Termination_${user.username}`;
                 formContent = `
-                    <table style="width: 100%; border-collapse: collapse; font-size: 18px; margin: 0 auto; margin-bottom:40px;">
+                    <table style="width: 100%; border-collapse: collapse; font-size: 15px; margin: 0 auto; margin-bottom:40px;">
                         <tbody>
                             <tr style="border-bottom: 1px solid #eee;"><td style="padding:15px; font-weight:bold; background:#f9f9f9; width:30%; color:#555;">اسم الموظف</td><td style="padding:15px; font-weight:bold;">${user.name}</td></tr>
                             <tr style="border-bottom: 1px solid #eee;"><td style="padding:15px; font-weight:bold; background:#f9f9f9; color:#555;">الرقم الوظيفي</td><td style="padding:15px; font-weight:bold; color:#d35400;">${user.username}</td></tr>
                             <tr style="border-bottom: 1px solid #eee;"><td style="padding:15px; font-weight:bold; background:#f9f9f9; color:#555;">الفرع / الإدارة</td><td style="padding:15px; font-weight:bold;">${user.branch || '-'}</td></tr>
+                            <tr style="border-bottom: 1px solid #eee;"><td style="padding:15px; font-weight:bold; background:#f9f9f9; color:#555;">الفرع / الإدارة</td><td style="padding:15px; font-weight:bold;">${user.lastWorkingDay || '-'}</td></tr>
                         </tbody>
                     </table>
-                    <div style="background:#fdf2e9; padding:25px; border-right:4px solid #e74c3c; font-size:18px; line-height:2; text-align:justify; margin-bottom:60px;">
+                    <div style="background:#fdf2e9; padding:25px; border-right:4px solid #e74c3c; font-size:15px; line-height:2; text-align:justify; margin-bottom:60px;">
                         المكرم / <strong>${user.name}</strong> المحترم،<br><br>
                         بالإشارة إلى المادة (53) من نظام العمل السعودي، نفيدكم بالاستغناء عن خدماتكم وذلك لعدم تجاوزكم فترة التجربة، اعتباراً من تاريخ هذا الخطاب.<br><br>
                         نأمل منكم التنسيق مع الرئيس المباشر لتسليم عهدتكم لاستكمال إجراءات المخالصة النظامية.<br><br>
                         وتفضلوا بقبول فائق الاحترام والتقدير، ونتمنى لكم النجاح والتوفيق في وظيفة أخرى، مع أطيب التمنيات.
                     </div>
-                    <div style="display: flex; justify-content: space-between; font-weight: bold; font-size: 16px;">
+                    <div style="display: flex; justify-content: space-between; font-weight: bold; font-size: 14px;">
                         <div style="text-align:center;">إدارة الموارد البشرية<br><br>_________________</div>
-                        <div style="text-align:center;">توقيع الموظف بالاستلام<br><br>_________________<br><br>التاريخ: ___ &nbsp;/&nbsp; ___ &nbsp;/&nbsp; _______ م</div>
+                        <div style="text-align:center;">توقيع الموظف بالاستلام<br><br>_________________<br><br>التاريخ: _____ &nbsp;/&nbsp; _____ &nbsp;/&nbsp; _________ م</div>
                     </div>
                 `;
 
