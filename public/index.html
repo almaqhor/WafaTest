@@ -2999,7 +2999,19 @@ const res = await fetch('https://wafatest-production.up.railway.app/auth/v1/logi
 
 async function loadAdminUsers() { 
     try { 
-        allUsersData = await (await fetch('/api/users')).json(); 
+        // 🚀 الضربة المزدوجة: وقت متغير + منع الكاش صراحة من المتصفح
+        const response = await fetch('/api/users?t=' + new Date().getTime(), {
+            method: 'GET',
+            cache: 'no-store', // أمر عسكري صارم بعدم استخدام الذاكرة المخبأة
+            headers: {
+                'Pragma': 'no-cache',
+                'Cache-Control': 'no-cache'
+            }
+        });
+
+        if (!response.ok) throw new Error('فشل في جلب البيانات من السيرفر');
+
+        allUsersData = await response.json(); 
         
         // تعبئة الفلاتر الجديدة بالخيارات
         const uniqueBranches = [...new Set(allUsersData.map(u => u.branch).filter(Boolean))];
@@ -3011,7 +3023,11 @@ async function loadAdminUsers() {
         document.getElementById('filter-user-job').innerHTML = '<option value="">كل المهن</option>' + uniqueJobs.map(j => `<option value="${j}">${j}</option>`).join('');
 
         renderAdminUsers(allUsersData); 
-    } catch(e) {} 
+
+    } catch(e) {
+        // فتحنا الرادار لرؤية أي أخطاء مخفية
+        console.error("❌ خطأ استخباراتي في جلب الموظفين للواجهة:", e);
+    } 
 }
 
 function filterAdminUsers() { 
