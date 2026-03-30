@@ -638,8 +638,10 @@ app.post('/api/confirm-policy', async (req, res) => {
     }
 });
 
-// 🛡️ مسار فحص التابعين (النسخة المحصنة ضد الانهيار)
-app.post('/api/check-dependents', (req, res) => {
+// ======================================================================
+// 👨‍👩‍👧‍👦 مسار فحص التابعين (SQL Version)
+// ======================================================================
+app.post('/api/check-dependents', async (req, res) => {
     try {
         const { username } = req.body;
         
@@ -648,32 +650,29 @@ app.post('/api/check-dependents', (req, res) => {
             return res.json({ hasDependents: false, message: "لم يتم إرسال اسم المستخدم" });
         }
 
+        // 2. البحث في قاعدة بيانات SQL بدلاً من المصفوفة القديمة
+        const user = await prisma.employee.findFirst({
+            where: { username: String(username) }
+        });
+
         let hasDependents = false;
 
-        // 2. تأمين: فحص مصفوفة الموظفين (إذا كان التابعون مخزنين بداخلها)
-        if (typeof usersDB !== 'undefined' && Array.isArray(usersDB)) {
-            const user = usersDB.find(u => String(u.username) === String(username));
+        // 3. التحقق مما إذا كان الموظف موجوداً ولديه حقل تابعين
+        if (user && user.dependents) {
+            // في SQL قد يكون الـ JSON محفوظاً كنص أو ككائن، هذا السطر يتعامل مع الحالتين بأمان
+            let deps = typeof user.dependents === 'string' ? JSON.parse(user.dependents) : user.dependents;
             
-            // تحقق مما إذا كان الموظف لديه حقل تابعين وهو مصفوفة وبها بيانات
-            if (user && user.dependents && Array.isArray(user.dependents) && user.dependents.length > 0) {
+            if (Array.isArray(deps) && deps.length > 0) {
                 hasDependents = true;
             }
         } 
-        /* ملاحظة: إذا كنت تخزن التابعين في ملف/مصفوفة منفصلة مثل dependentsDB
-        قم بتفعيل هذا الكود بدلاً من الكود أعلاه:
-        
-        if (typeof dependentsDB !== 'undefined' && Array.isArray(dependentsDB)) {
-            const userDeps = dependentsDB.filter(d => String(d.username) === String(username));
-            if (userDeps.length > 0) hasDependents = true;
-        }
-        */
 
-        // 3. الإرجاع السليم بصيغة JSON دائماً
+        // 4. الإرجاع السليم بصيغة JSON
         res.json({ hasDependents: hasDependents });
 
     } catch (error) {
-        // 4. صيد الأخطاء: إذا حدث أي انهيار، السيرفر لن يموت، بل سيرسل JSON يخبر الواجهة بالخطأ
-        console.error("❌ خطأ داخلي في فحص التابعين:", error);
+        // صيد الأخطاء
+        console.error("❌ خطأ داخلي في فحص التابعين (SQL):", error);
         res.status(200).json({ hasDependents: false, error: "حدث خطأ في السيرفر وتم تلافيه" });
     }
 });
@@ -714,37 +713,72 @@ app.post('/api/user-toggle', (req, res) => {
 });
 
 
-// 🌟 مسار حذف المستخدم نهائياً 🌟
-app.post('/api/user-delete', (req, res) => {
-    const { username, replacementManager } = req.body;
-    const userIndex = usersDB.findIndex(u => u.username === username);
-    if (userIndex > -1) {
-        const deletedUserName = usersDB[userIndex].name;
-        
-        // نقل العهدة إذا كان مديراً
-        if (replacementManager) {
-            usersDB.forEach(u => { if (u.directManager === deletedUserName) u.directManager = replacementManager; });
-            requestsDB.forEach(r => { if (r.managerName === deletedUserName) r.managerName = replacementManager; });
+// ======================================================================
+// 🌟 مسار حذف المستخدم نهائياً ونقل عهدته (SQL Version) 🌟
+// ======================================================================
+app.post('/api/user-delete', async (req, res) => {
+    try {
+        const { username, replacementManager } = req.body;
+
+        if (!username) {
+            return res.json({ success: false, message: "اسم المستخدم مفقود" });
         }
 
-        // 🧹 التنظيف الذكي: الإغلاق الإجباري لجميع طلبات الموظف قبل حذفه 🧹
-        let requestsModified = false;
-        requestsDB.forEach(r => {
-            if (r.empUsername === username && r.status !== 'completed') {
-                r.status = 'completed';
-                r.managerComment = "تم اغلاق الطلب لعدم فعالية حساب الموظف";
-                r.resolveDate = new Date().toLocaleString('ar-SA');
-                requestsModified = true;
+        // 1. تحديد الهدف: البحث عن الموظف لمعرفة اسمه الحقيقي ورقمه الداخلي
+        const user = await prisma.employee.findFirst({
+            where: { username: String(username) }
+        });
+
+        if (!user) {
+            return res.json({ success: false, message: "الموظف غير موجود في قاعدة البيانات" });
+        }
+
+        const deletedUserName = user.name;
+
+        // 2. نقل العهدة (إذا كان مديراً وتم تحديد بديل)
+        if (replacementManager) {
+            // أ) تحديث الموظفين الذين كان يديرهم
+            await prisma.employee.updateMany({
+                where: { directManager: deletedUserName },
+                data: { directManager: replacementManager }
+            });
+
+            // ب) تحديث الطلبات التي كانت تحت إدارته
+            await prisma.requestTicket.updateMany({
+                where: { managerName: deletedUserName },
+                data: { managerName: replacementManager }
+            });
+        }
+
+        // 3. التنظيف الذكي: الإغلاق الإجباري لجميع طلباته المفتوحة
+        await prisma.requestTicket.updateMany({
+            where: { 
+                empUsername: String(username),
+                status: { not: 'completed' } // كل الطلبات غير المكتملة
+            },
+            data: { 
+                status: 'completed',
+                managerComment: "تم إغلاق الطلب لعدم فعالية حساب الموظف (محذوف)",
+                resolveDate: new Date().toLocaleString('en-CA', { timeZone: 'Asia/Riyadh' })
             }
         });
-        if (requestsModified) {
-            fs.writeFileSync(requestsFile, JSON.stringify(requestsDB, null, 2));
+
+        // 4. الضربة القاضية: حذف الموظف نهائياً من قاعدة البيانات
+        await prisma.employee.delete({
+            where: { id: user.id } // نستخدم المعرف السري (ID) لضمان دقة الحذف
+        });
+
+        // 🛡️ توثيق أمني للعملية
+        if (typeof safeLogAudit === 'function') {
+            safeLogAudit('مدير النظام', 'حذف موظف', `تم حذف الموظف ${deletedUserName} ونقل عهدته إلى ${replacementManager || 'لا أحد'}`, 'SQL System');
         }
 
-        usersDB.splice(userIndex, 1);
-        fs.writeFileSync(usersFile, JSON.stringify(usersDB, null, 2));
+        res.json({ success: true, message: "تم حذف الموظف وتحديث عهدته بنجاح" });
+
+    } catch (error) {
+        console.error("❌ خطأ في مسار حذف الموظف (SQL):", error);
+        res.status(500).json({ success: false, message: "حدث خطأ داخلي في السيرفر أثناء الحذف." });
     }
-    res.json({ success: true });
 });
 
 // ==================== رفع بيانات المستخدمين الشاملة (Excel) ====================
