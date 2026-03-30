@@ -1911,8 +1911,9 @@
                         <div id="print-decision-box" style="background:#fdf2e9; border:1px solid #e67e22; padding:15px; border-radius:5px; margin-bottom:30px; line-height:1.8;">
                 بناءً على لائحة تنظيم العمل المعتمدة، وبعد ثبوت المخالفة المذكورة أعلاه (بإقرار الموظف)، فقد تقرر إيقاع العقوبة التالية:<br>
                 <div style="text-align:center; font-size:20px; font-weight:bold; color:#c0392b; margin:15px 0; padding:10px; background:#fff; border:1px dashed #c0392b;">
-                    <span id="print-pen-action"></span>
-                </div>
+    <span id="print-pen-action"></span>
+    <br><span id="print-pen-absence-note" style="display:none; font-size:16px; color:#e67e22; margin-top:8px;">(بالإضافة إلى حسم أيام الغياب المذكورة)</span>
+</div>
                 <span style="font-size:12px; color:#777;">* تحفظ هذه النسخة في ملف الموظف وتؤخذ في الاعتبار عند التقييم السنوي.</span>
             </div>
             
@@ -7985,15 +7986,26 @@ function printPenaltyNotice(ticketId) {
     // تعبئة القالب المخفي
     document.getElementById('print-pen-id').innerText = p.id;
     document.getElementById('print-pen-issue-date').innerText = new Date().toISOString().split('T')[0];
-    document.getElementById('print-pen-emp-name').innerText = empName; // 👈 التعديل هنا
-    document.getElementById('print-pen-emp-id').innerText = empUsername; // 👈 التعديل هنا
+    document.getElementById('print-pen-emp-name').innerText = empName;
+    document.getElementById('print-pen-emp-id').innerText = empUsername;
     document.getElementById('print-pen-date').innerText = p.violationDate;
     document.getElementById('print-pen-name').innerText = p.violationName;
     document.getElementById('print-pen-count').innerText = p.actualOccurrence || "1";
     
-    // العقوبة
-    document.getElementById('print-pen-action').innerHTML = p.displayPenalty || formatPenaltyValue(p.appliedPenalty);
+    // العقوبة الأساسية
+    const finalActionText = p.displayPenalty || formatPenaltyValue(p.appliedPenalty);
+    document.getElementById('print-pen-action').innerHTML = finalActionText;
     
+    // 🚨 تفعيل رادار الغياب المتصل
+    const absenceNote = document.getElementById('print-pen-absence-note');
+    if (absenceNote) {
+        if (finalActionText.includes('غياب متصل')) {
+            absenceNote.style.display = 'inline-block';
+        } else {
+            absenceNote.style.display = 'none';
+        }
+    }
+
     document.getElementById('print-pen-manager').innerText = p.managerName;
     document.getElementById('print-pen-hr-status').innerText = p.status;
     document.getElementById('print-pen-system-date').innerText = new Date().toLocaleString('ar-SA');
@@ -8036,12 +8048,19 @@ function printPenaltyNotice(ticketId) {
         commentRow.style.display = 'none'; 
         decisionTitle.innerText = 'نص الإنذار والإجراء الإداري المتخذ';
         legalTextBox.style.display = 'block'; 
+        
+        // 🚨 إضافة الرادار هنا أيضاً في حال كانت المخالفة من نوع غياب وتستخدم الصندوق الخاص
+        const absenceNoteHtml = finalActionText.includes('غياب متصل') 
+            ? `<br><span style="font-size:16px; color:#e67e22; margin-top:8px; display:inline-block;">(بالإضافة إلى حسم أيام الغياب المذكورة)</span>` 
+            : '';
+
         legalTextBox.innerHTML = `
             <div style="margin-bottom: 25px; text-align: right; white-space: pre-wrap;">
                 ${(p.managerComment || '').trim()}
             </div>
             <div style="text-align:center; font-size:18px; font-weight:bold; color:#c0392b; padding:15px; border:2px dashed #c0392b; background:#fdf2e9; border-radius:8px; width: 80%; margin: 0 auto;">
-                الإجراء المعتمد: ${p.displayPenalty || formatPenaltyValue(p.appliedPenalty)}
+                الإجراء المعتمد: ${finalActionText}
+                ${absenceNoteHtml}
             </div>
         `;
     } else {
@@ -8050,7 +8069,7 @@ function printPenaltyNotice(ticketId) {
         decisionTitle.innerText = 'القرار الإداري والعقوبة المطبقة';
         legalTextBox.style.display = 'none'; 
         normalCommentCell.innerText = p.managerComment; 
-        document.getElementById('print-pen-action').innerHTML = p.displayPenalty || formatPenaltyValue(p.appliedPenalty);
+        document.getElementById('print-pen-action').innerHTML = finalActionText;
     }
 
     // عملية الطباعة
