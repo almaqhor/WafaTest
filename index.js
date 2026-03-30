@@ -2567,7 +2567,7 @@ app.post('/api/terminate-employee', async (req, res) => {
     try {
         const { username, lastWorkingDay, termType, termReason, byUser, replacementManager } = req.body;
         
-        // 1. استدعاء الموظف من السحابة
+        // 1. استدعاء الموظف من السحابة (لنجلب الـ ID الخاص به)
         const user = await prisma.employee.findFirst({
             where: { username: String(username) }
         });
@@ -2585,18 +2585,20 @@ app.post('/api/terminate-employee', async (req, res) => {
             return res.json({ success: false, message: 'خطأ في تنسيق التواريخ المدخلة.' });
         }
 
-        // 🔥 1. صمام الأمان (التحقق من الإجازات المستقبلية في جدول الإجازات)
+        // 🔥 1. صمام الأمان (التحقق من الإجازات المستقبلية باستخدام employeeId و returnDate)
         const futureLeaves = await prisma.leave.findFirst({
             where: {
-                username: String(username),
-                endDate: { gt: lastWorkingDay } // افتراض أن endDate محفوظ كنص YYYY-MM-DD
+                employeeId: user.id, // 👈 التعديل المدرع هنا
+                returnDate: { gt: new Date(lastWorkingDay) } // 👈 التعديل المدرع هنا
             }
         });
 
         if (futureLeaves) {
+            // تحويل التاريخ لنص مقروء بدون أخطاء المنطقة الزمنية
+            const returnDateStr = new Date(futureLeaves.returnDate).toISOString().split('T')[0];
             return res.json({ 
                 success: false, 
-                message: `عذراً، يوجد للموظف إجازة (${futureLeaves.type}) تنتهي في (${futureLeaves.endDate}) تتجاوز تاريخ آخر يوم عمل.\nيرجى حذفها أولاً.` 
+                message: `عذراً، يوجد للموظف إجازة (${futureLeaves.type}) تنتهي في (${returnDateStr}) تتجاوز تاريخ آخر يوم عمل.\nيرجى حذفها أولاً من بوابة الإجازات.` 
             });
         }
 
@@ -2608,6 +2610,7 @@ app.post('/api/terminate-employee', async (req, res) => {
                 data: { directManager: replacementManager }
             });
             
+            // جدول الطلبات عادة يحتفظ بالاسم أو رقم اليوزر، سنبقيه كما هو إلا إذا كان يستخدم ID
             await prisma.requestTicket.updateMany({
                 where: { managerName: deletedUserName },
                 data: { managerName: replacementManager }
@@ -2631,9 +2634,9 @@ app.post('/api/terminate-employee', async (req, res) => {
                 credit = first5YearsCredit + ((remainingDays / 365) * 30);
             }
 
-            // جلب كل الإجازات السنوية لحساب المستخدم
+            // جلب كل الإجازات السنوية باستخدام employeeId
             const myAnnualLeaves = await prisma.leave.findMany({
-                where: { username: String(username), type: 'سنوية' }
+                where: { employeeId: user.id, type: 'سنوية' } // 👈 التعديل المدرع هنا
             });
             used = myAnnualLeaves.reduce((sum, leave) => sum + parseInt(leave.duration || 0), 0);
             leaveBalance = parseFloat((credit - used).toFixed(3));
@@ -2649,19 +2652,17 @@ app.post('/api/terminate-employee', async (req, res) => {
             }
         });
 
-        // 5. معالجة التحضير (بضربات SQL دقيقة بدلاً من اللوب)
-        // أ) تسجيل آخر يوم كـ R
+        // 5. معالجة التحضير باستخدام employeeId والتواريخ الصحيحة
         await prisma.attendance.updateMany({
-            where: { username: String(username), date: lastWorkingDay },
+            where: { employeeId: user.id, date: new Date(lastWorkingDay) },
             data: { code: 'R', managerName: 'نظام (إنهاء خدمة)' }
         });
 
-        // ب) تحويل أيام الـ T إلى LOP قبل تاريخ المغادرة
         await prisma.attendance.updateMany({
             where: { 
-                username: String(username), 
+                employeeId: user.id, 
                 code: 'T',
-                date: { lte: lastWorkingDay } 
+                date: { lte: new Date(lastWorkingDay) } 
             },
             data: { code: 'LOP', managerName: 'نظام (تسوية إنهاء)' }
         });
@@ -2699,11 +2700,14 @@ app.post('/api/terminate-employee', async (req, res) => {
         const prevMonthDate = new Date(leaveDate.getFullYear(), leaveDate.getMonth() - 1, 1);
         const prevMonthStr = prevMonthDate.toISOString().substring(0, 7);
 
-        // جلب تحضير الشهرين
+        // جلب تحضير الشهرين باستخدام employeeId
         const myAttendance = await prisma.attendance.findMany({
             where: { 
-                username: String(username),
-                date: { gte: `${prevMonthStr}-01`, lte: `${currMonthStr}-31` }
+                employeeId: user.id,
+                date: { 
+                    gte: new Date(`${prevMonthStr}-01`), 
+                    lte: new Date(`${currMonthStr}-31T23:59:59Z`) 
+                }
             }
         });
 
@@ -2713,7 +2717,7 @@ app.post('/api/terminate-employee', async (req, res) => {
         myAttendance.forEach(a => {
             const aDate = new Date(a.date);
             const dayNum = aDate.getDate();
-            const aMonthStr = a.date.substring(0, 7);
+            const aMonthStr = aDate.toISOString().substring(0, 7); // استخراج الشهر من التاريخ
 
             if (aMonthStr === currMonthStr && aDate <= leaveDate) {
                 if (['D', 'SL', 'Off', 'V', 'CP', 'E'].includes(a.code)) currentMonthPayableDays++;
@@ -2739,7 +2743,7 @@ app.post('/api/terminate-employee', async (req, res) => {
                 leaveCredit: parseFloat(credit.toFixed(3)),
                 usedLeaves: used,
                 leaveBalance: leaveBalance,
-                baladiyahFees: finalBaladiyahFee // تحديث الرسوم إذا لزم الأمر
+                baladiyahFees: finalBaladiyahFee 
             }
         });
 
