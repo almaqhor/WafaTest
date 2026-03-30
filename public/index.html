@@ -3379,17 +3379,33 @@ async function bulkResetPolicies() {
                 const wasManager = originalUser.roleArabic.includes('مدير') || originalUser.roleArabic.includes('ادمن'); 
                 const isNowManager = payload.roleArabic.includes('مدير') || payload.roleArabic.includes('ادمن'); 
                 
-                if (wasManager && !isNowManager) {
-                    const check = await (await fetch('/api/check-dependents', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({username: payload.oldUsername})})).json();
-                    if (check.hasDependents) {
-                        pendingAction = { type: 'edit', username: payload.oldUsername, oldManagerName: check.managerName, newData: payload };
-                        document.getElementById('transfer-message').innerHTML = `المدير مسؤول عن <strong>${check.employeeCount} موظف</strong>.<br>الرجاء اختيار بديل.`;
-                        populateManagersDropdown('', 't-manager', check.managerName); 
-                        document.getElementById('user-modal').style.display = 'none'; 
-                        document.getElementById('transfer-modal').style.display = 'flex'; 
-                        return; 
-                    }
-                }
+               if (wasManager && !isNowManager) {
+    const check = await (await fetch('/api/check-dependents', {
+        method:'POST', 
+        headers:{'Content-Type':'application/json'}, 
+        body:JSON.stringify({username: payload.oldUsername})
+    })).json();
+    
+    if (check.hasDependents) {
+        // 💡 نستخدم payload.name كاسم للمدير إذا لم يرسله السيرفر
+        const currentManagerName = check.managerName || payload.name || "هذا المدير";
+
+        pendingAction = { 
+            type: 'edit', 
+            username: payload.oldUsername, 
+            oldManagerName: currentManagerName, 
+            newData: payload 
+        };
+        
+        // 💡 تم استبدال employeeCount بـ subordinatesCount (كما يأتي من السيرفر)
+        document.getElementById('transfer-message').innerHTML = `المدير مسؤول عن <strong>${check.subordinatesCount} موظف</strong>.<br>الرجاء اختيار بديل.`;
+        
+        populateManagersDropdown('', 't-manager', currentManagerName); 
+        document.getElementById('user-modal').style.display = 'none'; 
+        document.getElementById('transfer-modal').style.display = 'flex'; 
+        return; 
+    }
+}
                 
                 const res = await (await fetch('/api/user-update', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)})).json(); 
                 if(!res.success) return alert(res.message);
