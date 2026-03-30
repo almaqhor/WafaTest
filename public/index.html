@@ -1988,8 +1988,6 @@
             <option value="6">6. خطاب فترة تجربة (ترشيح لترقية)</option>
             <option value="7">7. تعريف بالراتب (مفصل)</option>
             <option value="8">8. إعادة طباعة (العرض الوظيفي - Job Offer)</option>
-            <option value="9">9. خطاب إنهاء خدمات (عدم اجتياز تجربة)</option>
-            <option value="10">10. خطة التوجيه والتدريب للموظف الجديد</option>
         </select>
 
         <div id="print-dynamic-inputs" style="display:none; background:#f9f9f9; padding:15px; border-radius:8px; border:1px dashed #3498db; margin-bottom:20px;">
@@ -6662,104 +6660,6 @@ async function renderPenaltiesDashboard(penalties) {
                         <div style="text-align:center;">توقيع الشركة<br><span style="font-size:14px; color:#888;">Company Signature</span><br><br><br>_________________</div>
                         <div style="text-align:center;">الختم<br><span style="font-size:14px; color:#888;">Stamp</span><br><br><br></div>
                         <div style="text-align:center;">توقيع الموظف<br><span style="font-size:14px; color:#888;">Employee Signature</span><br><br><span style="color:#007f3d; font-size:16px;">${user.name}</span><br>_________________</div>
-                    </div>
-                `;
-            }} else if (formType === '9') {
-                formTitle = "خطاب إنهاء خدمات (فترة التجربة) / Probation Termination";
-                fileName = `Termination_${user.username}`;
-                formContent = `
-                    <table style="width: 100%; border-collapse: collapse; font-size: 18px; margin: 0 auto; margin-bottom:40px;">
-                        <tbody>
-                            <tr style="border-bottom: 1px solid #eee;"><td style="padding:15px; font-weight:bold; background:#f9f9f9; width:30%; color:#555;">اسم الموظف</td><td style="padding:15px; font-weight:bold;">${user.name}</td></tr>
-                            <tr style="border-bottom: 1px solid #eee;"><td style="padding:15px; font-weight:bold; background:#f9f9f9; color:#555;">الرقم الوظيفي</td><td style="padding:15px; font-weight:bold; color:#d35400;">${user.username}</td></tr>
-                            <tr style="border-bottom: 1px solid #eee;"><td style="padding:15px; font-weight:bold; background:#f9f9f9; color:#555;">الفرع / الإدارة</td><td style="padding:15px; font-weight:bold;">${user.branch || '-'}</td></tr>
-                        </tbody>
-                    </table>
-                    <div style="background:#fdf2e9; padding:25px; border-right:4px solid #e74c3c; font-size:18px; line-height:2; text-align:justify; margin-bottom:60px;">
-                        المكرم / <strong>${user.name}</strong> المحترم،<br><br>
-                        بالإشارة إلى المادة (53) من نظام العمل السعودي، نفيدكم بالاستغناء عن خدماتكم وذلك لعدم تجاوزكم فترة التجربة، اعتباراً من تاريخ هذا الخطاب.<br><br>
-                        نأمل منكم التنسيق مع الرئيس المباشر لتسليم عهدتكم لاستكمال إجراءات المخالصة النظامية.<br><br>
-                        وتفضلوا بقبول فائق الاحترام والتقدير، ونتمنى لكم النجاح والتوفيق في وظيفة أخرى، مع أطيب التمنيات.
-                    </div>
-                    <div style="display: flex; justify-content: space-between; font-weight: bold; font-size: 16px;">
-                        <div style="text-align:center;">إدارة الموارد البشرية<br><br>_________________</div>
-                        <div style="text-align:center;">توقيع الموظف بالاستلام<br><br>_________________<br><br>التاريخ: ___ &nbsp;/&nbsp; ___ &nbsp;/&nbsp; _______ م</div>
-                    </div>
-                `;
-
-            } else if (formType === '10') {
-                formTitle = "خطة التوجيه والتدريب / Orientation & Training Plan";
-                fileName = `Orientation_${user.username}`;
-                const box = `<div style="display:inline-block; width:15px; height:15px; border:1px solid #333; margin-left:8px; vertical-align:middle;"></div>`;
-                formContent = `
-                    <table style="width: 100%; border-collapse: collapse; font-size: 16px; margin: 0 auto; margin-bottom:30px;">
-                        <tbody>
-                            <tr style="border-bottom: 1px solid #eee;">
-                                <td style="padding:10px; font-weight:bold; background:#f9f9f9; width:15%; color:#555;">الاسم</td><td style="padding:10px; font-weight:bold;">${user.name}</td>
-                                <td style="padding:10px; font-weight:bold; background:#f9f9f9; width:15%; color:#555;">الوظيفة</td><td style="padding:10px; font-weight:bold;">${user.jobTitle || '-'}</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                    <div style="display: flex; gap: 20px; margin-bottom: 40px;">
-                        <div style="flex: 1; border: 1px solid #ccc; padding: 15px; border-radius: 5px;">
-                            <h3 style="margin-top:0; border-bottom:1px solid #ccc; padding-bottom:5px; color:#2980b9;">أ- الموارد البشرية</h3>
-                            <ul style="list-style:none; padding:0; line-height: 1.8; font-size: 14px;">
-                                <li>${box} 3. عرض العمل الموقع</li>
-                                <li>${box} 4. الهوية الوطنية</li>
-                                <li>${box} 5. العنوان الوطني</li>
-                                <li>${box} 6. رقم الحساب المصرفي</li>
-                                <li>${box} 7. شهادة الدراسة</li>
-                                <li>${box} 8. التحقق من التأمينات / قوى</li>
-                                <li>${box} 9. الملف الشخصي</li>
-                                <li>${box} 10. قواعد السلوك</li>
-                                <li>${box} 11. استمارة التأمين الطبي</li>
-                                <li>${box} 12. نموذج المباشرة</li>
-                                <li>${box} 13. إقرار البلدية</li>
-                                <li>${box} 15. تأكيد عقد قوى والتأمينات</li>
-                                <li>${box} 16. بطاقة العمل</li>
-                                <li>${box} التسجيل بـ طاقات وجدارات</li>
-                            </ul>
-                        </div>
-
-                        <div style="flex: 1; display: flex; flex-direction: column; gap: 20px;">
-                            <div style="border: 1px solid #ccc; padding: 15px; border-radius: 5px;">
-                                <h3 style="margin-top:0; border-bottom:1px solid #ccc; padding-bottom:5px; color:#27ae60;">ب- التدريب</h3>
-                                <ul style="list-style:none; padding:0; line-height: 1.8; font-size: 14px;">
-                                    <li>${box} 1. الوصف الوظيفي والمهام</li>
-                                    <li>${box} 2. التعليمات الوظيفية</li>
-                                    <li>${box} 3. التدريب التقديمي</li>
-                                    <li>${box} 4. سياسات الشركة</li>
-                                    <li>${box} 5. سياسات المتاجر</li>
-                                </ul>
-                            </div>
-
-                            <div style="border: 1px solid #ccc; padding: 15px; border-radius: 5px;">
-                                <h3 style="margin-top:0; border-bottom:1px solid #ccc; padding-bottom:5px; color:#e67e22;">جـ- المتاجر</h3>
-                                <ul style="list-style:none; padding:0; line-height: 1.8; font-size: 14px;">
-                                    <li>${box} 1. مقابلة مدير الفرع والموظفين</li>
-                                    <li>${box} 2. موقع صندوق الإسعافات</li>
-                                    <li>${box} 3. كشف الحضور وفترات الراحة</li>
-                                    <li>${box} 4. التدريب بالموقع</li>
-                                    <li>${box} 5. الانضمام لبرامج التواصل</li>
-                                    <li>${box} 6. تقديم أقسام المتاجر</li>
-                                    <li>${box} 7. مراجعة سياسة الوظيفة</li>
-                                    <li>${box} 8. جهاز إثبات الحضور</li>
-                                    <li>${box} 9. جدول العمل</li>
-                                    <li>${box} 10. سياسات بطاقة الوفاء</li>
-                                    <li>${box} 11. مكان العمل</li>
-                                    <li>${box} 12. أماكن الراحة ودورات المياة</li>
-                                    <li>${box} 13. بوابات المتجر</li>
-                                </ul>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="protect-signature" style="padding-top: 15px; border-top: 2px dashed #ccc; text-align: center; font-size: 16px; font-weight:bold;">
-                        <p style="margin-bottom: 30px; color:#555;">أقر أنا الموظف الموضحة بياناتي أعلاه بأنني قد أتممت جميع بنود التوجيه والتدريب المذكورة.</p>
-                        <div style="display: flex; justify-content: space-around;">
-                            <div>توقيع الموظف<br><br>_________________</div>
-                            <div>توقيع المدير المباشر<br><br>_________________</div>
-                        </div>
                     </div>
                 `;
             }
