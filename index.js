@@ -672,9 +672,11 @@ app.post('/api/check-dependents', async (req, res) => {
         const hasDependents = subordinatesCount > 0;
 
         // إرجاع النتيجة للواجهة مع العدد الدقيق (كقيمة إضافية قد تفيدك لاحقاً)
+       // إرجاع النتيجة للواجهة مع العدد الدقيق واسم المدير
         res.json({ 
             hasDependents: hasDependents,
-            subordinatesCount: subordinatesCount 
+            subordinatesCount: subordinatesCount,
+            managerName: manager.name // 👈 أضفنا هذا السطر لكي تتعرف عليه الواجهة
         });
 
     } catch (error) {
