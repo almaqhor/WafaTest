@@ -1087,7 +1087,30 @@ app.post('/api/attendance-team', async (req, res) => {
     }
 });
 
+// ======================================================================
+// 👥 مسار جلب الفريق للأغراض الإدارية والمخالفات (بدون قيود التحضير)
+// ======================================================================
+app.post('/api/manager-team', async (req, res) => {
+    try {
+        const { managerName } = req.body;
+        
+        if (!managerName) return res.json([]);
 
+        // جلب الجنود التابعين لهذا القائد فقط، باستثناء من غادر الإمبراطورية نهائياً
+        const team = await prisma.employee.findMany({
+            where: {
+                directManager: String(managerName),
+                status: { notIn: ['Resign', 'Terminated', 'مستقيل', 'منهى خدماته'] }
+            },
+            orderBy: { username: 'asc' }
+        });
+
+        res.json(team);
+    } catch (error) {
+        console.error("❌ خطأ في جلب الفريق الإداري:", error);
+        res.status(500).json([]);
+    }
+});
 
 // ======================================================================
 
