@@ -7996,10 +7996,13 @@ function printPenaltyNotice(ticketId) {
     const finalActionText = p.displayPenalty || formatPenaltyValue(p.appliedPenalty);
     document.getElementById('print-pen-action').innerHTML = finalActionText;
     
-    // 🚨 تفعيل رادار الغياب المتصل
+    // 🚨 تفعيل رادار الغياب المتصل (التصحيح العسكري هنا 🎯)
+    // نبحث عن كلمة "غياب متصل" في اسم المخالفة أو تصنيفها، وليس في العقوبة فقط
+    const isContinuousAbsence = (p.violationName && p.violationName.includes('غياب متصل')) || (p.category && p.category.includes('غياب متصل')) || finalActionText.includes('غياب متصل');
+
     const absenceNote = document.getElementById('print-pen-absence-note');
     if (absenceNote) {
-        if (finalActionText.includes('غياب متصل')) {
+        if (isContinuousAbsence) {
             absenceNote.style.display = 'inline-block';
         } else {
             absenceNote.style.display = 'none';
@@ -8049,8 +8052,8 @@ function printPenaltyNotice(ticketId) {
         decisionTitle.innerText = 'نص الإنذار والإجراء الإداري المتخذ';
         legalTextBox.style.display = 'block'; 
         
-        // 🚨 إضافة الرادار هنا أيضاً في حال كانت المخالفة من نوع غياب وتستخدم الصندوق الخاص
-        const absenceNoteHtml = finalActionText.includes('غياب متصل') 
+        // 🚨 الرادار يعمل هنا أيضاً للصندوق الخاص
+        const absenceNoteHtml = isContinuousAbsence 
             ? `<br><span style="font-size:16px; color:#e67e22; margin-top:8px; display:inline-block;">(بالإضافة إلى حسم أيام الغياب المذكورة)</span>` 
             : '';
 
