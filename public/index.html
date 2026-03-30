@@ -2361,7 +2361,7 @@ const res = await fetch('https://wafatest-production.up.railway.app/auth/v1/logi
                     }
                 } else {
                     // المدير المباشر يرى فريقه فقط
-                    const teamRes = await fetch('/api/attendance-team', { 
+                    const teamRes = await fetch('/api/manager-team', {
                         method: 'POST', 
                         headers: {'Content-Type': 'application/json'}, 
                         body: JSON.stringify({managerName: currentEmpName}) 
