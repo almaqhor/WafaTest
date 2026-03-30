@@ -2653,18 +2653,20 @@ app.post('/api/terminate-employee', async (req, res) => {
         });
 
         // 5. معالجة التحضير باستخدام employeeId والتواريخ الصحيحة
+        // أ) تسجيل آخر يوم كـ R
         await prisma.attendance.updateMany({
             where: { employeeId: user.id, date: new Date(lastWorkingDay) },
-            data: { code: 'R', managerName: 'نظام (إنهاء خدمة)' }
+            data: { code: 'R', note: 'تعديل آلي من النظام (إنهاء خدمة)' } // 👈 استخدمنا note بدلاً من managerName
         });
 
+        // ب) تحويل أيام الـ T إلى LOP قبل تاريخ المغادرة
         await prisma.attendance.updateMany({
             where: { 
                 employeeId: user.id, 
                 code: 'T',
                 date: { lte: new Date(lastWorkingDay) } 
             },
-            data: { code: 'LOP', managerName: 'نظام (تسوية إنهاء)' }
+            data: { code: 'LOP', note: 'تعديل آلي من النظام (تسوية إنهاء)' } // 👈 استخدمنا note بدلاً من managerName
         });
 
         // 6. حساب مدة الخدمة
