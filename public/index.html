@@ -2313,12 +2313,11 @@ const res = await fetch('https://wafatest-production.up.railway.app/auth/v1/logi
                 updateThemeIcon(true);
             }
         });
-        // ==================== محرك نظام الجزاءات والمخالفات ⚖️ ====================
-        // ==================== محرك نظام الجزاءات والمخالفات (النسخة النهائية) ⚖️ ====================
+
         let managerTeamForPenalty = [];
         let realPenaltyMatrix = []; // المصفوفة الحقيقية التي ستأتي من الإكسيل
 
-        // 1. دالة فتح النافذة وتجهيز البيانات
+        // 1. دالة فتح النافذة وتجهيز البيانات (النسخة المدرعة)
         async function openPenaltyModal() {
             // 1. تصفير الحقول ومنع التواريخ المستقبلية
             const todayStr = new Date(new Date().getTime() - (new Date().getTimezoneOffset() * 60000)).toISOString().split('T')[0];
@@ -2344,30 +2343,54 @@ const res = await fetch('https://wafatest-production.up.railway.app/auth/v1/logi
                 realPenaltyMatrix = await (await fetch('/api/penalty-matrix')).json();
 
                 // 3. التعديل الذكي لجلب أسماء الموظفين حسب الصلاحية
-                const currentRoleArabic = typeof globalRoleArabic !== 'undefined' ? globalRoleArabic : localStorage.getItem('roleArabic');
+                const currentRoleArabic = typeof globalRoleArabic !== 'undefined' ? globalRoleArabic : (localStorage.getItem('roleArabic') || '');
+                const currentUsername = typeof globalUsername !== 'undefined' ? globalUsername : (localStorage.getItem('username') || '');
+                const currentEmpName = typeof globalEmpName !== 'undefined' ? globalEmpName : (localStorage.getItem('empName') || '');
+                
                 const isHrOrAdmin = (currentRoleArabic === 'ادمن' || currentRoleArabic === 'موظف موارد' || currentRoleArabic === 'موظف ادارة');
 
                 if (isHrOrAdmin) {
-                    // الموارد البشرية والإدارة العليا يرون جميع الموظفين (ما عدا المستقيلين)
-                    if(allUsersData.length === 0) allUsersData = await (await fetch('/api/users')).json();
-                    managerTeamForPenalty = allUsersData.filter(u => u.status !== 'Resign' && u.status !== 'Terminated');
+                    // الموارد البشرية والإدارة العليا يرون جميع الموظفين
+                    // 🛡️ إصلاح الثغرة: ضمان جلب الموظفين إذا لم تكن المصفوفة معرفة أو فارغة
+                    if (typeof allUsersData === 'undefined' || allUsersData.length === 0) {
+                        const usersRes = await fetch('/api/users?t=' + new Date().getTime());
+                        const freshUsers = await usersRes.json();
+                        managerTeamForPenalty = freshUsers.filter(u => u.status !== 'Resign' && u.status !== 'Terminated');
+                    } else {
+                        managerTeamForPenalty = allUsersData.filter(u => u.status !== 'Resign' && u.status !== 'Terminated');
+                    }
                 } else {
                     // المدير المباشر يرى فريقه فقط
-                    managerTeamForPenalty = await (await fetch('/api/attendance-team', { 
-                        method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({managerName: globalEmpName}) 
-                    })).json();
+                    const teamRes = await fetch('/api/attendance-team', { 
+                        method: 'POST', 
+                        headers: {'Content-Type': 'application/json'}, 
+                        body: JSON.stringify({managerName: currentEmpName}) 
+                    });
+                    managerTeamForPenalty = await teamRes.json();
                 }
 
                 // 4. تعبئة قائمة الموظفين
                 const empSelect = document.getElementById('pen-emp');
-                empSelect.innerHTML = '<option value="">-- اختر الموظف --</option>' + 
-                    managerTeamForPenalty.filter(e => e.name !== globalEmpName) // استبعاد اسم الشخص نفسه
-                    .map(e => `<option value="${e.username}">${e.name} (${e.username})</option>`).join('');
+                // 🛡️ إصلاح الثغرة: الاستبعاد باستخدام الرقم الوظيفي بدلاً من الاسم
+                let filteredTeam = managerTeamForPenalty.filter(e => e.username !== currentUsername);
+                
+                if (filteredTeam.length === 0) {
+                    empSelect.innerHTML = '<option value="">❌ لا يوجد موظفين مسجلين تحت إدارتك</option>';
+                } else {
+                    // ترتيب أبجدي لسهولة البحث
+                    filteredTeam.sort((a, b) => a.name.localeCompare(b.name));
+                    empSelect.innerHTML = '<option value="">-- اختر الموظف --</option>' + 
+                        filteredTeam.map(e => `<option value="${e.username}">${e.name} (${e.username})</option>`).join('');
+                }
 
                 // 5. تعبئة التصنيف العام من الإكسيل
                 const catSelect = document.getElementById('pen-category');
-                catSelect.innerHTML = '<option value="">-- اختر التصنيف العام --</option>' + 
-                    realPenaltyMatrix.map(c => `<option value="${c.category}">${c.category}</option>`).join('');
+                if (realPenaltyMatrix && realPenaltyMatrix.length > 0) {
+                    catSelect.innerHTML = '<option value="">-- اختر التصنيف العام --</option>' + 
+                        realPenaltyMatrix.map(c => `<option value="${c.category}">${c.category}</option>`).join('');
+                } else {
+                    catSelect.innerHTML = '<option value="">❌ لم يتم رفع لائحة الجزاءات</option>';
+                }
 
                 document.getElementById('pen-violation').innerHTML = '<option value="">-- اختر التصنيف أولاً --</option>';
                 
