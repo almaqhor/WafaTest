@@ -4312,5 +4312,51 @@ app.post('/api/admin-update-request', async (req, res) => {
         res.status(500).json({ success: false, message: 'حدث خطأ في السيرفر أثناء تحديث الطلب' });
     }
 });
+// ======================================================================
+// 🧹 سلاح التطهير: مسار تنظيف التحضيرات المكررة (يعمل لمرة واحدة)
+// ======================================================================
+app.get('/api/clean-duplicates', async (req, res) => {
+    try {
+        // 1. جلب كل التحضيرات مرتبة من الأحدث (أكبر ID) إلى الأقدم
+        const allAttendance = await prisma.attendance.findMany({
+            orderBy: { id: 'desc' } // الأحدث أولاً لكي نحتفظ به
+        });
+
+        const uniqueRecords = new Set();
+        const duplicateIds = [];
+
+        // 2. الفرز والبحث عن المكررات
+        allAttendance.forEach(record => {
+            // تكوين مفتاح فريد: رقم الموظف + التاريخ
+            const dateString = new Date(record.date).toISOString().split('T')[0];
+            const uniqueKey = `${record.employeeId}_${dateString}`;
+
+            if (uniqueRecords.has(uniqueKey)) {
+                // إذا رأينا هذا المفتاح من قبل، فهذا السجل مكرر (وقديم)، نجمعه للحذف
+                duplicateIds.push(record.id);
+            } else {
+                // أول مرة نرى هذا المفتاح (وهو الأحدث)، نحتفظ به في السجلات الآمنة
+                uniqueRecords.add(uniqueKey);
+            }
+        });
+
+        // 3. تنفيذ الإعدام للمكررات بضربة SQL واحدة
+        if (duplicateIds.length > 0) {
+            await prisma.attendance.deleteMany({
+                where: { id: { in: duplicateIds } }
+            });
+        }
+
+        res.json({ 
+            success: true, 
+            message: `تم تنظيف الساحة! تم العثور على ${duplicateIds.length} تحضير مكرر وحذفه بنجاح.`,
+            deletedCount: duplicateIds.length
+        });
+
+    } catch (error) {
+        console.error("❌ خطأ في عملية التطهير:", error);
+        res.json({ success: false, message: error.message });
+    }
+});
 
 app.listen(process.env.PORT || 3000, '0.0.0.0', () => console.log(`🚀 السيرفر يعمل بنظام الرقابة الذكي والآمن!`));
