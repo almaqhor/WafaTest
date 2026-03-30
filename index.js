@@ -488,12 +488,20 @@ const getRiyadhDateOnly = () => new Date().toLocaleDateString('en-CA', { timeZon
 
 
 // ==================== 🌟 1. جلب قائمة الموظفين من SQL 🌟 ====================
+// ==================== 🌟 1. جلب قائمة الموظفين من SQL 🌟 ====================
 app.get('/api/users', async (req, res) => {
     try {
+        // 🛑 أوامر عسكرية صارمة للمتصفح: "ممنوع تخزين هذه البيانات في الذاكرة!"
+        res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+        res.setHeader('Pragma', 'no-cache');
+        res.setHeader('Expires', '0');
+        res.setHeader('Surrogate-Control', 'no-store');
+
         const users = await prisma.employee.findMany({
             where: { username: { not: 'admin' } }, // استبعاد الأدمن من القائمة
             orderBy: { username: 'asc' } // ترتيب تصاعدي حسب الرقم الوظيفي
         });
+        
         res.json(users);
     } catch (error) {
         console.error("❌ خطأ في جلب الموظفين من SQL:", error);
