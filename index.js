@@ -639,6 +639,99 @@ app.post('/api/confirm-policy', async (req, res) => {
 });
 
 // ======================================================================
+// 🔄 مسار تحديث بيانات المستخدم (SQL Version - النسخة النهائية المدرعة)
+// ======================================================================
+app.post('/api/user-update', async (req, res) => {
+    try {
+        const oldUsername = req.body.oldUsername || req.body.username;
+        const newUsername = req.body.username;
+
+        // 1. تحديد الهدف (البحث في قاعدة البيانات أولاً)
+        const user = await prisma.employee.findFirst({
+            where: { username: String(oldUsername) }
+        });
+
+        if (!user) {
+            return res.json({ success: false, message: 'المستخدم غير موجود في قاعدة البيانات' });
+        }
+
+        // 2. تأمين: التحقق إذا قام بتغيير الرقم الوظيفي لرقم موجود أصلاً
+        if (newUsername !== oldUsername) {
+            const exists = await prisma.employee.findFirst({
+                where: { username: String(newUsername) }
+            });
+            if (exists) {
+                return res.json({ success: false, message: 'الرقم الوظيفي الجديد مسجل مسبقاً لموظف آخر!' });
+            }
+        }
+
+        // 3. تحديد حالة الفعالية
+        let newIsActive = user.isActive;
+        const status = req.body.status;
+        if (status === 'Resign' || status === 'Terminated' || status === 'مستقيل') {
+            newIsActive = false; 
+        } else if (status === 'in Duty' || status === 'Job Offer' || status === 'نشط') {
+            newIsActive = true;  
+        }
+
+        // حماية حساب الإمبراطور
+        if (req.body.roleArabic === 'ادمن' || req.body.role === 'admin' || user.role === 'admin') {
+            newIsActive = true;
+        }
+
+        // 4. تجهيز البيانات للتحديث (إنشاء المتغير أولاً قبل تنقيته)
+        const updateData = { ...req.body };
+        delete updateData.oldUsername;
+        delete updateData.byUser; 
+        updateData.isActive = newIsActive;
+
+        // 🛡️ بوابة التنقية الشاملة والمنظمة 🛡️
+        
+        // أ) أيام العمل والراحات (أرقام صحيحة Int)
+        const intFields = ['workingDays', 'offDays'];
+        intFields.forEach(field => {
+            if (updateData[field] !== undefined) {
+                updateData[field] = updateData[field] === "" ? null : parseInt(updateData[field], 10);
+            }
+        });
+
+        // ب) الأموال والرواتب (نصوص Strings لإرضاء قاعدة البيانات)
+        const stringFields = ['basicSalary', 'housingAllowance', 'otherAllowance', 'salaryE', 'gosiFees', 'baladiyahFees'];
+        stringFields.forEach(field => {
+            if (updateData[field] !== undefined && updateData[field] !== null) {
+                updateData[field] = String(updateData[field]); // تغليفها كنص صريح
+            }
+        });
+
+        // ج) أرصدة الإجازات (أرقام عشرية Floats)
+        const floatFields = ['leaveCredit', 'usedLeaves', 'leaveBalance'];
+        floatFields.forEach(field => {
+            if (updateData[field] !== undefined) {
+                updateData[field] = updateData[field] === "" ? null : parseFloat(updateData[field]);
+            }
+        });
+
+        // 5. الضربة القاضية: تحديث السجل في SQL
+        await prisma.employee.update({
+            where: { id: user.id },
+            data: updateData
+        });
+
+        // 6. تسجيل الحدث
+        if (typeof safeLogAudit === 'function') {
+            safeLogAudit(req.body.byUser, 'تعديل بيانات', `${req.body.name} (${newUsername})`, 'تحديث ملف الموظف (SQL)');
+        }
+
+        res.json({ success: true, message: 'تم التحديث بنجاح' });
+
+    } catch (error) {
+        console.error('❌ خطأ في تحديث المستخدم (SQL):', error);
+        // طباعة رسالة الخطأ لتسهيل الرصد
+        res.json({ success: false, message: 'حدث خطأ تقني: ' + error.message });
+    }
+});
+
+// ======================================================================
 // 👥 مسار فحص التابعين (المرؤوسين) بناءً على الإدارة المباشرة
 // ======================================================================
 app.post('/api/check-dependents', async (req, res) => {
