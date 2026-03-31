@@ -3699,38 +3699,43 @@ app.post('/api/sync-absences-to-penalties', async (req, res) => {
 const candidatesFile = path.join(DATA_DIR, 'candidates.json');
 let candidatesDB = safeLoadDB(candidatesFile, []);
 
-// 1. استقبال بيانات المرشح من البوابة العامة (بدون تسجيل دخول)
-// ======================================================================
-// 🛡️ بوابة التوظيف المركزية (ATS - SQL Version)
-// ======================================================================
-
+// 1. تقديم طلب توظيف (مع الفحص الأمني للموظفين السابقين ورفع السيرة الذاتية)
 app.post('/api/submit-candidate', async (req, res) => {
     try {
         const payload = req.body;
 
+        // 🕵️ استخبارات البوابة: هل الهوية موجودة مسبقاً في جدول الموظفين؟
         const existingEmployee = await prisma.employee.findFirst({
             where: { idNumber: String(payload.idNumber) }
         });
 
+        // 💾 الحفظ في قاعدة البيانات المدرعة
         await prisma.recruitment.create({
             data: {
                 candidateId: 'CAN-' + Date.now(),
                 name: String(payload.name),
                 idNumber: String(payload.idNumber || ''),
-                phone: payload.phone,
-                email: payload.email,
-                city: payload.city,
-                jobTitle: payload.jobTitle,
-                cvFile: payload.cvFile, // 🔥 حفظ الملف (Base64) في السيكوال
+                phone: String(payload.phone || ''),
+                email: String(payload.email || ''),
+                city: String(payload.city || ''),
+                jobTitle: String(payload.jobTitle || ''),
+                
+                // 🔥 إصلاح الثغرة: تمرير التواريخ لقاعدة البيانات
+                dobG: String(payload.dobG || 'غير مسجل'),
+                dobHijri: String(payload.dobHijri || 'غير مسجل'),
+                
+                // 📎 السيرة الذاتية (Base64)
+                cvFile: payload.cvFile || '', 
+                
                 status: 'pending',
                 isFormerEmployee: !!existingEmployee
             }
         });
 
-        res.json({ success: true });
+        res.json({ success: true, message: "تم تسجيل الطلب بنجاح" });
     } catch (e) {
-        console.error(e);
-        res.json({ success: false });
+        console.error("❌ Error submitting candidate:", e);
+        res.json({ success: false, message: "حدث خطأ أثناء التقديم" });
     }
 });
 
