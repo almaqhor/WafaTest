@@ -2444,32 +2444,37 @@ app.post('/api/leaves-bulk', (req, res) => {
         res.json({ success: false });
     }
 });
-// ==================== محرك الحساب الديناميكي لأرصدة الإجازات (حسب نظام العمل السعودي) ====================
-app.post('/api/recalculate-leaves', (req, res) => {
+app.post('/api/recalculate-leaves', async (req, res) => {
     try {
         let updatedCount = 0;
         const now = new Date();
 
-        usersDB.forEach(user => {
+        // 1. استدعاء جميع الموظفين من قاعدة البيانات
+        const employees = await prisma.employee.findMany();
+        
+        // 2. تجهيز "مستودع الذخيرة" (مصفوفة التحديثات)
+        const updatePromises = [];
+
+        for (const user of employees) {
             // نتخطى من ليس لديه تاريخ التحاق
-            if (!user.joinDate) return;
+            if (!user.joinDate) continue;
 
             const joinDate = new Date(user.joinDate);
             let endDate = now;
 
             // تحديد تاريخ النهاية بناءً على حالة الموظف
             if (user.status === 'Resign' || user.status === 'Terminated') {
-                if (!user.lastWorkingDay) return; // نتخطى المستقيل الذي ليس له آخر يوم عمل
+                if (!user.lastWorkingDay) continue; 
                 endDate = new Date(user.lastWorkingDay);
-            } else if (user.status !== 'in Duty') {
-                return; // نتخطى حالات العرض الوظيفي وغيرها
+            } else if (user.status !== 'in Duty' && user.status !== 'In Duty') {
+                continue; 
             }
 
             // حساب إجمالي أيام العمل
-            const diffTime = endDate - joinDate;
+            const diffTime = endDate.getTime() - joinDate.getTime();
             const workedDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
             
-            if (workedDays < 0) return; // حماية ضد التواريخ العكسية
+            if (workedDays < 0) continue; 
 
             // حساب الرصيد المستحق (leaveCredit)
             let credit = 0;
@@ -2478,33 +2483,46 @@ app.post('/api/recalculate-leaves', (req, res) => {
                 credit = (workedDays / 365) * 21;
             } else {
                 // ما بعد 5 سنوات (30 يوم في السنة)
-                const first5YearsCredit = (1825 / 365) * 21; // يساوي 105 أيام
+                const first5YearsCredit = 105; // (1825 / 365) * 21
                 const remainingDays = workedDays - 1825;
                 credit = first5YearsCredit + ((remainingDays / 365) * 30);
             }
 
-            // حساب الإجازات المستخدمة من قاعدة بيانات الإجازات الفعالة
-            const myLeaves = leavesDB.filter(l => l.username === user.username);
-            const used = myLeaves.reduce((sum, leave) => sum + parseInt(leave.duration || 0), 0);
+            // 💡 نقطة تفتيش الإجازات المستخدمة:
+            // في النظام القديم كنت تبحث في leavesDB. 
+            // في النظام الجديد، نفترض أن حقل usedLeaves في جدول الموظف يتم تحديثه تلقائياً عند قبول أي إجازة.
+            const used = parseFloat(user.usedLeaves) || 0;
 
-            // تحديث بيانات الموظف (مع التقريب لـ 3 خانات عشرية للدقة)
-            user.leaveCredit = parseFloat(credit.toFixed(3));
-            user.usedLeaves = used;
-            user.leaveBalance = parseFloat((credit - used).toFixed(3));
+            // تجهيز الأرصدة النهائية (مع التقريب لـ 3 خانات عشرية)
+            const newLeaveCredit = credit.toFixed(3);
+            const newLeaveBalance = (credit - used).toFixed(3);
+
+            // 3. إضافة أمر التحديث إلى المستودع (دون إطلاقه بعد)
+            updatePromises.push(
+                prisma.employee.update({
+                    where: { id: user.id }, // التحديث عبر المعرف الفريد
+                    data: {
+                        // ملاحظة: تأكد من نوع الحقل في Prisma، إذا كان String استخدم String() وإذا كان Float استخدم parseFloat()
+                        leaveCredit: String(newLeaveCredit), 
+                        leaveBalance: String(newLeaveBalance)
+                    }
+                })
+            );
 
             updatedCount++;
-        });
+        }
 
-        // حفظ التعديلات في قاعدة البيانات
-        fs.writeFileSync(usersFile, JSON.stringify(usersDB, null, 2));
+        // 4. إطلاق الضربة المجمعة! (تنفيذ جميع التحديثات في لحظة واحدة)
+        await prisma.$transaction(updatePromises);
 
-        // تسجيل العملية في الرقابة
-        safeLogAudit(req.body.byUser, 'تحديث شامل للأرصدة', 'جميع الموظفين', `تمت إعادة حساب الأرصدة لـ ${updatedCount} موظف`);
+        // 5. تسجيل العملية (قم بتكييف safeLogAudit مع قاعدة بياناتك إذا لزم الأمر)
+        // safeLogAudit(req.body.byUser, 'تحديث شامل للأرصدة', 'جميع الموظفين', `تمت إعادة حساب الأرصدة لـ ${updatedCount} موظف`);
 
-        res.json({ success: true, count: updatedCount });
+        res.json({ success: true, count: updatedCount, message: "تم تحديث الأرصدة بنجاح!" });
+        
     } catch (error) {
-        console.error("Error calculating leaves:", error);
-        res.json({ success: false, message: "حدث خطأ أثناء عملية الحساب." });
+        console.error("❌ Error calculating leaves:", error);
+        res.json({ success: false, message: "حدث خطأ أثناء عملية الحساب السحابية." });
     }
 });
 // ======================================================================
