@@ -4171,35 +4171,38 @@ function searchHistoryManual() {
 
 
         async function submitEscalation() {
-            const ticketId = document.getElementById('esc-ticket-id').value;
-            const branch = document.getElementById('esc-emp-branch').value;
-            const comment = document.getElementById('esc-manager-comment').value.trim();
-            const attachmentBase64 = document.getElementById('esc-compressed-base64').value;
-            
-            const btn = document.getElementById('btn-submit-escalate');
-            btn.innerText = "⏳ جاري الإحالة..."; btn.disabled = true;
+    const ticketId = document.getElementById('esc-ticket-id').value;
+    const comment = document.getElementById('esc-manager-comment').value.trim();
+    
+    // هذا المتغير يحمل الصورة المضغوطة أو ملف الـ PDF
+    const fileData = document.getElementById('esc-compressed-base64').value; 
 
+    if (!comment) return alert("⚠️ يرجى كتابة سبب الإحالة للموارد البشرية.");
 
-            // توجيه ذكي بناءً على فرع الموظف
-            const locationData = locationsArray.find(loc => loc.branch === branch);
-            const hrSupervisor = locationData ? locationData.hrUsername : 'admin';
+    try {
+        const res = await (await fetch('/api/escalate-request', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            // 🎯 التعديل هنا: استخدمنا اسم attachment ليطابق قاعدة بياناتك
+            body: JSON.stringify({ 
+                ticketId: ticketId, 
+                escalationComment: comment, 
+                attachment: fileData 
+            })
+        })).json();
 
-
-            try {
-                const res = await (await fetch('/api/escalate-ticket', { 
-                    method: 'POST', 
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ ticketId, comment, attachmentBase64, hrSupervisor, managerName: globalEmpName, managerUsername: currentUsername }) 
-                })).json();
-                
-                if (res.success) {
-                    alert("تمت إحالة الطلب למشرف الموارد بنجاح! ✅");
-                    document.getElementById('escalate-modal').style.display='none';
-                    loadManagerRequests(globalEmpName); // تحديث شاشة المدير
-                } else { alert("خطأ: " + res.message); }
-            } catch (e) { alert("خطأ بالاتصال."); }
-            btn.innerHTML = `<i class="fas fa-share-square"></i> تأكيد الإحالة للموارد`;
+        if (res.success) {
+            alert("🚀 تم إحالة الطلب إلى الموارد البشرية بنجاح.");
+            document.getElementById('escalate-modal').style.display = 'none';
+            // loadManagerRequests(); // استدعِ دالة تحديث الشاشة لديك
+        } else {
+            alert("❌ خطأ: " + res.message);
         }
+    } catch (e) {
+        console.error(e);
+        alert("فشل الاتصال بالسيرفر.");
+    }
+}
         // =================================================================================
                 async function loadManagerHistory(mName, query = "") { 
             try { 
