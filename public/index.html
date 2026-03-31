@@ -8771,7 +8771,8 @@ async function openBalancePenaltyModal(ticketId) {
 
         async function submitCandidateData() {
     const fileInput = document.getElementById('cand-cv');
-    const btn = document.querySelector('#public-careers-portal button');
+    // التعديل هنا 👇
+    const btn = document.querySelector('button[onclick="submitCandidateData()"]');
     const successMsg = document.getElementById('cand-success-msg');
 
     // 1. التحقق من إرفاق السيرة الذاتية
