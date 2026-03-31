@@ -3592,61 +3592,70 @@ async function confirmTransferAction() {
                 return alert("لا توجد بيانات موظفين لتصديرها!");
             }
 
-
-            // 1. تحديد العناوين (Headers) مطابقة لمتطلبات الرفع
+            // 1. تحديد العناوين (مع إضافة عمود إجمالي الراتب)
             const headers = [
                 "الرقم الوظيفي", "الاسم", "رقم الهوية", "تاريخ انتهاء الهوية", "الجنسية", "الجنس",
                 "تاريخ الميلاد", "تاريخ الميلاد الهجري", "الجوال", "الايميل", "المنطقة", "المدينة", "العنوان الوطني",
                 "تاريخ الالتحاق", "الحالة الوظيفية", "الفرع", "القسم الرئيسي", "المسمى الوظيفي", "المرتبة", "المدير المباشر",
-                "ايام العمل", "الراتب الاساسي", "بدل السكن", "بدلات اخرى", "التامينات", "اسم البنك", "الايبان",
+                "ايام العمل", "الراتب الاساسي", "بدل السكن", "بدلات اخرى", "التامينات", "إجمالي الراتب", "اسم البنك", "الايبان",
                 "شركة التامين", "نوع التامين", "تاريخ انتهاء التامين", "كرت البلدية", "انتهاء كرت البلدية", "رسوم البلدية",
                 "اسم الطوارئ", "رقم الطوارئ", "صلة القرابة الطوارئ"
-            ];
-
-
+            ];       
             const aoa = [headers]; // مصفوفة المصفوفات (Array of Arrays)
 
 
-            // 2. تفريغ بيانات الموظفين بالترتيب (مع تجاهل كلمة المرور تماماً)
-            allUsersData.forEach(u => {
-                aoa.push([
-                    u.username || '',
-                    u.name || '',
-                    u.idNumber || '',
-                    u.idExpiry || '',
-                    u.nationality || '',
-                    u.gender || '',
-                    u.dobG || '',
-                    u.dobHijri || '',
-                    u.phone || '',
-                    u.email || '',
-                    u.region || '',
-                    u.city || '',
-                    u.splAddress || '',
-                    u.joinDate || '',
-                    u.status || '',
-                    u.branch || '',
-                    u.primarySection || '',
-                    u.jobTitle || '',
-                    u.roleArabic || '',
-                    u.directManager || '',
-                    u.workingDays || '6',
-                    u.basicSalary || '0',
-                    u.housingAllowance || '0',
-                    u.otherAllowance || '0',
-                    u.gosiFees || '0',
-                    u.bankName || '',
-                    u.bankIban || '',
-                    u.medicalIns || '',
-                    u.insType || '',
-                    u.insExpiry || '',
-                    u.baladiyahCondition || '',
-                    u.baladiyahValid || '',
-                    u.baladiyahFees || '0',
-                    u.emergencyName || '',
-                    u.emergencyNumber || '',
-                    u.emergencyRelation || ''
-                ]);
+           allUsersData.forEach(u => {
+    // 🧠 تحويل الرواتب إلى أرقام فعلية لضمان صحة الجمع والطرح
+    const basic = Number(u.basicSalary) || 0;
+    const housing = Number(u.housingAllowance) || 0;
+    
+    // 💡 نقطة تفتيش: إذا كان السيرفر يرسلها باسم مختلف، يمكنك إضافته هنا كخيار بديل
+    const other = Number(u.otherAllowance || u.otherAllowances) || 0; 
+    const gosi = Number(u.gosiFees) || 0;
+
+    // حساب إجمالي الراتب (الأساسي + السكن + بدلات أخرى - التأمينات)
+    const totalSalary = (basic + housing + other) - gosi;
+
+    aoa.push([
+        u.username || '',
+        u.name || '',
+        u.idNumber || '',
+        u.idExpiry || '',
+        u.nationality || '',
+        u.gender || '',
+        u.dobG || '',
+        u.dobHijri || '',
+        u.phone || '',
+        u.email || '',
+        u.region || '',
+        u.city || '',
+        // 💡 نقطة تفتيش: التقط العنوان الوطني حتى لو اختلف اسمه من السيرفر
+        u.splAddress || u.nationalAddress || u.address || '', 
+        u.joinDate || '',
+        u.status || '',
+        u.branch || '',
+        u.primarySection || '',
+        u.jobTitle || '',
+        u.roleArabic || '',
+        u.directManager || '',
+        u.workingDays || '6',
+        basic,          // الراتب الأساسي
+        housing,        // بدل السكن
+        other,          // بدلات أخرى
+        gosi,           // التأمينات
+        totalSalary,    // 🔥 إجمالي الراتب (العمود الجديد الذي قمنا بحسابه)
+        u.bankName || '',
+        u.bankIban || '',
+        u.medicalIns || '',
+        u.insType || '',
+        u.insExpiry || '',
+        u.baladiyahCondition || '',
+        u.baladiyahValid || '',
+        u.baladiyahFees || '0',
+        u.emergencyName || '',
+        u.emergencyNumber || '',
+        u.emergencyRelation || ''
+    ]);
             });
 
 
