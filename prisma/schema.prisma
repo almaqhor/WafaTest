@@ -63,6 +63,8 @@ model Employee {
   emergencyRelation  String?  // صلة القرابة
   lastLogin          String?  // آخر دخول
   policyConfirmed    Boolean  @default(false)
+  currentMainShift   String?
+  currentPeriod      String?
   
   // العلاقات (Relations)
   // العلاقات (تأكد أنها موجودة لكي لا ينهار الربط)
