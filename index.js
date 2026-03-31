@@ -1578,16 +1578,27 @@ app.post('/api/shifts-config', (req, res) => {
     res.json({ success: true });
 });
 
-app.post('/api/assign-shift', (req, res) => {
-    const { empUsername, mainShift, period } = req.body;
-    let userIndex = usersDB.findIndex(u => u.username === empUsername);
-    if (userIndex > -1) {
-        usersDB[userIndex].currentMainShift = mainShift;
-        usersDB[userIndex].currentPeriod = period;
-        fs.writeFileSync(usersFile, JSON.stringify(usersDB, null, 2));
-        res.json({ success: true });
-    } else {
-        res.json({ success: false });
+app.post('/api/assign-shift', async (req, res) => {
+    try {
+        const { empUsername, mainShift, period } = req.body;
+
+        // 1. تحديث الوردية مباشرة في ملف الموظف داخل قاعدة البيانات (Prisma)
+        const updatedEmployee = await prisma.employee.update({
+            where: { 
+                username: String(empUsername) 
+            },
+            data: {
+                currentMainShift: String(mainShift || ''),
+                currentPeriod: String(period || '')
+            }
+        });
+
+        // 2. إرسال إشارة النجاح
+        res.json({ success: true, message: "تم تعيين الوردية بنجاح!" });
+
+    } catch (error) {
+        console.error("❌ خطأ في تعيين الوردية:", error);
+        res.json({ success: false, message: "حدث خطأ أثناء حفظ الوردية في قاعدة البيانات." });
     }
 });
 
