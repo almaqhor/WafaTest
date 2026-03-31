@@ -4419,4 +4419,40 @@ app.post('/api/escalate-request', async (req, res) => {
     }
 });
 
+// مسار تحديث حالة الطلب (رفض، قبول، أو توجيه)
+app.post('/api/update-request', async (req, res) => {
+    try {
+        // 1. استقبال الشحنة (البيانات) القادمة من واجهة المدير
+        const { id, status, managerComment } = req.body;
+
+        // 2. تجهيز البيانات التي سيتم تحديثها
+        let updateData = {
+            status: status,
+            managerComment: managerComment || null,
+        };
+
+        // حركة تكتيكية: إذا كانت الحالة "رفض"، نقوم بتسجيل وقت الإغلاق ومن قام به
+        if (status === 'rejected') {
+            updateData.resolveDate = new Date().toISOString();
+            updateData.resolvedBy = 'Manager';
+        }
+
+        // 3. تنفيذ التحديث في قاعدة البيانات (Prisma)
+        const updatedRequest = await prisma.requestTicket.update({
+            where: { 
+                // تأكد أن الـ id القادم من الواجهة يطابق حقل ticketId (مثل REQ-123)
+                ticketId: String(id) 
+            },
+            data: updateData
+        });
+
+        // 4. إرسال إشارة النجاح للواجهة
+        res.json({ success: true, message: "تم تحديث حالة الطلب بنجاح." });
+
+    } catch (error) {
+        console.error("❌ Error updating request status:", error);
+        res.json({ success: false, message: "حدث خطأ في السيرفر أثناء تحديث الطلب." });
+    }
+});
+
 app.listen(process.env.PORT || 3000, '0.0.0.0', () => console.log(`🚀 السيرفر يعمل بنظام الرقابة الذكي والآمن!`));
