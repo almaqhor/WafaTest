@@ -4396,6 +4396,27 @@ app.get('/api/clean-duplicates', async (req, res) => {
         res.json({ success: false, message: error.message });
     }
 });
+app.post('/api/escalate-request', async (req, res) => {
+    try {
+        // 🎯 نستقبل الـ attachment من الواجهة
+        const { ticketId, escalationComment, attachment } = req.body;
 
+        const updatedRequest = await prisma.requestTicket.update({
+            where: { ticketId: String(ticketId) },
+            data: {
+                status: 'escalated',
+                escalationComment: escalationComment,
+                
+                // 🎯 نحفظه في الحقل الموجود لديك مسبقاً
+                attachment: attachment || null 
+            }
+        });
+
+        res.json({ success: true, message: "تم تصعيد الطلب للموارد البشرية." });
+    } catch (error) {
+        console.error("Error escalating request:", error);
+        res.json({ success: false, message: "حدث خطأ أثناء تصعيد الطلب." });
+    }
+});
 
 app.listen(process.env.PORT || 3000, '0.0.0.0', () => console.log(`🚀 السيرفر يعمل بنظام الرقابة الذكي والآمن!`));
