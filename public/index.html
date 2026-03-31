@@ -8768,13 +8768,33 @@ async function openBalancePenaltyModal(ticketId) {
                 document.getElementById('cand-city').innerHTML = '<option value="">-- اختر المدينة --</option>' + uniqueCities.map(c => `<option value="${c}">${c}</option>`).join('');
             }
         };
-     async function submitCandidateData() {
-    const fileInput = document.getElementById('cand-cv');
-    
-    // التحقق من الحقول الأساسية + ملف الـ CV
-    if(!fileInput.files[0]) return alert("🛑 يرجى إرفاق السيرة الذاتية لإكمال التقديم.");
 
-    // تحويل الملف إلى Base64
+        async function submitCandidateData() {
+    const fileInput = document.getElementById('cand-cv');
+    const btn = document.querySelector('#public-careers-portal button');
+    const successMsg = document.getElementById('cand-success-msg');
+
+    // 1. التحقق من إرفاق السيرة الذاتية
+    if(!fileInput || !fileInput.files[0]) {
+        return alert("🛑 يرجى إرفاق السيرة الذاتية (صورة أو PDF) لإكمال التقديم.");
+    }
+
+    // 2. التحقق من الحقول الأساسية
+    const name = document.getElementById('cand-name').value.trim();
+    const idNumber = document.getElementById('cand-id').value.trim();
+    const phone = document.getElementById('cand-phone').value.trim();
+    const jobTitle = document.getElementById('cand-job').value;
+    const city = document.getElementById('cand-city').value;
+
+    if(!name || !idNumber || !phone || !jobTitle || !city) {
+        return alert("🛑 يرجى تعبئة جميع الحقول الإجبارية (*)");
+    }
+
+    // 3. تحويل الزر إلى وضع "التحميل" لمنع الإرسال المتكرر
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري الإرسال...'; 
+    btn.disabled = true;
+
+    // 4. قراءة الملف وإرسال الطلب للسيرفر
     const reader = new FileReader();
     reader.readAsDataURL(fileInput.files[0]);
     
@@ -8782,25 +8802,44 @@ async function openBalancePenaltyModal(ticketId) {
         const cvBase64 = reader.result;
 
         const payload = {
-            name: document.getElementById('cand-name').value.trim(),
-            idNumber: document.getElementById('cand-id').value.trim(),
-            phone: document.getElementById('cand-phone').value.trim(),
+            name: name,
+            idNumber: idNumber,
+            phone: phone,
             email: document.getElementById('cand-email').value.trim() || 'لا يوجد',
-            jobTitle: document.getElementById('cand-job').value,
-            city: document.getElementById('cand-city').value,
+            jobTitle: jobTitle,
+            city: city,
             dobG: 'غير مسجل',
             dobHijri: 'غير مسجل',
-            cvFile: cvBase64 // 🔥 السيرة الذاتية هنا
+            cvFile: cvBase64
         };
 
-        // ... كمل بقية دالة الـ Fetch التي لديك ...
-        // تأكد من إرسال الـ payload الجديد
-        const res = await (await fetch('/api/submit-candidate', { 
-            method: 'POST', 
-            headers: {'Content-Type': 'application/json'}, 
-            body: JSON.stringify(payload) 
-        })).json();
-        // ...
+        try {
+            const res = await (await fetch('/api/submit-candidate', { 
+                method: 'POST', 
+                headers: {'Content-Type': 'application/json'}, 
+                body: JSON.stringify(payload) 
+            })).json();
+
+            if (res.success) {
+                // 🎯 السحر هنا: إظهار رسالة النجاح الخضراء وإخفاء زر الإرسال
+                successMsg.style.display = 'block';
+                btn.style.display = 'none';
+                
+                // حركة تكتيكية: إخفاء حقل رفع الـ CV أيضاً لتبدو الشاشة نظيفة بعد النجاح
+                fileInput.parentElement.style.display = 'none';
+                
+            } else {
+                alert(res.message || "❌ حدث خطأ أثناء التسجيل.");
+                // إعادة الزر لشكله الطبيعي في حال الفشل
+                btn.innerHTML = '<i class="fas fa-paper-plane"></i> تسجيل البيانات'; 
+                btn.disabled = false;
+            }
+        } catch(e) { 
+            console.error("خطأ في الاتصال:", e);
+            alert("❌ فشل الاتصال بالسيرفر، يرجى المحاولة مرة أخرى."); 
+            btn.innerHTML = '<i class="fas fa-paper-plane"></i> تسجيل البيانات'; 
+            btn.disabled = false; 
+        }
     };
 }
 
