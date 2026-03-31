@@ -262,7 +262,13 @@
                     </div>
                 </div>
             </div>
-
+                <label class="form-label">إرفاق السيرة الذاتية (صورة أو PDF) <span style="color:red">*</span></label>
+                <div style="position: relative; margin-bottom: 20px;">
+                    <input type="file" id="cand-cv" accept="image/*,.pdf" style="display: none;" onchange="updateFileName(this)">
+                    <button type="button" onclick="document.getElementById('cand-cv').click()" style="width: 100%; padding: 12px; background: #f8f9fa; border: 2px dashed #3498db; border-radius: 8px; color: #3498db; cursor: pointer; font-weight: bold;">
+                        <i class="fas fa-cloud-upload-alt"></i> <span id="cv-status">اضغط لرفع الملف (CV)</span>
+                    </button>
+                </div>
             <button onclick="submitCandidateData()" style="background: var(--primary-green); color: white; border: none; padding: 15px; width: 100%; border-radius: 8px; font-weight: bold; cursor: pointer; margin-top: 25px; font-size: 16px; box-shadow: 0 4px 10px rgba(0,127,61,0.3);">
                 <i class="fas fa-paper-plane"></i> تسجيل البيانات
             </button>
@@ -8763,44 +8769,39 @@ async function openBalancePenaltyModal(ticketId) {
             }
         };
      async function submitCandidateData() {
-    const payload = {
-        name: document.getElementById('cand-name').value.trim(),
-        idNumber: document.getElementById('cand-id').value.trim(),
-        phone: document.getElementById('cand-phone').value.trim(),
-        email: document.getElementById('cand-email').value.trim() || 'لا يوجد',
-        jobTitle: document.getElementById('cand-job').value,
-        city: document.getElementById('cand-city').value,
-        
-        // ⚠️ لغم تم تفكيكه: هذه الحقول إجبارية في SQL، نعطيها قيمة افتراضية إذا لم تكن موجودة في الفورم
-        dobG: document.getElementById('cand-dob-g')?.value || 'غير مسجل',
-        dobHijri: document.getElementById('cand-dob-h')?.value || 'غير مسجل'
-    };
+    const fileInput = document.getElementById('cand-cv');
+    
+    // التحقق من الحقول الأساسية + ملف الـ CV
+    if(!fileInput.files[0]) return alert("🛑 يرجى إرفاق السيرة الذاتية لإكمال التقديم.");
 
-    if(!payload.name || !payload.idNumber || !payload.phone || !payload.jobTitle || !payload.city) {
-        return alert("يرجى تعبئة جميع الحقول الإجبارية (*)");
-    }
+    // تحويل الملف إلى Base64
+    const reader = new FileReader();
+    reader.readAsDataURL(fileInput.files[0]);
+    
+    reader.onload = async function () {
+        const cvBase64 = reader.result;
 
-    const btn = document.querySelector('#public-careers-portal button');
-    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري الإرسال...'; btn.disabled = true;
+        const payload = {
+            name: document.getElementById('cand-name').value.trim(),
+            idNumber: document.getElementById('cand-id').value.trim(),
+            phone: document.getElementById('cand-phone').value.trim(),
+            email: document.getElementById('cand-email').value.trim() || 'لا يوجد',
+            jobTitle: document.getElementById('cand-job').value,
+            city: document.getElementById('cand-city').value,
+            dobG: 'غير مسجل',
+            dobHijri: 'غير مسجل',
+            cvFile: cvBase64 // 🔥 السيرة الذاتية هنا
+        };
 
-    try {
+        // ... كمل بقية دالة الـ Fetch التي لديك ...
+        // تأكد من إرسال الـ payload الجديد
         const res = await (await fetch('/api/submit-candidate', { 
             method: 'POST', 
             headers: {'Content-Type': 'application/json'}, 
             body: JSON.stringify(payload) 
         })).json();
-
-        if (res.success) {
-            document.getElementById('cand-success-msg').style.display = 'block';
-            btn.style.display = 'none';
-        } else {
-            alert(res.message || "حدث خطأ أثناء التسجيل.");
-            btn.innerHTML = 'تسجيل البيانات'; btn.disabled = false;
-        }
-    } catch(e) { 
-        alert("فشل الاتصال بالسيرفر، يرجى المحاولة مرة أخرى."); 
-        btn.innerHTML = 'تسجيل البيانات'; btn.disabled = false; 
-    }
+        // ...
+    };
 }
 
         function copyCareersLink() {
@@ -9000,7 +9001,23 @@ async function openBalancePenaltyModal(ticketId) {
     renderCandidatesGrid(filtered);
 }
 
-        function renderCandidatesGrid(filtered) {
+        // ======================================================================
+// 📄 دالة فتح السيرة الذاتية (CV)
+// ======================================================================
+function viewCandidateCV(base64Data) {
+    if (!base64Data || base64Data === 'null') {
+        alert("لا يوجد سيرة ذاتية مرفقة لهذا المرشح.");
+        return;
+    }
+    const win = window.open();
+    // استخدام iframe لعرض الـ Base64 (يدعم الصور والـ PDF)
+    win.document.write('<iframe src="' + base64Data + '" frameborder="0" style="border:0; top:0px; left:0px; bottom:0px; right:0px; width:100%; height:100%;" allowfullscreen></iframe>');
+}
+
+// ======================================================================
+// 👤 دالة رسم بطاقات المرشحين
+// ======================================================================
+function renderCandidatesGrid(filtered) {
     const container = document.getElementById('candidates-container');
     const statusFilter = currentCandStatus;
 
@@ -9013,14 +9030,20 @@ async function openBalancePenaltyModal(ticketId) {
         // استخدام createdAt
         const dateStr = c.createdAt ? new Date(c.createdAt).toLocaleDateString('ar-SA') : 'غير محدد';
         
-        // 🔮 السحر هنا: استخدام استخبارات السيرفر الجاهزة بدلاً من اللوب المعقد!
+        // 🔮 استخبارات الموظف السابق
         const historyBadge = c.isFormerEmployee 
             ? `<span style="background:#fdedec; color:#c0392b; padding:3px 8px; border-radius:4px; font-size:11px; font-weight:bold; border:1px solid #e74c3c;"><i class="fas fa-exclamation-triangle"></i> موظف سابق</span>` 
             : `<span style="background:#e8f8f5; color:#27ae60; padding:3px 8px; border-radius:4px; font-size:11px; font-weight:bold; border:1px solid #27ae60;"><i class="fas fa-seedling"></i> دماء جديدة</span>`;
 
+        // 📎 زر عرض السيرة الذاتية (يظهر دائماً إذا كان هناك ملف)
+        const cvBtn = c.cvFile && c.cvFile.length > 50 ? `
+            <button onclick="viewCandidateCV('${c.cvFile}')" style="background:#2980b9; color:white; border:none; padding:6px 10px; border-radius:5px; cursor:pointer; font-size:12px; font-weight:bold; margin-bottom: 10px; width: 100%; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                <i class="fas fa-paperclip"></i> عرض السيرة الذاتية
+            </button>` : `<div style="font-size:11px; color:#999; margin-bottom:10px; text-align:center; font-style:italic;">لا توجد سيرة ذاتية مرفقة</div>`;
+
         let actionsHtml = '';
         
-        // ⚠️ استخدام c.candidateId في جميع الـ IDs والأزرار بدلاً من c.id
+        // أزرار التحكم بناءً على الحالة
         if (statusFilter === 'pending') {
             actionsHtml = `
                 <textarea id="hr-comment-${c.candidateId}" class="comment-input" placeholder="أضف تقييم المقابلة هنا..." rows="2" style="font-size:12px; margin-bottom:10px;"></textarea>
@@ -9031,14 +9054,14 @@ async function openBalancePenaltyModal(ticketId) {
             `;
         } else if (statusFilter === 'accepted') {
             actionsHtml = `
-                <div style="background:#e8f8f5; color:#27ae60; padding:10px; border-radius:5px; font-size:12px; margin-bottom:10px;"><strong>سبب القبول:</strong> ${c.hrComment}</div>
+                <div style="background:#e8f8f5; color:#27ae60; padding:10px; border-radius:5px; font-size:12px; margin-bottom:10px;"><strong>سبب القبول:</strong> ${c.hrComment || 'غير مسجل'}</div>
                 <button onclick="magicJobOffer('${c.name}', '${c.idNumber}', '${c.jobTitle}', '${c.city}', '${c.phone}')" style="width:100%; background:#d35400; color:white; border:none; padding:10px; border-radius:5px; cursor:pointer; font-weight:bold;"><i class="fas fa-magic"></i> إنشاء عرض وظيفي (Auto-Fill)</button>
             `;
         } else if (statusFilter === 'rejected') {
             let waText = 'أهلاً بك ' + c.name + '،\nنشكر لك وقتك واهتمامك بالانضمام لفريق هايبر الوفاء.\nنعتذر عن عدم قبولك في هذه المرحلة، ونتمنى لك التوفيق في مسيرتك المهنية.';
             let waLink = 'https://wa.me/' + (c.phone.startsWith('0') ? '966'+c.phone.slice(1) : c.phone) + '?text=' + encodeURIComponent(waText);
             actionsHtml = `
-                <div style="background:#fdedec; color:#c0392b; padding:10px; border-radius:5px; font-size:12px; margin-bottom:10px;"><strong>سبب الرفض:</strong> ${c.hrComment}</div>
+                <div style="background:#fdedec; color:#c0392b; padding:10px; border-radius:5px; font-size:12px; margin-bottom:10px;"><strong>سبب الرفض:</strong> ${c.hrComment || 'غير مسجل'}</div>
                 <button onclick="window.open('${waLink}', '_blank')" style="width:100%; background:#25D366; color:white; border:none; padding:10px; border-radius:5px; cursor:pointer; font-weight:bold;"><i class="fab fa-whatsapp"></i> إرسال رسالة اعتذار</button>
             `;
         }
@@ -9056,6 +9079,7 @@ async function openBalancePenaltyModal(ticketId) {
                     <strong><i class="fas fa-phone"></i> الجوال:</strong> <span style="direction:ltr; display:inline-block;">${c.phone}</span><br>
                     <span style="font-size:11px; color:#888;">تاريخ التقديم: ${dateStr}</span>
                 </div>
+                ${cvBtn}
                 ${actionsHtml}
             </div>
         `;
@@ -10920,7 +10944,13 @@ async function submitAdminRequestUpdate() {
         alert("❌ حدث خطأ في الاتصال بقاعدة البيانات.");
     }
 }
-        
+function updateFileName(input) {
+    const status = document.getElementById('cv-status');
+    if (input.files && input.files[0]) {
+        status.innerText = "✅ تم اختيار: " + input.files[0].name;
+        status.style.color = "#27ae60";
+    }
+}        
 </script>
 </body>
 </html>
