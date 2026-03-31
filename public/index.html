@@ -3614,7 +3614,7 @@ async function confirmTransferAction() {
     const gosi = Number(u.gosiFees) || 0;
 
     // حساب إجمالي الراتب (الأساسي + السكن + بدلات أخرى - التأمينات)
-    const totalSalary = (basic + housing + other) - gosi;
+    const totalSalary = (basic + housing + other);
 
     aoa.push([
         u.username || '',
