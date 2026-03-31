@@ -3704,12 +3704,10 @@ let candidatesDB = safeLoadDB(candidatesFile, []);
 // 🛡️ بوابة التوظيف المركزية (ATS - SQL Version)
 // ======================================================================
 
-// 1. تقديم طلب توظيف (مع الفحص الأمني للموظفين السابقين)
 app.post('/api/submit-candidate', async (req, res) => {
     try {
         const payload = req.body;
 
-        // 🕵️ استخبارات البوابة: هل الهوية موجودة مسبقاً في جدول الموظفين؟
         const existingEmployee = await prisma.employee.findFirst({
             where: { idNumber: String(payload.idNumber) }
         });
@@ -3719,21 +3717,20 @@ app.post('/api/submit-candidate', async (req, res) => {
                 candidateId: 'CAN-' + Date.now(),
                 name: String(payload.name),
                 idNumber: String(payload.idNumber || ''),
-                dobG: payload.dobG,
-                dobHijri: payload.dobHijri,
                 phone: payload.phone,
                 email: payload.email,
                 city: payload.city,
                 jobTitle: payload.jobTitle,
+                cvFile: payload.cvFile, // 🔥 حفظ الملف (Base64) في السيكوال
                 status: 'pending',
-                isFormerEmployee: !!existingEmployee // true إذا كان موظفاً سابقاً
+                isFormerEmployee: !!existingEmployee
             }
         });
 
-        res.json({ success: true, message: "تم تسجيل الطلب بنجاح" });
+        res.json({ success: true });
     } catch (e) {
-        console.error("❌ Error submitting candidate:", e);
-        res.json({ success: false, message: "حدث خطأ أثناء التقديم" });
+        console.error(e);
+        res.json({ success: false });
     }
 });
 
