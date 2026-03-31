@@ -2502,9 +2502,9 @@ app.post('/api/recalculate-leaves', async (req, res) => {
                 prisma.employee.update({
                     where: { id: user.id }, // التحديث عبر المعرف الفريد
                     data: {
-                        // ملاحظة: تأكد من نوع الحقل في Prisma، إذا كان String استخدم String() وإذا كان Float استخدم parseFloat()
-                        leaveCredit: String(newLeaveCredit), 
-                        leaveBalance: String(newLeaveBalance)
+                        // 🎯 التعديل هنا: استخدام parseFloat لتحويل النص إلى رقم عشري (Float)
+                        leaveCredit: parseFloat(newLeaveCredit), 
+                        leaveBalance: parseFloat(newLeaveBalance)
                     }
                 })
             );
