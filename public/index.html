@@ -4011,8 +4011,14 @@ function renderActiveRequests(reqs) {
                 <p style="margin:0 0 5px; font-size:13px; color:#333;"><i class="fas fa-user-tie"></i> <strong>الموظف:</strong> ${empName} (${empUser})</p>
                 ${dt}${attachLink}
                 <div style="margin-top:15px; display:flex; gap:10px;">
-                    <button onclick="updateRequestStatus('${trueId}', 'escalated')" style="flex:1; background:#27ae60; color:white; border:none; padding:10px; border-radius:5px; cursor:pointer; font-weight:bold;"><i class="fas fa-check"></i> توجيه للـ HR</button>
-                    <button onclick="updateRequestStatus('${trueId}', 'rejected')" style="flex:1; background:#e74c3c; color:white; border:none; padding:10px; border-radius:5px; cursor:pointer; font-weight:bold;"><i class="fas fa-times"></i> رفض</button>
+                <button onclick="openEscalateModal('${trueId}', '${r.empName || 'الموظف'}')" style="flex:1; background:#8e44ad; color:white; border:none; padding:10px; border-radius:5px; cursor:pointer; font-weight:bold;">
+                    <i class="fas fa-level-up-alt"></i> إحالة إلى الموارد
+                </button>
+<textarea id="comment-${trueId}" placeholder="اكتب تعليقك وطريقة حل المشكلة هنا..." style="width:100%; padding:8px; border-radius:5px; border:1px solid #ccc; margin-bottom:10px; font-family:inherit;"></textarea>
+
+<button onclick="resolveRequest('${trueId}')" style="flex:1; background:#27ae60; color:white; border:none; padding:10px; border-radius:5px; cursor:pointer; font-weight:bold;">
+    <i class="fas fa-check-circle"></i> حل وإغلاق
+</button>
                 </div>
             </div>`;
         } 
