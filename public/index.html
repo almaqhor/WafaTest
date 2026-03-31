@@ -11053,6 +11053,48 @@ function updateFileName(input) {
     // عرض النتائج المفلترة في الجدول
     renderAttendanceTable(filteredRecords);
 }
+        async function updateRequestStatus(requestId, newStatus) {
+    // 1. التقاط تعليق المدير (إذا كان هناك مربع نص للتعليق، تأكد من أن الـ ID يطابق ما لديك)
+    // وضعنا علامة الاستفهام لكي لا يتعطل الكود إذا لم يكن هناك مربع تعليق
+    const commentInput = document.getElementById(`req-comment-${requestId}`);
+    const commentValue = commentInput ? commentInput.value.trim() : '';
+
+    // 2. تحقق أمني: إذا كان رفضاً، قد ترغب في إجبار المدير على كتابة سبب
+    if (newStatus === 'rejected' && commentValue === '') {
+        return alert("⚠️ يرجى كتابة سبب الرفض في مربع التعليق أولاً.");
+    }
+
+    // 3. تجهيز الشحنة للسيرفر
+    const payload = {
+        id: requestId,
+        status: newStatus,
+        managerComment: commentValue
+    };
+
+    try {
+        // 4. إرسال القرار للسيرفر (تأكد من أن هذا الرابط يطابق المسار في السيرفر لديك)
+        const response = await fetch('/api/update-request', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            alert(newStatus === 'escalated' ? "✅ تم التوجيه إلى الموارد البشرية بنجاح." : "✅ تم رفض الطلب.");
+            
+            // 5. تحديث الشاشة (استدعِ الدالة التي تجلب الطلبات لكي يختفي الطلب أو تتحدث حالته)
+            // loadEmployeeRequests(); // قم بتفعيل هذا السطر مع تغيير اسم الدالة لما يناسب كودك
+        } else {
+            alert("❌ فشل تحديث الطلب: " + (data.message || "خطأ غير معروف"));
+        }
+
+    } catch (error) {
+        console.error("❌ خطأ في الاتصال:", error);
+        alert("فشل الاتصال بالسيرفر، يرجى المحاولة لاحقاً.");
+    }
+}
         
 </script>
 </body>
