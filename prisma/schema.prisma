@@ -210,6 +210,7 @@ model Recruitment {
   status           String   @default("pending")
   hrComment        String?  // (هذا فقط اختياري لأنه يضاف لاحقاً من الموارد)
   hrName           String?  // (وهذا أيضاً)
+  cvFile           String?
   actionDate       DateTime?
   createdAt        DateTime @default(now())
 
