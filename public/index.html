@@ -760,9 +760,16 @@
                             </div>
                             <div style="flex:1; min-width:130px;">
                                 <label style="font-size:12px; font-weight:bold; color:#555;">الفرع:</label>
-                                <select id="att-filter-branch" style="width:100%; padding:8px; border:1px solid #ccc; border-radius:5px; font-family:inherit; box-sizing:border-box;">
-                                    <option value="">كل الفروع</option>
+                                <select id="att-filter-branch" onchange="filterAdminAttendance()" style="width:100%; padding:8px; border:1px solid #ccc; border-radius:5px; font-family:inherit; box-sizing:border-box;">                                    <option value="">كل الفروع</option>
                                     </select>
+                            </div>
+                            <div style="flex:1; min-width:130px;">
+                                <label style="font-size:12px; font-weight:bold; color:#555;">حالة العمل:</label>
+                                <select id="att-filter-status" onchange="filterAdminAttendance()" style="width:100%; padding:8px; border:1px solid #ccc; border-radius:5px;">
+                                    <option value="">الكل</option>
+                                    <option value="active">على رأس العمل</option>
+                                    <option value="inactive">ترك العمل</option>
+                                </select>
                             </div>
                             <div style="flex:1; min-width:130px;">
                                 <label style="font-size:12px; font-weight:bold; color:#555;">الحالة:</label>
