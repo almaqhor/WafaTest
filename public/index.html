@@ -10997,7 +10997,36 @@ function updateFileName(input) {
         status.innerText = "✅ تم اختيار: " + input.files[0].name;
         status.style.color = "#27ae60";
     }
-}        
+}
+
+        function filterAttendanceReports() {
+    // جلب قيمة الفلتر المختار
+    const statusFilter = document.getElementById('att-filter-status').value;
+    
+    // فلترة السجلات
+    const filteredRecords = attendanceRecords.filter(record => {
+        // 1. البحث عن الموظف باستخدام الـ ID المرتبط بالـ username
+        const employee = allUsersData.find(emp => emp.username === record.employeeId);
+        
+        if (!employee) return false; // إذا لم يوجد موظف لهذا السجل
+
+        // 2. تحديد الحالة بناءً على شرطك (in Duty = على رأس العمل)
+        const isAtWork = (employee.status === 'in Duty');
+        
+        // 3. منطق الفلتر
+        if (statusFilter === "active") {
+            return isAtWork; // أظهر فقط من هم "على رأس العمل"
+        } else if (statusFilter === "inactive") {
+            return !isAtWork; // أظهر فقط من "ترك العمل"
+        }
+        
+        return true; // في حال اختيار "الكل"
+    });
+
+    // عرض النتائج المفلترة في الجدول
+    renderAttendanceTable(filteredRecords);
+}
+        
 </script>
 </body>
 </html>
