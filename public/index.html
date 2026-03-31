@@ -375,6 +375,18 @@
                         <div class="info-card" id="shift-info-card"><div class="info-icon" style="color:#e74c3c;background:#fdedec;"><i class="fas fa-clock"></i></div><div><h4 style="margin:0;color:#888;font-size:12px;">الوردية الدائمة</h4><p style="margin:0;font-weight:bold;font-size:13px;" id="card-shift">لم تُحدد بعد</p></div></div>
                         <div class="info-card" id="manager-card"><div class="info-icon" style="color:#27ae60;background:#e8f8f5;"><i class="fas fa-user-tie"></i></div><div><h4 style="margin:0;color:#888;font-size:12px;">المدير</h4><p style="margin:0;font-weight:bold;font-size:14px;" id="card-manager"></p><button id="card-whatsapp-btn" style="background:#25D366;color:white;border:none;padding:6px 12px;border-radius:5px;margin-top:5px;cursor:pointer;font-size:12px; font-weight:bold;" onclick="openTicketModal()"><i class="fas fa-ticket-alt"></i> رفع طلب لمديرك</button></div></div>
                         <div class="info-card" id="hiring-card"><div class="info-icon" style="color:#9b59b6;background:#f4ecf7;"><i class="fas fa-bullhorn"></i></div><div><h4 style="margin:0;color:#888;font-size:12px;">مشاركة رابط التوظيف</h4><button style="background:#9b59b6;color:white;border:none;padding:6px 12px;border-radius:5px;margin-top:5px;cursor:pointer;font-size:12px; font-weight:bold;" onclick="shareHiringLink()"><i class="fas fa-share-nodes"></i> إرسال الرابط</button></div></div>
+                        <div class="info-card" id="prayer-times-card" style="background: linear-gradient(135deg, #1abc9c, #16a085); color: white; border: none; position: relative; overflow: hidden;">
+    <div class="info-icon" style="background: rgba(255,255,255,0.2); color: white;">
+        <i class="fas fa-mosque"></i>
+    </div>
+    <div style="z-index: 1; position: relative;">
+        <h4 style="margin:0; color: #ecf0f1; font-size:12px;">الصلاة القادمة في <span id="prayer-city-name">مدينتك</span></h4>
+        <p style="margin:5px 0 0 0; font-weight:bold; font-size:15px;" id="next-prayer-name">جاري الحساب...</p>
+        <span id="prayer-countdown" style="font-size: 11px; background: rgba(0,0,0,0.2); padding: 3px 8px; border-radius: 12px; display: inline-block; margin-top: 5px;">
+            <i class="fas fa-hourglass-half"></i> --:--:--
+        </span>
+    </div>
+</div>
                     </div>
 
 
@@ -2806,6 +2818,12 @@ const res = await fetch('https://wafatest-production.up.railway.app/auth/v1/logi
                 document.getElementById('card-leave').innerText = data.leaveBalance; 
                 document.getElementById('card-branch').innerText = data.branch; 
                 document.getElementById('card-manager').innerText = data.directManager;
+                // 🎯🎯🎯 نقطة الإنزال: أضف سطر الصلاة هنا 🎯🎯🎯
+            if (data.city) {
+                startPrayerCountdown(data.city); 
+            } else {
+                startPrayerCountdown('الرياض'); // مدينة افتراضية إذا لم تكن مسجلة
+            }
                 // 🎨 التحديث الذكي لصورة الأفاتار بناءً على الجنس
         const avatarImg = document.getElementById('gender-avatar');
         if (avatarImg) {
@@ -11104,7 +11122,72 @@ function updateFileName(input) {
         alert("فشل الاتصال بالسيرفر، يرجى المحاولة لاحقاً.");
     }
 }
-        
+  async function startPrayerCountdown(cityName, country = "Saudi Arabia") {
+    // عرض اسم المدينة في البطاقة
+    document.getElementById('prayer-city-name').innerText = cityName;
+
+    try {
+        // 1. جلب البيانات من الرادار الخارجي (طريقة 4 هي تقويم أم القرى)
+        const res = await fetch(`https://api.aladhan.com/v1/timingsByCity?city=${cityName}&country=${country}&method=4`);
+        const data = await res.json();
+        const timings = data.data.timings;
+
+        // 2. قائمة الصلوات التي تهمنا
+        const prayers = [
+            { id: 'Fajr', name: 'الفجر' },
+            { id: 'Dhuhr', name: 'الظهر' },
+            { id: 'Asr', name: 'العصر' },
+            { id: 'Maghrib', name: 'المغرب' },
+            { id: 'Isha', name: 'العشاء' }
+        ];
+
+        // 3. دالة لتحديث العداد كل ثانية
+        setInterval(() => {
+            const now = new Date();
+            let nextPrayer = null;
+            let timeDiff = Infinity;
+
+            // البحث عن الصلاة القادمة
+            for (let prayer of prayers) {
+                const [hours, minutes] = timings[prayer.id].split(':');
+                const prayerTime = new Date();
+                prayerTime.setHours(parseInt(hours), parseInt(minutes), 0, 0);
+
+                const diff = prayerTime - now;
+                if (diff > 0 && diff < timeDiff) {
+                    timeDiff = diff;
+                    nextPrayer = { ...prayer, time: prayerTime };
+                }
+            }
+
+            // إذا انتهت صلوات اليوم، فالصلاة القادمة هي فجر الغد
+            if (!nextPrayer) {
+                const [fajrHours, fajrMinutes] = timings['Fajr'].split(':');
+                const tomorrowFajr = new Date();
+                tomorrowFajr.setDate(now.getDate() + 1);
+                tomorrowFajr.setHours(parseInt(fajrHours), parseInt(fajrMinutes), 0, 0);
+                
+                timeDiff = tomorrowFajr - now;
+                nextPrayer = { name: 'الفجر', time: tomorrowFajr };
+            }
+
+            // 4. عرض النتائج على الشاشة
+            document.getElementById('next-prayer-name').innerText = `صلاة ${nextPrayer.name}`;
+            
+            // حساب الساعات والدقائق والثواني للعداد
+            const h = Math.floor((timeDiff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+            const m = Math.floor((timeDiff % (1000 * 60 * 60)) / (1000 * 60));
+            const s = Math.floor((timeDiff % (1000 * 60)) / 1000);
+
+            document.getElementById('prayer-countdown').innerHTML = `<i class="fas fa-hourglass-half"></i> متبقي: ${h}س ${m}د ${s}ث`;
+
+        }, 1000); // تحديث كل ثانية
+
+    } catch (error) {
+        console.error("❌ فشل في التقاط إشارات مواقيت الصلاة:", error);
+        document.getElementById('next-prayer-name').innerText = "الخدمة غير متاحة مؤقتاً";
+    }
+}      
 </script>
 </body>
 </html>
