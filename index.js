@@ -1602,12 +1602,35 @@ app.post('/api/assign-shift', async (req, res) => {
     }
 });
 
-app.post('/api/my-shifts', (req, res) => {
-    const user = usersDB.find(u => u.username === req.body.username);
-    if (user) {
-        res.json({ mainShift: user.currentMainShift, period: user.currentPeriod });
-    } else {
-        res.json({});
+app.post('/api/my-shifts', async (req, res) => {
+    try {
+        const { username } = req.body;
+
+        // 1. إرسال الكشافة للبحث في قاعدة البيانات الحقيقية (Prisma)
+        const user = await prisma.employee.findUnique({
+            where: { 
+                username: String(username) 
+            },
+            select: {
+                currentMainShift: true,
+                currentPeriod: true
+            }
+        });
+
+        // 2. إذا تم العثور على الموظف، نرسل بياناته للواجهة
+        if (user) {
+            res.json({ 
+                mainShift: user.currentMainShift || '', 
+                period: user.currentPeriod || '' 
+            });
+        } else {
+            // إذا لم نجد الموظف
+            res.json({});
+        }
+
+    } catch (error) {
+        console.error("❌ خطأ في جلب بيانات الوردية للموظف:", error);
+        res.json({}); // نرسل كائناً فارغاً لكي لا تتعطل شاشة الموظف
     }
 });
 
