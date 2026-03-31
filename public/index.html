@@ -5270,37 +5270,55 @@ function searchHistoryManual() {
         }
 
 
-        // 🔍 تحديث دالة الفلترة (شملت الحالة + البحث بالاسم)
         function filterAdminAttendance() {
-            const fromDate = document.getElementById('att-filter-from').value;
-            const toDate = document.getElementById('att-filter-to').value;
-            const branch = document.getElementById('att-filter-branch').value;
-            const code = document.getElementById('att-filter-code').value; // الفلتر الجديد
-            const empStr = document.getElementById('att-filter-emp').value.trim().toLowerCase();
+    const fromDate = document.getElementById('att-filter-from').value;
+    const toDate = document.getElementById('att-filter-to').value;
+    const branch = document.getElementById('att-filter-branch').value;
+    const code = document.getElementById('att-filter-code').value; 
+    const empStr = document.getElementById('att-filter-emp').value.trim().toLowerCase();
+    
+    // 🎯 استدعاء الجندي المفقود: قراءة فلتر حالة العمل
+    const statusFilter = document.getElementById('att-filter-status').value;
 
+    let filtered = allAttendanceData;
 
-            let filtered = allAttendanceData;
+    if(fromDate) filtered = filtered.filter(a => a.date >= fromDate);
+    if(toDate) filtered = filtered.filter(a => a.date <= toDate);
+    if(code) filtered = filtered.filter(a => a.code === code);
+    
+    // البحث بالرقم الوظيفي أو الاسم
+    if(empStr) {
+        filtered = filtered.filter(a => a.username.includes(empStr) || (a.name && a.name.toLowerCase().includes(empStr)));
+    }
+    
+    // 🧠 الاستخبارات المتقاطعة: فلترة الفرع وحالة الموظف معاً (Cross-Reference)
+    if(branch || statusFilter) {
+        filtered = filtered.filter(a => {
+            // 1. جلب ملف الموظف السري
+            const user = allUsersData.find(u => u.username === a.username);
+            if (!user) return false; // تجاهل السجل إذا لم نجد الموظف
 
+            // 2. التحقق من تطابق الفرع
+            const matchBranch = branch ? (user.branch === branch) : true;
 
-            if(fromDate) filtered = filtered.filter(a => a.date >= fromDate);
-            if(toDate) filtered = filtered.filter(a => a.date <= toDate);
-            if(code) filtered = filtered.filter(a => a.code === code);
+            // 3. التحقق من تطابق الحالة (in Duty = على رأس العمل)
+            const isAtWork = (user.status === 'in Duty' || user.status === 'In Duty');
+            let matchStatus = true;
             
-            // البحث بالرقم الوظيفي أو الاسم
-            if(empStr) {
-                filtered = filtered.filter(a => a.username.includes(empStr) || (a.name && a.name.toLowerCase().includes(empStr)));
-            }
-            
-            if(branch) {
-                filtered = filtered.filter(a => {
-                    const user = allUsersData.find(u => u.username === a.username);
-                    return user && user.branch === branch;
-                });
+            if (statusFilter === "active") {
+                matchStatus = isAtWork; // يجب أن يكون على رأس العمل
+            } else if (statusFilter === "inactive") {
+                matchStatus = !isAtWork; // يجب أن يكون تاركاً للعمل
             }
 
+            // 4. السماح بالمرور فقط لمن يجتاز نقطتي التفتيش (الفرع والحالة)
+            return matchBranch && matchStatus;
+        });
+    }
 
-            renderAdminAttendanceTable(filtered);
-        }
+    // إرسال البيانات النهائية للطباعة على الشاشة
+    renderAdminAttendanceTable(filtered);
+}
 
 
         function renderAdminAttendanceTable(data) {
