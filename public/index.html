@@ -8770,13 +8770,20 @@ async function openBalancePenaltyModal(ticketId) {
                 violationDate: fromDate,
                 category: 'الغياب والتأخير (المادة 80)',
                 violationName: violationNameText,
-                managerComment: managerCommentText, // 🛠️ تم وضع الجملة كتعليق للمدير هنا
+                managerComment: managerCommentText,
                 isAdmit: false, 
                 requestLessPunishment: false,
                 actualOccurrence: currentOccurrence,
                 appliedPenalty: appliedPenalty,
                 displayPenalty: displayPenalty,
-                status: 'بانتظار الموارد البشرية', 
+                
+                // 🎯 1. السحر هنا: الاعتماد الآلي المباشر (إلا في حالة التصعيد)
+                status: penaltyDays === 'تصعيد' ? 'بانتظار الموارد البشرية' : 'معتمدة آلياً', 
+                
+                // 🎯 2. توقيع إلكتروني آلي (لكي يبدو الإشعار احترافياً في الأرشيف)
+                hrComment: penaltyDays === 'تصعيد' ? '' : 'تم الاعتماد والتوجيه بالخصم آلياً بناءً على لائحة الغياب والمخالفات.',
+                hrName: penaltyDays === 'تصعيد' ? '' : 'محرك العقوبات الآلي',
+                
                 attachmentBase64: '',
                 timestamp: new Date().toISOString()
             };
