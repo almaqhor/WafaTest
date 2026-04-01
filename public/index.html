@@ -5556,15 +5556,15 @@ function searchHistoryManual() {
                             if (code === 'SL') code = 'SL';
                             if (code === 'LOP') code = 'LOP';
                             
-                            // إذا كان هناك رمز تحضير في هذا اليوم (D, V, A...)
-                            if (code) {
-                                    historicalData.push({
-                                        username: username.toString().trim(),
-                                        name: row['اسم الموظف'] || row['الاسم'] || 'موظف (أرشيف)',
-                                        date: cleanColumnName.replace(/\//g, '-'), // توحيد الفواصل لتصبح -
-                                        code: code
-                                    });
-                                }
+                            // 🔥 التكتيك الجديد: نأخذ الخلية سواء كانت ممتلئة أو فارغة
+                            let finalCode = code ? code : ''; // إذا كانت فارغة نجعلها نصاً فارغاً
+                            
+                            historicalData.push({
+                                username: username.toString().trim(),
+                                name: row['اسم الموظف'] || row['الاسم'] || 'موظف (أرشيف)',
+                                date: cleanColumnName.replace(/\//g, '-'), 
+                                code: finalCode // السيرفر سيفهم أن النص الفارغ يعني "امسح السجل إن وُجد"
+                            });
                             }
                         }
                     });
@@ -5590,7 +5590,7 @@ function searchHistoryManual() {
 
                     if (res.success) {
                         statubel.style.color = 'green';
-                        statubel.innerText = `✅ تمت العملية! (أُضيف: ${res.added}، حُدث: ${res.updated} سجل)`;
+                        statubel.innerText = `✅ تمت العملية! (أُضيف: ${res.added} | حُدث: ${res.updated} | حُذف: ${res.deleted || 0})`;
                         
                         // تحديث جدول الإدمن
                         allAttendanceData = await (await fetch('/api/all-attendance')).json();
