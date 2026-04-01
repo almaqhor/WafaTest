@@ -3140,8 +3140,7 @@ function renderAdminUsers(users) {
             `;
         } else {
             const deleteBtnHtml = globalIsAdmin ? `<button style="background:#e74c3c; color:white; border:none; padding:5px 10px; border-radius:3px; cursor:pointer;" onclick="deleteUser('${u.username}')" title="حذف"><i class="fas fa-trash"></i></button>` : '';
-            const eosBtnHtml = `<button style="background:#c0392b; color:white; border:none; padding:5px 10px; border-radius:3px; cursor:pointer; margin-left:2px;" onclick="quickEosModal('${u.username}', '${u.name}')" title="إنهاء خدمات"><i class="fas fa-user-sh"></i></button>`;
-
+const eosBtnHtml = `<button style="background:#c0392b; color:white; border:none; padding:5px 10px; border-radius:3px; cursor:pointer; margin-left:2px;" onclick="quickEosModal('${u.username}', '${u.name}')" title="إنهاء خدمات"><i class="fas fa-user-times"></i></button>`;
             actionBtns = `
                 ${waBtn}
                 ${ghostBtn}
