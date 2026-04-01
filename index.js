@@ -1755,7 +1755,7 @@ app.get('/api/attendance-codes', (req, res) => res.json(attendanceCodesDB));
 
 
 // ======================================================================
-// 📊 مسار استقبال ملف إكسيل التحضير التاريخي (SQL Version)
+// 📊 مسار استقبال ملف إكسيل التحضير التاريخي (SQL Version - Mirror Sync)
 // ======================================================================
 app.post('/api/upload-historical-attendance', async (req, res) => {
     try {
@@ -1767,6 +1767,7 @@ app.post('/api/upload-historical-attendance', async (req, res) => {
 
         let added = 0;
         let updated = 0;
+        let deleted = 0; // 🎯 عداد جديد لحصر عمليات الإبادة
 
         // 💡 1. الذكاء الاصطناعي للأداء: جلب هويات الموظفين بضربة واحدة بدلاً من البحث الفردي
         const usernames = [...new Set(historicalData.map(d => String(d.username)))];
@@ -1783,7 +1784,6 @@ app.post('/api/upload-historical-attendance', async (req, res) => {
         });
 
         // 💡 2. معالجة الإكسيل وإدخاله لـ SQL
-        // 💡 2. معالجة الإكسيل وإدخاله لـ SQL
         for (const record of historicalData) {
             const empId = empMap[String(record.username)];
             
@@ -1791,7 +1791,6 @@ app.post('/api/upload-historical-attendance', async (req, res) => {
             if (!empId) continue; 
 
             // ⚡ السحر هنا: تحويل التاريخ النصي إلى صيغة ISO-8601 التي يعشقها Prisma
-            // دمج T00:00:00.000Z يمنع السيرفر من تغيير اليوم بسبب فروقات التوقيت
             const isoDate = new Date(`${record.date}T00:00:00.000Z`);
 
             // البحث: هل لهذا الموظف تحضير مسبق في نفس هذا اليوم؟
@@ -1802,6 +1801,22 @@ app.post('/api/upload-historical-attendance', async (req, res) => {
                 }
             });
 
+            // 🎯🎯🎯 بروتوكول الإبادة (Mirror Sync) 🎯🎯🎯
+            // إذا كان الكود القادم فارغاً (بمعنى أنك مسحت الخلية في الإكسيل)
+            if (!record.code || record.code.trim() === '') {
+                if (existingRecord) {
+                    // السجل موجود في الداتا بيز، ولكنك مسحته من الإكسيل -> إذن نحذفه!
+                    await prisma.attendance.delete({
+                        where: { id: existingRecord.id }
+                    });
+                    deleted++;
+                }
+                // نتخطى ما تبقى من اللوب وننتقل لليوم التالي (سواء حذفنا أو كانت الخلية أصلاً فارغة)
+                continue; 
+            }
+
+            // =======================================================
+            // 🔄 إذا لم تكن الخلية فارغة (يوجد كود مثل P أو A) نُكمل العمليات العادية
             if (existingRecord) {
                 // تحديث السجل الموجود
                 await prisma.attendance.update({
@@ -1827,12 +1842,13 @@ app.post('/api/upload-historical-attendance', async (req, res) => {
             }
         }
 
-        // 🛡️ توثيق أمني للعملية
+        // 🛡️ توثيق أمني للعملية (تم إضافة عداد الحذف للتقارير)
         if (typeof safeLogAudit === 'function') {
-            safeLogAudit('مدير النظام', 'رفع إكسيل تحضير', `تم إضافة ${added} وتحديث ${updated} سجل`, 'SQL Database');
+            safeLogAudit('مدير النظام', 'رفع إكسيل تحضير (Mirror Sync)', `تم إضافة ${added}، تحديث ${updated}، وحذف ${deleted} سجل`, 'SQL Database');
         }
 
-        res.json({ success: true, added, updated });
+        // إرجاع النتيجة مع عدد المحذوفات
+        res.json({ success: true, added, updated, deleted });
 
     } catch (error) {
         console.error('❌ خطأ فادح أثناء رفع الإكسيل التاريخي للـ SQL:', error);
