@@ -3488,7 +3488,22 @@ async function bulkResetPolicies() {
                 const res = await (await fetch('/api/user-update', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)})).json(); 
                 if(!res.success) return alert(res.message);
                 alert("تم التحديث بنجاح! ✅");
+if ((payload.status === 'Resign' || payload.status === 'Terminated' || payload.status === 'مستقيل') && payload.positionCode !== '') {
+                    // استدعاء الـ API الجديد والمستقل
+                    await fetch('/api/release-position', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ positionCode: payload.positionCode })
+                    });
+                }
+                // ========================================================
+
+                alert("تم التحديث بنجاح! ✅");
             }
+
+
+        
+            
             document.getElementById('user-modal').style.display = 'none'; 
             loadAdminUsers(); 
             fetchManagers();
