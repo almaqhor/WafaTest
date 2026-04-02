@@ -4571,4 +4571,19 @@ app.post('/api/update-request', async (req, res) => {
     }
 });
 
+// مسار جلب شواغر SAP المتاحة (التي ليس لها موظف)
+app.get('/api/vacant-positions', async (req, res) => {
+    try {
+        const vacantPositions = await prisma.sapPosition.findMany({
+            where: { employeeId: null } // 🎯 الهدف: الشواغر الفارغة فقط
+        });
+        res.json(vacantPositions);
+    } catch (error) {
+        console.error("❌ خطأ في جلب شواغر SAP:", error);
+        res.status(500).json([]);
+    }
+});
+
+
+
 app.listen(process.env.PORT || 3000, '0.0.0.0', () => console.log(`🚀 السيرفر يعمل بنظام الرقابة الذكي والآمن!`));
