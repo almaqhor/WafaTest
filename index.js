@@ -4622,6 +4622,94 @@ app.post('/api/release-position', async (req, res) => {
         res.json({ success: false, message: 'الشاغر غير موجود مسبقاً في قاعدة بيانات الشواغر.' });
     }
 });
+app.post('/api/bulk-sync-users', async (req, res) => {
+    try {
+        const { usersData } = req.body;
+        let updatedCount = 0;
 
+        for (const row of usersData) {
+            // 1. تحديد الهدف (الرقم الوظيفي هو الأساس)
+            const username = String(row['الرقم الوظيفي'] || '').trim();
+            if (!username) continue; // تخطي السطر إذا لم يكن به رقم وظيفي
+
+            // 2. البحث عن الموظف في قاعدة البيانات
+            const existingUser = await prisma.employee.findUnique({
+                where: { username: username }
+            });
+
+            if (!existingUser) continue; // تخطي إذا لم يكن الموظف موجوداً
+
+            // 3. 🛡️ محرك التحديث الذكي (لا يضيف الحقل إلا إذا كان له قيمة في الإكسيل)
+            const updateData = {};
+            
+            // دالة مساعدة لفحص الخلية (ترجع true إذا كان فيها نص أو رقم)
+            const hasValue = (val) => val !== undefined && val !== null && String(val).trim() !== '';
+
+            // --- البيانات الشخصية ---
+            if (hasValue(row['الاسم'])) updateData.name = String(row['الاسم']);
+            if (hasValue(row['رقم الهوية'])) updateData.idNumber = String(row['رقم الهوية']);
+            if (hasValue(row['تاريخ انتهاء الهوية'])) updateData.idExpiry = String(row['تاريخ انتهاء الهوية']);
+            if (hasValue(row['الجنسية'])) updateData.nationality = String(row['الجنسية']);
+            if (hasValue(row['الجوال'])) updateData.phone = String(row['الجوال']);
+            if (hasValue(row['المدينة'])) updateData.city = String(row['المدينة']);
+            if (hasValue(row['العنوان الوطني'])) updateData.splAddress = String(row['العنوان الوطني']);
+
+            // --- البيانات الوظيفية ---
+            if (hasValue(row['تاريخ الالتحاق'])) updateData.joinDate = String(row['تاريخ الالتحاق']);
+            if (hasValue(row['الفرع'])) updateData.branch = String(row['الفرع']);
+            if (hasValue(row['المسمى الوظيفي'])) updateData.jobTitle = String(row['المسمى الوظيفي']);
+            if (hasValue(row['المرتبة'])) updateData.roleArabic = String(row['المرتبة']);
+            if (hasValue(row['المدير المباشر'])) updateData.directManager = String(row['المدير المباشر']);
+            
+            // تحويل الأرقام (أيام العمل)
+            if (hasValue(row['ايام العمل'])) updateData.workingDays = parseInt(row['ايام العمل'], 10);
+
+            // --- المالية (رواتب) ---
+            // نأخذ الرواتب الأساسية والبدلات، ونتجاهل عمود "إجمالي الراتب" لأنه يُحسب آلياً
+            if (hasValue(row['الراتب الاساسي'])) updateData.basicSalary = String(row['الراتب الاساسي']);
+            if (hasValue(row['بدل السكن'])) updateData.housingAllowance = String(row['بدل السكن']);
+            if (hasValue(row['بدلات اخرى'])) updateData.otherAllowance = String(row['بدلات اخرى']);
+            if (hasValue(row['الايبان'])) updateData.bankIban = String(row['الايبان']);
+
+            // --- يمكن إضافة باقي الحقول (مثل البلدية والطوارئ) بنفس النمط هنا ---
+
+            // 4. الضربة النهائية: التحديث فقط إذا كانت هناك حقول جديدة
+            if (Object.keys(updateData).length > 0) {
+                await prisma.employee.update({
+                    where: { id: existingUser.id },
+                    data: updateData
+                });
+                updatedCount++;
+            }
+            // 5. 🎯🎯🎯 تحديث عهدة SAP من الإكسيل (الدلع الاستراتيجي) 🎯🎯🎯
+            if (hasValue(row['رمز الشاغر'])) {
+                const excelPosCode = String(row['رمز الشاغر']).trim();
+                
+                // استخدام تكتيك upsert للشاغر
+                await prisma.sapPosition.upsert({
+                    where: { positionCode: excelPosCode },
+                    update: { 
+                        employeeId: existingUser.id, // ربط الموظف بالشاغر
+                        jobTitle: updateData.jobTitle || existingUser.jobTitle || 'غير محدد',
+                        branch: updateData.branch || existingUser.branch || 'غير محدد'
+                    },
+                    create: {
+                        positionCode: excelPosCode,
+                        employeeId: existingUser.id,
+                        jobTitle: updateData.jobTitle || existingUser.jobTitle || 'غير محدد',
+                        branch: updateData.branch || existingUser.branch || 'غير محدد'
+                    }
+                });
+            }
+        }
+
+        // 5. إرسال تقرير النصر
+        res.json({ success: true, message: `تم تحديث بيانات ${updatedCount} موظف من الإكسيل.` });
+
+    } catch (error) {
+        console.error("❌ خطأ في التحديث الشامل من الإكسيل:", error);
+        res.status(500).json({ success: false, message: "حدث خطأ في السيرفر أثناء معالجة الإكسيل." });
+    }
+});
 
 app.listen(process.env.PORT || 3000, '0.0.0.0', () => console.log(`🚀 السيرفر يعمل بنظام الرقابة الذكي والآمن!`));
