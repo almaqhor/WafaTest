@@ -747,18 +747,35 @@ app.post('/api/user-update', async (req, res) => {
         });
         // 🎯🎯🎯 [إدارة عهدة SAP (الشاغر الوظيفي)] 🎯🎯🎯
         if (!newIsActive) {
-            // 1. إذا تم طي قيده: نُحرر الشاغر بضربه واحدة
+         // 🎯🎯🎯 [إدارة عهدة SAP (الشاغر الوظيفي)] 🎯🎯🎯
+        if (!newIsActive) {
+            // 1. فك الارتباط من أي شاغر مسجل باسم الموظف
             await prisma.sapPosition.updateMany({ 
                 where: { employeeId: user.id }, 
                 data: { employeeId: null }      
             });
+
+            // 2. 🛡️ تكتيك الاسترداد الذكي (للموظفين القدامى): 
+            // إذا كان الموظف لديه كود SAP في الواجهة ولم يُسجل في الجدول الجديد مسبقاً، 
+            // نقوم بإنشائه فوراً كشاغر "متاح" (null) لكي يظهر في الرادار!
+            if (currentPositionCode && currentPositionCode.trim() !== '') {
+                await prisma.sapPosition.upsert({
+                    where: { positionCode: currentPositionCode.trim() },
+                    update: { employeeId: null }, // نتأكد من سحب العهدة
+                    create: {
+                        positionCode: currentPositionCode.trim(),
+                        employeeId: null, // 👈 السر هنا: ننشئه بدون مالك ليظهر في الاحتياج
+                        jobTitle: updateData.jobTitle || user.jobTitle || 'غير محدد',
+                        branch: updateData.branch || user.branch || 'غير محدد'
+                    }
+                });
+            }
         } else if (currentPositionCode && currentPositionCode.trim() !== '') {
-            // 2. إذا كان على رأس العمل وهناك كود مدخل: نقوم بتسليمه الشاغر
-            // تكتيك upsert: إذا كان الشاغر موجوداً نحدثه، وإذا لم يكن موجوداً ننشئه!
+            // 3. (نفس الكود السابق للموظف النشط)
             await prisma.sapPosition.upsert({
                 where: { positionCode: currentPositionCode.trim() },
                 update: { 
-                    employeeId: user.id, // ربط الموظف بالشاغر
+                    employeeId: user.id, 
                     jobTitle: updateData.jobTitle || user.jobTitle,
                     branch: updateData.branch || user.branch
                 },
