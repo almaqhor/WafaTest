@@ -5476,106 +5476,111 @@ function searchHistoryManual() {
         }
 
 
-       // 📊 تحديث دالة التصدير لتوليد (مصفوفة الإكسيل) المتقدمة مع حماية الذاكرة
-        function exportAttendanceToCSV() { 
-            const fromDate = document.getElementById('att-filter-from').value;
-            const toDate = document.getElementById('att-filter-to').value;
-            const branch = document.getElementById('att-filter-branch').value;
-            const code = document.getElementById('att-filter-code').value;
-            const empStr = document.getElementById('att-filter-emp').value.trim().toLowerCase();
+       function exportAttendanceToCSV() { 
+    const fromDate = document.getElementById('att-filter-from').value;
+    const toDate = document.getElementById('att-filter-to').value;
+    const branch = document.getElementById('att-filter-branch').value;
+    const code = document.getElementById('att-filter-code').value;
+    const empStr = document.getElementById('att-filter-emp').value.trim().toLowerCase();
 
+    // 🔥 جدار الحماية الإجباري للتواريخ 🔥
+    if (!fromDate || !toDate) {
+        return alert("🛑 يرجى تحديد فترة البيانات (من تاريخ / إلى تاريخ) أولاً لتسريع عملية السحب وتخفيف الحمل على النظام.");
+    }
 
-            // 🔥 الإبداع الخاص بك: جدار الحماية الإجباري للتواريخ 🔥
-            if (!fromDate || !toDate) {
-                return alert("🛑 يرجى تحديد فترة البيانات (من تاريخ / إلى تاريخ) أولاً لتسريع عملية السحب وتخفيف الحمل على النظام.");
-            }
+    // حماية إضافية: التأكد أن تاريخ البداية ليس أكبر من تاريخ النهاية
+    if (new Date(fromDate) > new Date(toDate)) {
+        return alert("🛑 خطأ منطقي: (من تاريخ) يجب أن يكون قبل أو يساوي (إلى تاريخ)!");
+    }
 
+    let filtered = allAttendanceData;
+    
+    // الفلترة صارت أسرع لأننا ضمنا وجود التواريخ
+    filtered = filtered.filter(a => a.date >= fromDate && a.date <= toDate);
+    
+    if(code) filtered = filtered.filter(a => a.code === code);
+    if(empStr) filtered = filtered.filter(a => a.username.includes(empStr) || (a.name && a.name.toLowerCase().includes(empStr)));
+    if(branch) filtered = filtered.filter(a => { const user = allUsersData.find(u => u.username === a.username); return user && user.branch === branch; });
 
-            // حماية إضافية: التأكد أن تاريخ البداية ليس أكبر من تاريخ النهاية
-            if (new Date(fromDate) > new Date(toDate)) {
-                return alert("🛑 خطأ منطقي: (من تاريخ) يجب أن يكون قبل أو يساوي (إلى تاريخ)!");
-            }
+    if(filtered.length === 0) return alert("لا توجد بيانات لتصديرها في هذه الفترة!");
 
+    // 1. استخراج التواريخ الفريدة وترتيبها تصاعدياً
+    const uniqueDates = [...new Set(filtered.map(a => a.date))].sort();
 
-            let filtered = allAttendanceData;
-            
-            // الفلترة صارت أسرع لأننا ضمنا وجود التواريخ
-            filtered = filtered.filter(a => a.date >= fromDate && a.date <= toDate);
-            
-            if(code) filtered = filtered.filter(a => a.code === code);
-            if(empStr) filtered = filtered.filter(a => a.username.includes(empStr) || (a.name && a.name.toLowerCase().includes(empStr)));
-            if(branch) filtered = filtered.filter(a => { const user = allUsersData.find(u => u.username === a.username); return user && user.branch === branch; });
-
-
-            if(filtered.length === 0) return alert("لا توجد بيانات لتصديرها في هذه الفترة!");
-
-
-            // 1. استخراج التواريخ الفريدة وترتيبها تصاعدياً (لتكون هي الأعمدة من C فما فوق)
-            const uniqueDates = [...new Set(filtered.map(a => a.date))].sort();
-
-
-            // 2. تجميع بيانات الموظفين (كل موظف يكون له سجل واحد يحتوي على كل أيامه)
-            const empMap = {};
-            filtered.forEach(a => {
-                if(!empMap[a.username]) {
-                    const user = allUsersData.find(u => u.username === a.username);
-                    empMap[a.username] = { name: user ? user.name : a.name, records: {} };
-                }
-                empMap[a.username].records[a.date] = a.code; // تخزين الحرف (D, V, A...) داخل التاريخ
-            });
-
-
-            // 3. بناء مصفوفة الإكسيل (Array of Arrays)
-            const aoa = [];
-            
-            // الصف الأول (ترويسة فخمة)
-            aoa.push(['تقرير الحضور والانصراف - مصفوفة الرواتب']);
-            
-            // الصف الثاني (معلومات الفلترة)
-            aoa.push([`الفرع: ${branch || 'الكل'}`, `من: ${fromDate}`, `إلى: ${toDate}`]);
-            
-            // الصف الثالث (عناوين الأعمدة: الرقم، الاسم، ثم التواريخ من C3 إلى ما لا نهاية)
-            const headers = ['الرقم الوظيفي', 'اسم الموظف', ...uniqueDates];
-            aoa.push(headers);
-
-
-            // الصف الرابع وما بعده (A4 و B4 للبيانات، و C4 للتحضير)
-            for (const username in empMap) {
-                const empData = empMap[username];
-                const row = [username, empData.name];
-                
-                // تعبئة حالة الموظف لكل تاريخ في الأعمدة الموازية
-                uniqueDates.forEach(date => {
-                    row.push(empData.records[date] || ''); // يترك فارغاً إذا لم يحضّره المدير في هذا اليوم
-                });
-                
-                aoa.push(row);
-            }
-
-
-            // 4. توليد ملف الإكسيل باستخدام مكتبة SheetJS
-            const ws = XLSX.utils.aoa_to_sheet(aoa);
-
-
-            // هندسة عرض الأعمدة (الاسم يكون عريض، والتواريخ تكون متساوية وأنيقة)
-            const wscols = [{wch: 15}, {wch: 30}]; // عرض عمود الرقم وعمود الاسم
-            uniqueDates.forEach(() => wscols.push({wch: 12})); // عرض أعمدة التواريخ
-            ws['!cols'] = wscols;
-
-
-            // توجيه الشيت ليكون من اليمين لليسار RTL ليتوافق مع اللغة العربية
-            if(!ws['!views']) ws['!views'] = [];
-            ws['!views'].push({ rightToLeft: true });
-
-
-            // إنشاء ملف العمل وحفظه بصيغة Excel الحقيقية (.xlsx)
-            const wb = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(wb, ws, "مسير التحضير");
-            
-            // اسم الملف أصبح يحمل تواريخ الفترة المسحوبة للترتيب في الأرشيف
-            const fileName = `مسير_الرواتب_من_${fromDate}_إلى_${toDate}.xlsx`;
-            XLSX.writeFile(wb, fileName);
+    // 2. تجميع بيانات الموظفين
+    const empMap = {};
+    filtered.forEach(a => {
+        if(!empMap[a.username]) {
+            const user = allUsersData.find(u => u.username === a.username);
+            empMap[a.username] = { name: user ? user.name : a.name, records: {} };
         }
+        empMap[a.username].records[a.date] = a.code; 
+    });
+
+    // 3. بناء مصفوفة الإكسيل (Array of Arrays)
+    const aoa = [];
+    
+    aoa.push(['تقرير الحضور والانصراف - مصفوفة الرواتب']);
+    aoa.push([`الفرع: ${branch || 'الكل'}`, `من: ${fromDate}`, `إلى: ${toDate}`]);
+    
+    // 🎯 الأكواد المراد إحصاؤها في النهاية
+    const summaryCodes = ['A', 'D', 'OFF', 'V', 'SL', 'LOP', 'R', 'T'];
+    
+    // إضافة "مجموع X" لكل كود في العناوين
+    const summaryHeaders = summaryCodes.map(c => `مجموع ${c}`);
+    const headers = ['الرقم الوظيفي', 'اسم الموظف', ...uniqueDates, ...summaryHeaders];
+    aoa.push(headers);
+
+    // الصف الرابع وما بعده
+    for (const username in empMap) {
+        const empData = empMap[username];
+        const row = [username, empData.name];
+        
+        // 🎯 عداد لتسجيل المجاميع لهذا الموظف
+        const counts = { A: 0, D: 0, OFF: 0, V: 0, SL: 0, LOP: 0, R: 0, T: 0 };
+        
+        // تعبئة حالة الموظف لكل تاريخ وإحصاؤها في نفس اللحظة
+        uniqueDates.forEach(date => {
+            const dayCode = empData.records[date] || '';
+            row.push(dayCode); // وضع الكود في يومه
+            
+            // إذا كان الكود ضمن قائمة الحساب، قم بزيادة العداد
+            if (counts[dayCode] !== undefined) {
+                counts[dayCode]++;
+            }
+        });
+        
+        // 🎯 تفريغ المجاميع في نهاية الصف بنفس ترتيب العناوين
+        summaryCodes.forEach(c => {
+            row.push(counts[c]); 
+        });
+        
+        aoa.push(row);
+    }
+
+    // 4. توليد ملف الإكسيل باستخدام مكتبة SheetJS
+    const ws = XLSX.utils.aoa_to_sheet(aoa);
+
+    // هندسة عرض الأعمدة
+    const wscols = [{wch: 15}, {wch: 30}]; // عرض عمود الرقم والاسم
+    uniqueDates.forEach(() => wscols.push({wch: 12})); // أعمدة التواريخ
+    
+    // 🎯 عرض أعمدة المجاميع (لتمييزها عن التواريخ نجعلها أصغر قليلاً)
+    summaryCodes.forEach(() => wscols.push({wch: 10})); 
+    
+    ws['!cols'] = wscols;
+
+    // توجيه الشيت من اليمين لليسار
+    if(!ws['!views']) ws['!views'] = [];
+    ws['!views'].push({ rightToLeft: true });
+
+    // إنشاء وحفظ الملف
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "مسير التحضير");
+    
+    const fileName = `مسير_الرواتب_من_${fromDate}_إلى_${toDate}.xlsx`;
+    XLSX.writeFile(wb, fileName);
+}
         // ========================================================================
         // ==================== قراءة مصفوفة الإكسيل للأرشيف (آلة الزمن الذكية) ====================
         function uploadHistoricalAttendanceExcel(event) {
