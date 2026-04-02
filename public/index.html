@@ -1748,6 +1748,7 @@
                     <div><label class="form-label">أيام العمل <span style="color:red;">*</span></label><input type="number" id="u-workingDays" value="6" min="1" max="7" style="width:100%; padding:8px; border-radius:5px; border:1px solid #ccc; font-family:inherit; box-sizing: border-box;" oninput="calculateOffDays()"></div>
                     <div><label class="form-label" style="color:#d35400;">أيام الراحة (تلقائي)</label><input type="number" id="u-offDays" value="1" style="width:100%; padding:8px; border-radius:5px; border:1px solid #ccc; font-family:inherit; box-sizing: border-box; background:#fef5e7;" readonly></div>
                     <div><label class="form-label">آخر يوم عمل</label><input type="date" id="u-lastWorkingDay" style="width:100%; padding:8px; border-radius:5px; border:1px solid #ccc; font-family:inherit; box-sizing: border-box;"></div>
+                    <div><label class="form-label">رمز الشاغر (SAP Position)</label><input type="text" id="u-positionCode" style="width:100%; padding:8px; border-radius:5px; border:1px solid #ccc; font-family:inherit; box-sizing: border-box;"></div>
                 </div>
             </div>
 
@@ -3344,8 +3345,10 @@ async function bulkResetPolicies() {
             document.getElementById('u-lastWorkingDay').value = u.lastWorkingDay || '';
             populateManagersDropdown(u.directManager); 
             populateDynamicDropdowns(u.jobTitle || '');
-            document.getElementById('u-positionCode').value = u.positionCode || ''; // جلب عهدة SAP
-            
+            const posCodeInput = document.getElementById('u-positionCode');
+            if (posCodeInput) {
+                posCodeInput.value = u.positionCode || ''; 
+            }            
             // تعبئة المالية
             document.getElementById('u-basicSalary').value = u.basicSalary || '0';
             document.getElementById('u-housingAllowance').value = u.housingAllowance || '0';
@@ -3395,8 +3398,7 @@ async function bulkResetPolicies() {
                 city: document.getElementById('u-city').value.trim(),
                 region: document.getElementById('u-region').value.trim(),
                 splAddress: document.getElementById('u-splAddress').value.trim(),
-                positionCode: document.getElementById('u-positionCode').value.trim(),
-                
+                positionCode: document.getElementById('u-positionCode') ? document.getElementById('u-positionCode').value.trim() : '',                
                 joinDate: document.getElementById('u-joinDate').value,
                 status: document.getElementById('u-status').value,
                 branch: document.getElementById('u-branch').value,
