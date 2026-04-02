@@ -488,7 +488,6 @@ const getRiyadhDateOnly = () => new Date().toLocaleDateString('en-CA', { timeZon
 
 
 // ==================== 🌟 1. جلب قائمة الموظفين من SQL 🌟 ====================
-// ==================== 🌟 1. جلب قائمة الموظفين من SQL 🌟 ====================
 app.get('/api/users', async (req, res) => {
     try {
         // 🛑 أوامر عسكرية صارمة للمتصفح: "ممنوع تخزين هذه البيانات في الذاكرة!"
@@ -497,12 +496,25 @@ app.get('/api/users', async (req, res) => {
         res.setHeader('Expires', '0');
         res.setHeader('Surrogate-Control', 'no-store');
 
+        // 1. الاستطلاع وجلب القوات من قواعد البيانات
         const users = await prisma.employee.findMany({
             where: { username: { not: 'admin' } }, // استبعاد الأدمن من القائمة
-            orderBy: { username: 'asc' } // ترتيب تصاعدي حسب الرقم الوظيفي
+            orderBy: { username: 'asc' },          // ترتيب تصاعدي حسب الرقم الوظيفي
+            include: { position: true }            // 👈 التكتيك الجديد: جلب عهدة SAP المرتبطة بالموظف
         });
         
-        res.json(users);
+        // 2. تنسيق البيانات (تمويه الواجهة لتعتقد أن الكود ما زال في جدول الموظف)
+        const formattedUsers = users.map(u => {
+            return {
+                ...u,
+                // استخراج كود الشاغر ووضعه في مكانه الصحيح للواجهة
+                positionCode: u.position ? u.position.positionCode : ''
+            };
+        });
+
+        // 3. إرسال القوات الجاهزة إلى الميدان
+        res.json(formattedUsers);
+        
     } catch (error) {
         console.error("❌ خطأ في جلب الموظفين من SQL:", error);
         res.status(500).json([]); // إرجاع مصفوفة فارغة لحماية الواجهة من الانهيار
@@ -733,12 +745,29 @@ app.post('/api/user-update', async (req, res) => {
             where: { id: user.id },
             data: updateData
         });
-        // 🎯🎯🎯 [عملية تجريد العهدة (تحرير الشاغر)] 🎯🎯🎯
-        // إذا تم طي قيد الموظف (استقال/أُنهيت خدماته)، نفصل الشاغر عنه ليعود لمستودع الاحتياج
+        // 🎯🎯🎯 [إدارة عهدة SAP (الشاغر الوظيفي)] 🎯🎯🎯
         if (!newIsActive) {
+            // 1. إذا تم طي قيده: نُحرر الشاغر بضربه واحدة
             await prisma.sapPosition.updateMany({ 
-                where: { employeeId: user.id }, // 👈 استخدمنا user.id الموجود في الدالة
-                data: { employeeId: null }      // 👈 تحرير الشاغر بضربة واحدة!
+                where: { employeeId: user.id }, 
+                data: { employeeId: null }      
+            });
+        } else if (currentPositionCode && currentPositionCode.trim() !== '') {
+            // 2. إذا كان على رأس العمل وهناك كود مدخل: نقوم بتسليمه الشاغر
+            // تكتيك upsert: إذا كان الشاغر موجوداً نحدثه، وإذا لم يكن موجوداً ننشئه!
+            await prisma.sapPosition.upsert({
+                where: { positionCode: currentPositionCode.trim() },
+                update: { 
+                    employeeId: user.id, // ربط الموظف بالشاغر
+                    jobTitle: updateData.jobTitle || user.jobTitle,
+                    branch: updateData.branch || user.branch
+                },
+                create: {
+                    positionCode: currentPositionCode.trim(),
+                    employeeId: user.id,
+                    jobTitle: updateData.jobTitle || user.jobTitle || 'غير محدد',
+                    branch: updateData.branch || user.branch || 'غير محدد'
+                }
             });
         }
 
