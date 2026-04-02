@@ -695,14 +695,39 @@ app.post('/api/user-update', async (req, res) => {
         updateData.isActive = newIsActive;
         
         // 🎯 تفريغ الكود في البيانات التي ستُرسل لقاعدة البيانات إذا كان مستقيلاً
-        if (!newIsActive) {
-            updateData.positionCode = ''; 
-        }
+       // if (!newIsActive) {
+          //  updateData.positionCode = ''; 
+      //  }
 
         // --- (نفس شفرة بوابة التنقية الشاملة التي لديك للـ Int و String و Float تبقى هنا كما هي) ---
         // أ) أيام العمل...
         // ب) الأموال...
         // ج) أرصدة الإجازات...
+        // 🛡️ بوابة التنقية الصارمة (تحويل النصوص إلى أرقام) 🛡️
+        
+        // 1. تحويل أيام العمل والراحة إلى أرقام صحيحة (Int)
+        if (updateData.workingDays !== undefined && updateData.workingDays !== '') {
+            updateData.workingDays = parseInt(updateData.workingDays, 10);
+        } else {
+            updateData.workingDays = null;
+        }
+
+        if (updateData.offDays !== undefined && updateData.offDays !== '') {
+            updateData.offDays = parseInt(updateData.offDays, 10);
+        } else {
+            updateData.offDays = null;
+        }
+
+        // 2. تحويل أرصدة الإجازات إلى أرقام عشرية (Float) لتجنب نفس الخطأ
+        if (updateData.leaveCredit !== undefined && updateData.leaveCredit !== '') {
+            updateData.leaveCredit = parseFloat(updateData.leaveCredit);
+        }
+        if (updateData.usedLeaves !== undefined && updateData.usedLeaves !== '') {
+            updateData.usedLeaves = parseFloat(updateData.usedLeaves);
+        }
+        if (updateData.leaveBalance !== undefined && updateData.leaveBalance !== '') {
+            updateData.leaveBalance = parseFloat(updateData.leaveBalance);
+        }
 
         await prisma.employee.update({
             where: { id: user.id },
