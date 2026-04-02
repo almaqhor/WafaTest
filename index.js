@@ -4599,7 +4599,29 @@ app.get('/api/vacant-positions', async (req, res) => {
         res.status(500).json([]);
     }
 });
+// 🎯 مسار القناص: وظيفته تحرير أي شاغر و إعادته للاحتياج
+app.post('/api/release-position', async (req, res) => {
+    try {
+        const { positionCode } = req.body;
 
+        if (!positionCode) {
+            return res.json({ success: false, message: 'لم يتم تمرير كود الشاغر' });
+        }
+
+        // ضربة مباشرة: اذهب لهذا الكود، واجعل الموظف التابع له NULL
+        await prisma.sapPosition.update({
+            where: { positionCode: String(positionCode).trim() },
+            data: { employeeId: null }
+        });
+
+        console.log(`✅ تم تحرير الشاغر ${positionCode} بنجاح وإعادته للاحتياج.`);
+        res.json({ success: true, message: 'تم تحرير الشاغر بنجاح' });
+
+    } catch (error) {
+        console.error('❌ خطأ في تحرير الشاغر:', error);
+        res.json({ success: false, message: 'الشاغر غير موجود مسبقاً في قاعدة بيانات الشواغر.' });
+    }
+});
 
 
 app.listen(process.env.PORT || 3000, '0.0.0.0', () => console.log(`🚀 السيرفر يعمل بنظام الرقابة الذكي والآمن!`));
