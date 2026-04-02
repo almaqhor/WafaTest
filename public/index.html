@@ -8927,38 +8927,42 @@ async function openBalancePenaltyModal(ticketId) {
         // ==================== دوال الفلترة والتبويبات للمقابلات والاحتياج ====================
         let currentCandStatus = 'pending';
         let branchTargets = {};
+        let vacantPositionsArray = []; // 🆕 متغير استراتيجي لتخزين الشواغر
 
         function switchCandTab(status) {
-    document.querySelectorAll('#interviews-view .tab-btn').forEach(b => b.classList.remove('active'));
-    event.currentTarget.classList.add('active');
-    currentCandStatus = status;
-    
-    // إخفاء جميع الشاشات أولاً (عملية مسح تكتيكي)
-    document.getElementById('candidates-tab-content').style.display = 'none';
-    document.getElementById('needs-tab-content').style.display = 'none';
-    document.getElementById('hr-reports-tab-content').style.display = 'none';
+            document.querySelectorAll('#interviews-view .tab-btn').forEach(b => b.classList.remove('active'));
+            event.currentTarget.classList.add('active');
+            currentCandStatus = status;
+            
+            // إخفاء جميع الشاشات أولاً (عملية مسح تكتيكي)
+            document.getElementById('candidates-tab-content').style.display = 'none';
+            document.getElementById('needs-tab-content').style.display = 'none';
+            document.getElementById('hr-reports-tab-content').style.display = 'none';
 
-    // توجيه القوات حسب التبويب المختار
-    if (status === 'needs') {
-        document.getElementById('needs-tab-content').style.display = 'block';
-        loadBranchNeeds(); 
-    } else if (status === 'hr-reports') {
-        document.getElementById('hr-reports-tab-content').style.display = 'block';
-        renderHrReport(); // 🚀 تشغيل محرك التقارير الجديد
-    } else {
-        document.getElementById('candidates-tab-content').style.display = 'block';
-        applyCandFilters(); 
-    }
-}
+            // توجيه القوات حسب التبويب المختار
+            if (status === 'needs') {
+                document.getElementById('needs-tab-content').style.display = 'block';
+                loadBranchNeeds(); 
+            } else if (status === 'hr-reports') {
+                document.getElementById('hr-reports-tab-content').style.display = 'block';
+                renderHrReport(); 
+            } else {
+                document.getElementById('candidates-tab-content').style.display = 'block';
+                applyCandFilters(); 
+            }
+        }
 
         async function loadBranchNeeds() {
             try {
                 // جلب الأهداف المحفوظة من السيرفر
                 branchTargets = await (await fetch('/api/branch-targets')).json();
                 
-                // التأكد من جلب الموظفين والفروع إذا لم تكن محملة
+                // التأكد من جلب الموظفين والفروع والشواغر إذا لم تكن محملة
                 if(allUsersData.length === 0) allUsersData = await (await fetch('/api/users')).json();
                 if(branchesArray.length === 0) branchesArray = await (await fetch('/api/branches')).json();
+                
+                // 🆕 إرسال طائرات الاستطلاع لجلب الشواغر الفارغة
+                vacantPositionsArray = await (await fetch('/api/vacant-positions')).json();
                 
                 renderBranchNeeds();
             } catch(e) { console.error("Error loading needs", e); }
@@ -8969,7 +8973,7 @@ async function openBalancePenaltyModal(ticketId) {
             
             let html = `
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
-                    <h4 style="color:#8e44ad; margin:0;"><i class="fas fa-chart-pie"></i> لوحة تحليل الاحتياج الوظيفي</h4>
+                    <h4 style="color:#8e44ad; margin:0;"><i class="fas fa-chart-pie"></i> لوحة تحليل الاحتياج الوظيفي وشواغر SAP</h4>
                     <button onclick="saveBranchTargets(event)" style="background:#8e44ad; color:white; border:none; padding:10px 20px; border-radius:5px; font-weight:bold; cursor:pointer; font-size:14px; box-shadow:0 4px 6px rgba(142,68,173,0.2);"><i class="fas fa-save"></i> حفظ تحديثات التشغيل</button>
                 </div>
                 <div style="overflow-x:auto;">
@@ -8980,25 +8984,23 @@ async function openBalancePenaltyModal(ticketId) {
                                 <th style="padding:15px; text-align:center; border-bottom:2px solid #8e44ad;">على رأس العمل (الحالي)</th>
                                 <th style="padding:15px; text-align:center; border-bottom:2px solid #8e44ad;">الاحتياج المعتمد (الهدف)</th>
                                 <th style="padding:15px; text-align:center; border-bottom:2px solid #8e44ad;">حالة الفرع</th>
+                                <th style="padding:15px; border-bottom:2px solid #8e44ad;">شواغر SAP المتاحة للتوظيف</th>
                             </tr>
                         </thead>
                         <tbody>
             `;
 
-            // الموظفون الذين هم على رأس العمل فقط
             const activeUsers = allUsersData.filter(u => u.status === 'in Duty');
             
-            // 🔥 السحر هنا: دمج الفروع من 3 مصادر مختلفة لضمان عدم ضياع أي فرع!
             let allSystemBranches = [
-                ...branchesArray, // من القائمة الثابتة
-                ...locationsArray.map(loc => loc.branch), // من الهيكل الجغرافي
-                ...activeUsers.map(u => u.branch) // من بيانات الموظفين الحاليين
+                ...branchesArray, 
+                ...locationsArray.map(loc => loc.branch), 
+                ...activeUsers.map(u => u.branch),
+                ...vacantPositionsArray.map(v => v.branch) // 🆕 إضافة الفروع التي بها شواغر فارغة لضمان ظهورها
             ];
             
-            // تصفية الفروع لإزالة التكرار والفراغات
             const uniqueBranches = [...new Set(allSystemBranches)].filter(b => b && b.trim() !== '');
 
-            // رسم الجدول بناءً على القائمة المدمجة
             uniqueBranches.forEach(branch => {
                 const currentCount = activeUsers.filter(u => u.branch === branch).length;
                 const targetCount = branchTargets[branch] || 0;
@@ -9013,6 +9015,20 @@ async function openBalancePenaltyModal(ticketId) {
                     statusHtml = `<span style="background:#f9f9f9; color:#7f8c8d; padding:6px 12px; border-radius:15px; font-weight:bold; font-size:12px; border:1px solid #ddd; display:inline-block; min-width:90px;"><i class="fas fa-check-circle"></i> مكتفي</span>`;
                 }
 
+                // 🎯 استخراج وتنسيق الشواغر الخاصة بهذا الفرع فقط
+                const branchVacancies = vacantPositionsArray.filter(v => v.branch === branch);
+                let vacanciesHtml = '';
+                if (branchVacancies.length > 0) {
+                    // تحويل كل شاغر إلى "بادج" أنيق يظهر الكود، وعند تمرير الماوس يظهر المسمى الوظيفي
+                    vacanciesHtml = branchVacancies.map(v => 
+                        `<span style="background:#f39c12; color:white; padding:4px 8px; border-radius:12px; font-size:11px; margin:2px; display:inline-block; cursor:help; box-shadow:0 2px 4px rgba(0,0,0,0.1);" title="المسمى: ${v.jobTitle}">
+                            <i class="fas fa-briefcase"></i> ${v.positionCode}
+                        </span>`
+                    ).join(' ');
+                } else {
+                    vacanciesHtml = `<span style="color:#bdc3c7; font-size:12px;">لا يوجد شواغر مسجلة</span>`;
+                }
+
                 html += `
                     <tr style="border-bottom:1px solid #eee;">
                         <td style="padding:15px; font-weight:bold; color:#2c3e50;"><i class="fas fa-store-alt" style="color:#bdc3c7; margin-left:5px;"></i> ${branch}</td>
@@ -9021,7 +9037,7 @@ async function openBalancePenaltyModal(ticketId) {
                             <input type="number" id="target-${branch}" value="${targetCount}" style="width:70px; text-align:center; font-weight:bold; font-size:16px; padding:8px; border-radius:5px; border:2px solid #ccc; outline:none; transition:0.3s;" onfocus="this.style.borderColor='#8e44ad'" onblur="this.style.borderColor='#ccc'">
                         </td>
                         <td style="padding:15px; text-align:center;">${statusHtml}</td>
-                    </tr>
+                        <td style="padding:15px;">${vacanciesHtml}</td> </tr>
                 `;
             });
 
