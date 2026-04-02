@@ -746,8 +746,7 @@ app.post('/api/user-update', async (req, res) => {
             data: updateData
         });
         // 🎯🎯🎯 [إدارة عهدة SAP (الشاغر الوظيفي)] 🎯🎯🎯
-        if (!newIsActive) {
-         // 🎯🎯🎯 [إدارة عهدة SAP (الشاغر الوظيفي)] 🎯🎯🎯
+
         if (!newIsActive) {
             // 1. فك الارتباط من أي شاغر مسجل باسم الموظف
             await prisma.sapPosition.updateMany({ 
