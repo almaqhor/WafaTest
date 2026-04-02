@@ -2670,12 +2670,13 @@ const res = await fetch('https://wafatest-production.up.railway.app/auth/v1/logi
                 return alert("🛑 التوقيع الإلكتروني إجباري. أدخل رقمك الوظيفي.");
             }
 
-            const managerData = managerTeamForPenalty.find(u => u.name === globalEmpName);
-            if (!managerData || !managerData.username) {
-                return alert("🛑 عطل فني: لم يتمكن النظام من جلب بياناتك لإجراء المطابقة.");
+            // 🛡️ التكتيك الجديد: التحقق المباشر من هوية الجليس الحالي
+            // ملاحظة: تأكد أن المتغير currentUsername هو الذي يحمل يوزر الشخص الذي سجل دخوله
+            if (!currentUsername) {
+                return alert("🛑 عطل فني: لم يتم التعرف على جلستك الحالية، يرجى تسجيل الدخول مجدداً.");
             }
 
-            if(signature !== managerData.username.toString()) {
+            if(signature !== currentUsername.toString()) {
                 return alert(`🛑 التوقيع الإلكتروني غير مطابق للرقم الوظيفي الصحيح.`);
             }
 
