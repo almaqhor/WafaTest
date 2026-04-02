@@ -65,6 +65,8 @@ model Employee {
   policyConfirmed    Boolean  @default(false)
   currentMainShift   String?
   currentPeriod      String?
+// 🔗 ربط الموظف بالشاغر المعين له
+  position         SapPosition?
   
   // العلاقات (Relations)
   // العلاقات (تأكد أنها موجودة لكي لا ينهار الربط)
@@ -222,4 +224,16 @@ model SystemConfig {
   id    Int    @id @default(autoincrement())
   key   String @unique // مثلاً: 'BRANCH_TARGETS'
   value String // نخزن فيها الـ JSON كنص
+}
+// 1️⃣ جدول الشواغر المستقل (الاحتياج)
+model SapPosition {
+  id           Int       @id @default(autoincrement())
+  positionCode String    @unique // رمز العهدة من SAP (مثال: POS-1055)
+  jobTitle     String    // المسمى الوظيفي للشاغر
+  branch       String    // الفرع التابع له
+
+  // 🔗 العلاقة الاستراتيجية مع الموظف
+  // إذا كانت القيمة null، فهذا يعني أن الشاغر "فارغ" وسيظهر في شاشة المقابلات
+  employeeId   Int?      @unique 
+  employee     Employee? @relation(fields: [employeeId], references: [id])
 }
