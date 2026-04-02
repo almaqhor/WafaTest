@@ -3623,7 +3623,62 @@ async function confirmTransferAction() {
             btn.innerHTML = originalText;
             btn.disabled = false;
         }
-        async function uploadExcelToServer(e) { if(!e.target.files[0]) return; const f = new FormData(); f.append('excelFile', e.target.files[0]); const status1 = document.getElementById('upload-status'); const status2 = document.getElementById('upload-status-users'); if(status1) status1.innerHTML = "<span style='color:orange'>⏳ جاري...</span>"; if(status2) status2.innerHTML = "<span style='color:orange'>⏳ جاري الاستيراد...</span>"; try { await fetch('/api/upload-users', { method:'POST', body:f }); if(status1) status1.innerHTML = "<span style='color:green'>✅ تم!</span>"; if(status2) status2.innerHTML = "<span style='color:green'>✅ تم!</span>"; loadAdminUsers(); fetchManagers(); setTimeout(() => { if(status2) status2.innerHTML = ""; if(status1) status1.innerHTML = ""; }, 4000); } catch (err) { if(status2) status2.innerHTML = "<span style='color:red'>❌ خطأ</span>"; } e.target.value = ''; }
+            async function uploadExcelToServer(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    // تشغيل إشارات الرادار (واجهة المستخدم)
+    const status1 = document.getElementById('upload-status');
+    const status2 = document.getElementById('upload-status-users');
+    if(status1) status1.innerHTML = "<span style='color:orange'><i class='fas fa-spinner fa-spin'></i> جاري تحليل الإكسيل...</span>";
+    if(status2) status2.innerHTML = "<span style='color:orange'><i class='fas fa-spinner fa-spin'></i> جاري الاستيراد...</span>";
+
+    const reader = new FileReader();
+    reader.onload = async function(e) {
+        try {
+            // 1. قراءة الملف باستخدام SheetJS
+            const data = new Uint8Array(e.target.result);
+            const workbook = XLSX.read(data, {type: 'array'});
+            const sheet = workbook.Sheets[workbook.SheetNames[0]];
+            
+            // 2. تحويل الشيت إلى JSON (مع الاحتفاظ بالخلايا الفارغة كفراغ لتجاهلها لاحقاً)
+            const excelRows = XLSX.utils.sheet_to_json(sheet, {defval: ""});
+
+            if(excelRows.length === 0) throw new Error("الملف فارغ!");
+
+            // 3. إرسال القوات (البيانات) للسيرفر
+            const response = await fetch('/api/bulk-sync-users', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ usersData: excelRows })
+            });
+
+            const res = await response.json();
+
+            // 4. تقرير المهمة
+            if (res.success) {
+                if(status1) status1.innerHTML = `<span style='color:green'>✅ ${res.message}</span>`;
+                if(status2) status2.innerHTML = `<span style='color:green'>✅ ${res.message}</span>`;
+                loadAdminUsers(); // تحديث الجدول
+                fetchManagers();
+            } else {
+                throw new Error(res.message);
+            }
+        } catch (err) {
+            if(status1) status1.innerHTML = `<span style='color:red'>❌ خطأ: ${err.message}</span>`;
+            if(status2) status2.innerHTML = `<span style='color:red'>❌ خطأ: ${err.message}</span>`;
+        } finally {
+            event.target.value = ''; // تصفير زر الرفع لضمان إمكانية رفع نفس الملف مرة أخرى
+            setTimeout(() => {
+                if(status2) status2.innerHTML = "";
+                if(status1) status1.innerHTML = "";
+            }, 5000);
+        }
+    };
+    reader.readAsArrayBuffer(file);
+}
+        
+        
         // ==================== محرك تصدير بيانات الموظفين (للأدمن فقط) ====================
         function exportUsersToExcel() {
             if (!allUsersData || allUsersData.length === 0) {
@@ -3637,7 +3692,7 @@ async function confirmTransferAction() {
                 "تاريخ الالتحاق", "الحالة الوظيفية", "الفرع", "القسم الرئيسي", "المسمى الوظيفي", "المرتبة", "المدير المباشر",
                 "ايام العمل", "الراتب الاساسي", "بدل السكن", "بدلات اخرى", "التامينات", "إجمالي الراتب", "اسم البنك", "الايبان",
                 "شركة التامين", "نوع التامين", "تاريخ انتهاء التامين", "كرت البلدية", "انتهاء كرت البلدية", "رسوم البلدية",
-                "اسم الطوارئ", "رقم الطوارئ", "صلة القرابة الطوارئ"
+                "اسم الطوارئ", "رقم الطوارئ", "صلة القرابة الطوارئ","رمز الشاغر"
             ];       
             const aoa = [headers]; // مصفوفة المصفوفات (Array of Arrays)
 
@@ -3692,7 +3747,8 @@ async function confirmTransferAction() {
         u.baladiyahFees || '0',
         u.emergencyName || '',
         u.emergencyNumber || '',
-        u.emergencyRelation || ''
+        u.emergencyRelation || '',
+        u.positionCode || '' // 👈 تمت الإضافة هنا
     ]);
             });
 
