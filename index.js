@@ -686,6 +686,12 @@ app.post('/api/user-update', async (req, res) => {
         const updateData = { ...req.body };
         delete updateData.oldUsername;
         delete updateData.byUser; 
+
+        const currentPositionCode = updateData.positionCode; 
+        
+        // ثم نمسحه تماماً من حقيبة الموظف حتى لا يغضب Prisma!
+        delete updateData.positionCode;
+        
         updateData.isActive = newIsActive;
         
         // 🎯 تفريغ الكود في البيانات التي ستُرسل لقاعدة البيانات إذا كان مستقيلاً
