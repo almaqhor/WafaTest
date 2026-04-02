@@ -702,6 +702,14 @@ app.post('/api/user-update', async (req, res) => {
             where: { id: user.id },
             data: updateData
         });
+        // 🎯🎯🎯 [عملية تجريد العهدة (تحرير الشاغر)] 🎯🎯🎯
+        // إذا تم طي قيد الموظف (استقال/أُنهيت خدماته)، نفصل الشاغر عنه ليعود لمستودع الاحتياج
+        if (!newIsActive) {
+            await prisma.sapPosition.updateMany({ 
+                where: { employeeId: user.id }, // 👈 استخدمنا user.id الموجود في الدالة
+                data: { employeeId: null }      // 👈 تحرير الشاغر بضربة واحدة!
+            });
+        }
 
         // 🎯 توثيق استرداد العهدة
         if (typeof safeLogAudit === 'function') {
