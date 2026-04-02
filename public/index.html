@@ -3289,6 +3289,7 @@ async function bulkResetPolicies() {
                 if(document.getElementById('u-otherAllowance')) document.getElementById('u-otherAllowance').value = '0';
                 if(document.getElementById('u-salaryE')) document.getElementById('u-salaryE').value = '0';
                 if(document.getElementById('u-leaveBalance')) document.getElementById('u-leaveBalance').value = '0';
+                document.getElementById('u-positionCode').value = ''; // تصفير عهدة SAP
 
 
                 populateManagersDropdown(''); 
@@ -3343,6 +3344,7 @@ async function bulkResetPolicies() {
             document.getElementById('u-lastWorkingDay').value = u.lastWorkingDay || '';
             populateManagersDropdown(u.directManager); 
             populateDynamicDropdowns(u.jobTitle || '');
+            document.getElementById('u-positionCode').value = u.positionCode || ''; // جلب عهدة SAP
             
             // تعبئة المالية
             document.getElementById('u-basicSalary').value = u.basicSalary || '0';
@@ -3393,6 +3395,7 @@ async function bulkResetPolicies() {
                 city: document.getElementById('u-city').value.trim(),
                 region: document.getElementById('u-region').value.trim(),
                 splAddress: document.getElementById('u-splAddress').value.trim(),
+                positionCode: document.getElementById('u-positionCode').value.trim(),
                 
                 joinDate: document.getElementById('u-joinDate').value,
                 status: document.getElementById('u-status').value,
