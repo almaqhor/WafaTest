@@ -2930,10 +2930,10 @@ app.post('/api/terminate-employee', async (req, res) => {
             }
         });
 
-        // 9. تصفير البلدية
-        let finalBaladiyahFee = user.baladiyahFees || 0;
+        // 9. تصفير البلدية (بصيغة نصية لحماية قاعدة البيانات)
+        let finalBaladiyahFee = user.baladiyahFees || "0";
         if (workedDaysForLeave >= 360) {
-            finalBaladiyahFee = 0;
+            finalBaladiyahFee = "0"; // 👈 التعديل هنا: وضعنا الصفر كنص
         }
 
         // 10. تحديث بيانات الموظف النهائية في SQL
@@ -2946,7 +2946,7 @@ app.post('/api/terminate-employee', async (req, res) => {
                 leaveCredit: parseFloat(credit.toFixed(3)),
                 usedLeaves: used,
                 leaveBalance: leaveBalance,
-                baladiyahFees: finalBaladiyahFee 
+                baladiyahFees: String(finalBaladiyahFee) // 👈 التعديل هنا: درع إضافي يجبر القيمة لتكون نصاً
             }
         });
 
