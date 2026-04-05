@@ -3932,48 +3932,39 @@ async function confirmTransferAction() {
     btn.disabled = false;
 }
 
-        async function loadEmployeeRequests(username) { 
-    try { 
-        // جلب البيانات من السيرفر
-        const reqs = await (await fetch('/api/my-requests', { 
-            method: 'POST', 
-            headers: {'Content-Type': 'application/json'}, 
-            body: JSON.stringify({ username: username, empUsername: username }) 
-        })).json(); 
+        async function loadEmployeeRequests(username) {
+    try {
+        const reqs = await (await fetch('/api/my-requests', {
+            method: 'POST', headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ username: username, empUsername: username })
+        })).json();
         
-        const listDiv = document.getElementById('my-requests-list'); 
+        const listDiv = document.getElementById('my-requests-list');
         
-        // ⚡ الفلتر التكتيكي: استبعاد الطلبات المكتملة (المغلقة) نهائياً من شاشة الموظف
-        const openRequests = reqs.filter(r => r.status !== 'completed');
+        // 🛡️ الجدار الناري للسرية: 
+        // استبعاد أي طلب تم تصعيده للموارد (يحتوي على تعليق تصعيد) ليختفي نهائياً من شاشة الموظف
+        const visibleReqs = reqs.filter(r => !r.escalationComment || r.escalationComment.trim() === '');
+        
+        // تصفية الطلبات المفتوحة فقط
+        const openRequests = visibleReqs.filter(r => r.status !== 'completed' && r.status !== 'rejected');
+        
+        if(openRequests.length === 0) {
+            listDiv.innerHTML = "<p style='color:#777; font-weight:bold; text-align:center; padding: 20px;'><i class='fas fa-inbox fa-2x' style='color:#ccc; margin-bottom:10px; display:block;'></i> لا توجد طلبات مفتوحة أو قيد المعالجة حالياً.</p>";
+            return;
+        }
 
-        // إذا لم يكن لديه طلبات مفتوحة
-        if(openRequests.length === 0) { 
-            listDiv.innerHTML = "<p style='color:#777; font-weight:bold; text-align:center; padding: 20px;'><i class='fas fa-inbox fa-2x' style='color:#ccc; margin-bottom:10px; display:block;'></i> لا توجد طلبات مفتوحة أو قيد المعالجة حالياً.</p>"; 
-            return; 
-        } 
-        
-        listDiv.innerHTML = openRequests.map(r => { 
-            // 🌟 المتغيرات الأساسية
+        listDiv.innerHTML = openRequests.map(r => {
             const trueId = r.ticketId || r.id;
             const safeReason = r.reason || r.type || 'طلب عام';
             const safeDate = r.date || r.createdAt || '';
-            const dt = r.details ? `<p style="margin:0 0 5px 0; font-size:13px; color:#555;"><strong>التفاصيل:</strong> ${r.details}</p>` : ''; 
+            const dt = r.details ? `<p style="margin:0 0 5px 0; font-size:13px; color:#555;"><strong>التفاصيل:</strong> ${r.details}</p>` : '';
             const attachLink = r.attachment ? `<a href="${r.attachment}" target="_blank" style="font-size:12px; color:#2980b9; display:inline-block; margin-bottom:5px; background:#e8f4fd; padding:3px 8px; border-radius:4px;"><i class="fas fa-paperclip"></i> عرض المرفق</a>` : '';
-            
-            // 1. حالة: قيد الانتظار عند المدير
-            if(r.status === 'pending') { 
-                return `<div class="request-item" style="border-right: 4px solid #f39c12; background:#fff;"><h4 style="margin:0 0 5px 0; color:#333;">${safeReason} <span style="font-size:10px; color:#999;">(${String(trueId).replace('REQ-','')})</span></h4>${dt}${attachLink}<br><span class="status-badge bg-pending" style="display:inline-block; margin-top:8px;"><i class="fas fa-hourglass-half"></i> قيد المعالجة (المدير)</span></div>`; 
-            } 
-            // 2. حالة: تم التصعيد للموارد البشرية
-            else if (r.status === 'escalated' || r.status.startsWith('hr_')) { 
-                return `<div class="request-item" style="border-right: 4px solid #8e44ad; background:#fcf9fe;"><h4 style="margin:0 0 5px 0; color:#333;">${safeReason} <span style="font-size:10px; color:#999;">(${String(trueId).replace('REQ-','')})</span></h4>${dt}${attachLink}<br><span class="status-badge" style="background:#8e44ad; display:inline-block; margin-top:8px;"><i class="fas fa-cogs"></i> مُحال للموارد البشرية وجاري الحل...</span></div>`; 
-            } 
-            // 3. حالة: تم الحل وبانتظار التقييم
-            else if (r.status === 'resolved') { 
-                let commentHtml = r.hrComment ? 
-                    `<div style="background:#f4ecf7; padding:10px; border-radius:5px; margin:10px 0; border-right: 3px solid #8e44ad;"><strong style="color:#8e44ad;"><i class="fas fa-user-shield"></i> رد الموارد:</strong> ${r.hrComment}</div>` : 
-                    `<div style="background:white; padding:10px; border-radius:5px; margin:10px 0; border-right: 3px solid #3498db; border: 1px solid #eee;"><strong style="color:#2980b9;"><i class="fas fa-user-tie"></i> رد الإدارة:</strong> ${r.managerComment || 'تم إنجاز الطلب.'}</div>`;
 
+            if(r.status === 'pending') {
+                return `<div class="request-item" style="border-right: 4px solid #f39c12; background:#fff;"><h4 style="margin:0 0 5px 0; color:#333;">${safeReason} <span style="font-size:10px; color:#999;">(${String(trueId).replace('REQ-','')})</span></h4>${dt}${attachLink}<br><span class="status-badge bg-pending" style="display:inline-block; margin-top:8px;"><i class="fas fa-hourglass-half"></i> قيد المعالجة (المدير)</span></div>`;
+            }
+            else if (r.status === 'resolved') {
+                let commentHtml = `<div style="background:white; padding:10px; border-radius:5px; margin:10px 0; border-right: 3px solid #3498db; border: 1px solid #eee;"><strong style="color:#2980b9;"><i class="fas fa-user-tie"></i> رد الإدارة:</strong> ${r.managerComment || 'تم إنجاز الطلب.'}</div>`;
                 return `<div class="request-item" style="border-right: 4px solid #3498db; background:#ebf5fb; box-shadow: 0 2px 5px rgba(0,0,0,0.05);">
                     <h4 style="margin:0 0 5px 0; color:#2980b9;">${safeReason} <span style="font-size:10px; color:#999;">(${String(trueId).replace('REQ-','')})</span></h4>
                     ${dt}${attachLink}
@@ -3993,12 +3984,12 @@ async function confirmTransferAction() {
                     <button style="background:#27ae60; color:white; border:none; padding:12px; border-radius:5px; cursor:pointer; font-weight:bold; width:100%; font-size:14px; box-shadow:0 2px 4px rgba(39, 174, 96, 0.3);" onclick="confirmClosure('${trueId}')">
                         <i class="fas fa-check-double"></i> تأكيد الإغلاق والتقييم
                     </button>
-                </div>`; 
-            } 
-        }).join(''); 
-    } catch(e) { 
+                </div>`;
+            }
+        }).join('');
+    } catch(e) {
         console.error("❌ خطأ في تحميل طلبات الموظف:", e);
-    } 
+    }
 }
 
 // ======================================================================
@@ -4076,18 +4067,23 @@ async function loadManagerRequests(managerName) {
     }
 }
 
-// ======================================================================
-// ⚔️ 2. رسم الطلبات النشطة (في ساحة المعركة requests-list)
-// ======================================================================
 function renderActiveRequests(reqs) {
     const listDiv = document.getElementById('requests-list');
     
-    if (reqs.length === 0) {
+    // 🛡️ فلترة الطلبات النشطة للمدير: إظهار التذاكر المعلقة، والمحالة، والتذاكر المصعدة التي تم حلها ليعتمدها
+    const activeReqs = reqs.filter(r => 
+        r.status === 'pending' || 
+        r.status === 'escalated' || 
+        r.status === 'hr_assigned' || 
+        (r.status === 'resolved' && r.escalationComment && r.escalationComment.trim() !== '')
+    );
+
+    if (activeReqs.length === 0) {
         listDiv.innerHTML = "<p style='color:#777; padding:15px; background:#f9f9f9; border-radius:5px;'><i class='fas fa-check-circle'></i> لا توجد طلبات جديدة معلقة حالياً.</p>";
         return;
     }
 
-    listDiv.innerHTML = reqs.map(r => {
+    listDiv.innerHTML = activeReqs.map(r => {
         const trueId = r.ticketId || r.id;
         const safeReason = r.reason || r.type || 'طلب عام';
         const empName = r.empName || 'موظف';
@@ -4095,7 +4091,7 @@ function renderActiveRequests(reqs) {
         const dt = r.details ? `<p style="font-size:13px; color:#555; margin:5px 0;"><strong>التفاصيل:</strong> ${r.details}</p>` : '';
         const attachLink = r.attachment ? `<a href="${r.attachment}" target="_blank" style="font-size:12px; color:#2980b9;"><i class="fas fa-paperclip"></i> عرض المرفق</a>` : '';
 
-        // إذا كان الطلب بانتظار قرار المدير
+        // 1. طلب جديد بانتظار قرار المدير
         if (r.status === 'pending') {
             return `<div style="border-right: 4px solid #f39c12; background:#fff; padding:15px; margin-bottom:15px; border-radius:8px; box-shadow:0 2px 5px rgba(0,0,0,0.05);">
                 <div style="display:flex; justify-content:space-between;">
@@ -4105,27 +4101,51 @@ function renderActiveRequests(reqs) {
                 <p style="margin:0 0 5px; font-size:13px; color:#333;"><i class="fas fa-user-tie"></i> <strong>الموظف:</strong> ${empName} (${empUser})</p>
                 ${dt}${attachLink}
                 <div style="margin-top:15px; display:flex; gap:10px;">
-                <button onclick="openEscalateModal('${trueId}', '${r.empName || 'الموظف'}')" style="flex:1; background:#8e44ad; color:white; border:none; padding:10px; border-radius:5px; cursor:pointer; font-weight:bold;">
-                    <i class="fas fa-level-up-alt"></i> إحالة إلى الموارد
-                </button>
-<textarea id="comment-${trueId}" placeholder="اكتب تعليقك وطريقة حل المشكلة هنا..." style="width:100%; padding:8px; border-radius:5px; border:1px solid #ccc; margin-bottom:10px; font-family:inherit;"></textarea>
-
-<button onclick="resolveRequest('${trueId}')" style="flex:1; background:#27ae60; color:white; border:none; padding:10px; border-radius:5px; cursor:pointer; font-weight:bold;">
-    <i class="fas fa-check-circle"></i> حل وإغلاق
-</button>
+                    <button onclick="openEscalateModal('${trueId}', '${r.empName || 'الموظف'}')" style="flex:1; background:#8e44ad; color:white; border:none; padding:10px; border-radius:5px; cursor:pointer; font-weight:bold;">
+                        <i class="fas fa-level-up-alt"></i> إحالة إلى الموارد
+                    </button>
+                    <textarea id="comment-${trueId}" placeholder="اكتب تعليقك وطريقة حل المشكلة هنا..." style="width:100%; padding:8px; border-radius:5px; border:1px solid #ccc; margin-bottom:10px; font-family:inherit;"></textarea>
+                    <button onclick="resolveRequest('${trueId}')" style="flex:1; background:#27ae60; color:white; border:none; padding:10px; border-radius:5px; cursor:pointer; font-weight:bold;">
+                        <i class="fas fa-check-circle"></i> حل وإغلاق
+                    </button>
                 </div>
             </div>`;
         } 
-        // إذا كان الطلب تمت الموافقة عليه وذهب للـ HR أو بانتظار تقييم الموظف
+        // 2. 🎯 السحر هنا: الطلب تم حله من الموارد وعاد للمدير
+        else if (r.status === 'resolved' && r.escalationComment && r.escalationComment.trim() !== '') {
+            return `<div style="border-right: 4px solid #8e44ad; background:#f4ecf7; padding:15px; margin-bottom:15px; border-radius:8px; box-shadow:0 2px 5px rgba(0,0,0,0.05);">
+                <div style="display:flex; justify-content:space-between;">
+                    <h4 style="margin:0 0 5px; color:#8e44ad;">${safeReason}</h4>
+                    <span style="font-size:11px; color:#999;">${String(trueId).replace('REQ-','')}</span>
+                </div>
+                <p style="margin:0 0 10px; font-size:13px;"><i class="fas fa-user"></i> <strong>الموظف:</strong> ${empName} (${empUser})</p>
+                <div style="background:#fff; padding:10px; border-radius:5px; margin-bottom:10px; border: 1px dashed #d2b4de;">
+                    <strong style="color:#8e44ad;"><i class="fas fa-user-shield"></i> إجراء الموارد البشرية:</strong> ${r.hrComment || 'تم الإنجاز.'}
+                </div>
+                <div style="background:#fdf2e9; padding:10px; border-radius:5px; margin-bottom:10px; border: 1px dashed #f39c12;">
+                    <label style="font-size:12px; font-weight:bold; color:#d35400; display:block; margin-bottom:5px;"><i class="fas fa-star"></i> تقييمك لرد الموارد:</label>
+                    <select id="rating-${trueId}" style="width:100%; padding:8px; border-radius:5px; font-family:inherit; border:1px solid #f39c12;">
+                        <option value="5">⭐⭐⭐⭐⭐ (ممتاز)</option>
+                        <option value="4">⭐⭐⭐⭐ (جيد جداً)</option>
+                        <option value="3">⭐⭐⭐ (جيد)</option>
+                        <option value="2">⭐⭐ (مقبول)</option>
+                        <option value="1">⭐ (سيء)</option>
+                    </select>
+                </div>
+                <button onclick="confirmClosure('${trueId}')" style="background:#8e44ad; color:white; border:none; padding:12px; border-radius:5px; cursor:pointer; font-weight:bold; width:100%; font-size:14px; box-shadow:0 2px 4px rgba(142, 68, 173, 0.3);">
+                    <i class="fas fa-check-double"></i> اعتماد رد الموارد وإغلاق الطلب نهائياً
+                </button>
+            </div>`;
+        }
+        // 3. قيد المعالجة لدى الموارد (للاطلاع فقط)
         else {
-            let statusBadge = r.status === 'resolved' ? 
-                `<span style="background:#3498db; color:white; padding:4px 8px; border-radius:4px; font-size:11px;"><i class="fas fa-star-half-alt"></i> بانتظار تقييم الموظف للحل</span>` : 
-                `<span style="background:#8e44ad; color:white; padding:4px 8px; border-radius:4px; font-size:11px;"><i class="fas fa-cogs"></i> قيد المعالجة لدى الموارد البشرية</span>`;
-
             return `<div style="border-right: 4px solid #95a5a6; background:#f4f6f7; padding:15px; margin-bottom:15px; border-radius:8px;">
-                <h4 style="margin:0 0 5px; color:#555;">${safeReason}</h4>
-                <p style="margin:0 0 10px; font-size:13px;"><i class="fas fa-user"></i> ${empName} (${empUser})</p>
-                ${statusBadge}
+                <div style="display:flex; justify-content:space-between;">
+                    <h4 style="margin:0 0 5px; color:#555;">${safeReason}</h4>
+                    <span style="font-size:11px; color:#999;">${String(trueId).replace('REQ-','')}</span>
+                </div>
+                <p style="margin:0 0 10px; font-size:13px;"><i class="fas fa-user"></i> <strong>الموظف:</strong> ${empName} (${empUser})</p>
+                <span style="background:#3498db; color:white; padding:4px 8px; border-radius:4px; font-size:11px;"><i class="fas fa-cogs"></i> قيد المعالجة لدى الموارد البشرية</span>
             </div>`;
         }
     }).join('');
