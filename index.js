@@ -563,67 +563,76 @@ app.get('/api/users-log', async (req, res) => {
     }
 });
 // ======================================================================
-// 🎓 تحويل المرشح المقبول إلى موظف رسمي (إصدار العرض)
-// ======================================================================
+
 app.post('/api/user-add', async (req, res) => {
     try {
-        const data = req.body;
+        const username = req.body.username;
 
-        const existingUser = await prisma.employee.findUnique({
-            where: { username: String(data.username) }
+        // 1. التحقق من عدم تكرار الرقم الوظيفي
+        const exists = await prisma.employee.findFirst({
+            where: { username: String(username) }
         });
+        if (exists) return res.json({ success: false, message: 'المستخدم موجود مسبقاً!' });
 
-        if (existingUser) {
-            return res.json({ success: false, message: 'رقم الموظف موجود مسبقاً في النظام' });
+        // 2. تجهيز البيانات للحفظ
+        const userData = { ...req.body };
+        
+        // 🎯 التقاط عهدة SAP (الكود) ثم حذفه من حقيبة الموظف حتى لا تغضب Prisma!
+        const positionCodeToAssign = userData.positionCode;
+        delete userData.positionCode; 
+
+        // 🛡️ بوابة التنقية: تحويل النصوص إلى أرقام لتجنب أخطاء الأنواع
+        if (userData.workingDays !== undefined && userData.workingDays !== '') {
+            userData.workingDays = parseInt(userData.workingDays, 10);
+        } else {
+            userData.workingDays = null;
         }
 
+        if (userData.offDays !== undefined && userData.offDays !== '') {
+            userData.offDays = parseInt(userData.offDays, 10);
+        } else {
+            userData.offDays = null;
+        }
+
+        if (userData.leaveCredit !== undefined && userData.leaveCredit !== '') {
+            userData.leaveCredit = parseFloat(userData.leaveCredit);
+        }
+        if (userData.usedLeaves !== undefined && userData.usedLeaves !== '') {
+            userData.usedLeaves = parseFloat(userData.usedLeaves);
+        }
+        if (userData.leaveBalance !== undefined && userData.leaveBalance !== '') {
+            userData.leaveBalance = parseFloat(userData.leaveBalance);
+        }
+
+        // 3. الضربة الأولى: إنشاء الموظف في قاعدة البيانات
         const newUser = await prisma.employee.create({
-            data: {
-                username: String(data.username),
-                name: String(data.name),
-                password: String(data.password || '123456'),
-                idNumber: String(data.idNumber || ''),
-                city: String(data.city || ''),
-                branch: String(data.branch || ''),
-                jobTitle: String(data.jobTitle || ''),
-                role: data.roleArabic === 'ادمن' ? 'admin' : 'user',
-                roleArabic: String(data.roleArabic || 'موظف'),
-                positionCode: String(data.positionCode || ''), // 🆕 ربط عهدة SAP
-                
-                // ⚠️ (ملاحظة: إذا كانت الرواتب والبدلات لديك في Schema من نوع Int، استبدل String بـ Number هنا أيضاً)
-                basicSalary: String(data.basicSalary || '0'), 
-                housingAllowance: String(data.housingAllowance || '0'),
-                otherAllowance: String(data.otherAllowance || '0'),
-                
-                // 🛠️ تفكيك اللغم: تحويل القيم النصية إلى أرقام صحيحة (Int) لترضي Prisma
-                workingDays: parseInt(data.workingDays || 6),
-                offDays: parseInt(data.offDays || 1),
-                
-                isActive: data.isActive !== undefined ? data.isActive : false,
-                policyConfirmed: data.policyConfirmed !== undefined ? data.policyConfirmed : false,
-                status: String(data.status || 'Job Offer'),
-                
-                lastLogin: 'لم يسجل دخول بعد'
-            }
+            data: userData
         });
 
-        if (data.idNumber) {
-             await prisma.recruitment.updateMany({
-                 where: { idNumber: String(data.idNumber) },
-                 data: { status: 'offered' }
-             });
+        // 4. الضربة الثانية: تسكين الموظف الجديد على الشاغر (إذا تم إدخال رمز شاغر)
+        if (positionCodeToAssign && positionCodeToAssign.trim() !== '') {
+            await prisma.sapPosition.upsert({
+                where: { positionCode: positionCodeToAssign.trim() },
+                update: { 
+                    employeeId: newUser.id,
+                    jobTitle: newUser.jobTitle || 'غير محدد',
+                    branch: newUser.branch || 'غير محدد'
+                },
+                create: {
+                    positionCode: positionCodeToAssign.trim(),
+                    employeeId: newUser.id,
+                    jobTitle: newUser.jobTitle || 'غير محدد',
+                    branch: newUser.branch || 'غير محدد'
+                }
+            });
         }
 
-        // 🛡️ حماية إضافية لدالة السجل حتى لا تكسر العملية إذا لم تكن موجودة
-        if (typeof safeLogAudit === 'function') {
-            safeLogAudit(data.byUser || 'النظام', 'إصدار عرض وظيفي', `${data.name} (${data.username})`, `SQL ATS`);
-        }
-
-        res.json({ success: true, message: 'تم حفظ العرض الوظيفي وإنشاء ملف الموظف بنجاح' });
+        console.log(`✅ تم إضافة الموظف الجديد: ${username}`);
+        res.json({ success: true, message: 'تم الإضافة بنجاح' });
 
     } catch (error) {
         console.error('❌ خطأ في إضافة المستخدم لـ SQL:', error);
-        res.status(500).json({ success: false, message: 'حدث خطأ في السيرفر أثناء تسجيل الموظف.' });
+        res.json({ success: false, message: 'حدث خطأ تقني أثناء الإضافة.' });
     }
 });
 
