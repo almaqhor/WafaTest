@@ -10533,7 +10533,7 @@ async function uploadComprehensiveUsersExcel(event) {
     };
     reader.readAsArrayBuffer(file);
 }
-// ==================== 🎯 بطاقة صحة الفرع للمدير المباشر ====================
+
 async function loadManagerHealthCard() {
     const container = document.getElementById('manager-health-card-container');
     if(!container) return;
@@ -10541,13 +10541,12 @@ async function loadManagerHealthCard() {
     container.innerHTML = '<div style="text-align:center; padding:20px;"><i class="fas fa-spinner fa-spin fa-2x" style="color:#3498db;"></i><br><span style="color:#555; font-weight:bold; margin-top:10px; display:inline-block;">جاري تشخيص صحة الفرع لهذا الشهر...</span></div>';
 
     try {
-        // 1. صائد الفرع الذكي (نبحث عن الفرع في عدة أماكن محتملة في نظامك)
+        // 1. صائد الفرع الذكي
         let myBranch = '';
         if (typeof globalEmpBranch !== 'undefined' && globalEmpBranch) myBranch = globalEmpBranch;
         else if (localStorage.getItem('empBranch')) myBranch = localStorage.getItem('empBranch');
         else if (typeof currentUser !== 'undefined' && currentUser && currentUser.branch) myBranch = currentUser.branch;
 
-        // 🛑 إذا لم نجد الفرع، نظهر رسالة بدلاً من الاختفاء الصامت
         if(!myBranch) {
             console.warn("لم يتم التعرف على فرع المدير!");
             container.innerHTML = `
@@ -10557,7 +10556,7 @@ async function loadManagerHealthCard() {
             return;
         }
 
-        // 2. جلب البيانات الأساسية بأمان
+        // 2. جلب البيانات الأساسية
         if(!allUsersData || allUsersData.length === 0) allUsersData = await (await fetch('/api/users')).json() || [];
         if(!allAttendanceData || allAttendanceData.length === 0) allAttendanceData = await (await fetch('/api/all-attendance')).json() || [];
         
@@ -10571,7 +10570,7 @@ async function loadManagerHealthCard() {
             if(penRes.ok) myPenalties = await penRes.json();
         } catch(e) {}
 
-        // 3. التوجيه الزمني الدقيق (الشهر الحالي والشهر السابق آلياً)
+        // 3. التوجيه الزمني
         const now = new Date();
         const y = now.getFullYear();
         const m = now.getMonth() + 1; 
@@ -10586,7 +10585,7 @@ async function loadManagerHealthCard() {
         const prevStartStr = new Date(prevStart.getTime() - (prevStart.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
         const prevEndStr = new Date(prevEnd.getTime() - (prevEnd.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
 
-        // 4. خوارزمية الحساب الصارمة
+        // 4. خوارزمية الحساب الصارمة (لصحة الفرع)
         const calcMonthScore = (mStart, mEnd) => {
             const bUsers = allUsersData.filter(u => u.branch === myBranch);
             const bUsernames = bUsers.map(u => String(u.username));
@@ -10625,10 +10624,45 @@ async function loadManagerHealthCard() {
         const curr = calcMonthScore(currStartStr, currEndStr);
         const prev = calcMonthScore(prevStartStr, prevEndStr);
 
-        // 5. هندسة الواجهة البصرية (UI)
-        let color = '#2ecc71'; let icon = 'fa-smile-beam';
-        if(curr.score < 85) { color = '#f1c40f'; icon = 'fa-meh'; }
-        if(curr.score < 70) { color = '#e74c3c'; icon = 'fa-frown'; }
+        // ========================================================
+        // 🎯 5. محرك استخبارات الشهر الماضي (أعلى 3 موظفين نشطين)
+        // ========================================================
+        const activeBranchUsers = allUsersData.filter(u => u.branch === myBranch && (u.status === 'in Duty' || u.status === 'Job Offer'));
+        const activeUsernames = activeBranchUsers.map(u => String(u.username));
+        const empStats = {};
+        
+        activeBranchUsers.forEach(u => { empStats[u.username] = { name: u.name.split(' ').slice(0,2).join(' '), absCount: 0, sickCount: 0, penCount: 0 }; });
+
+        allAttendanceData.forEach(a => {
+            if (a.date >= prevStartStr && a.date <= prevEndStr && activeUsernames.includes(String(a.username))) {
+                if (a.code === 'A' || a.code === 'D') empStats[a.username].absCount++;
+                if (a.code === 'SL') empStats[a.username].sickCount++;
+            }
+        });
+
+        myPenalties.forEach(p => {
+            if (p.violationDate >= prevStartStr && p.violationDate <= prevEndStr && activeUsernames.includes(String(p.empUsername))) {
+                if ((p.status.includes('معتمدة') || p.status.includes('مغلقة')) && !p.category.includes('الغياب')) {
+                    empStats[p.empUsername].penCount++;
+                }
+            }
+        });
+
+        const statsArray = Object.values(empStats);
+        const topAbs = statsArray.filter(x => x.absCount > 0).sort((a,b) => b.absCount - a.absCount).slice(0,3);
+        const topSick = statsArray.filter(x => x.sickCount > 0).sort((a,b) => b.sickCount - a.sickCount).slice(0,3);
+        const topPen = statsArray.filter(x => x.penCount > 0).sort((a,b) => b.penCount - a.penCount).slice(0,3);
+
+        const renderList = (arr, type) => {
+            if(arr.length === 0) return '<div style="font-size:11px; color:#95a5a6; padding:5px;">لا يوجد سجلات</div>';
+            return arr.map(x => `<div style="font-size:12px; margin-bottom:4px; border-bottom:1px solid rgba(0,0,0,0.05); padding-bottom:2px;">• ${x.name} <span style="float:left; font-weight:bold; color:${type==='abs'?'#c0392b':type==='sick'?'#8e44ad':'#d35400'};">${type==='abs'?x.absCount:type==='sick'?x.sickCount:x.penCount}</span></div>`).join('');
+        };
+        // ========================================================
+
+        // 6. هندسة الواجهة البصرية (UI)
+        let color = '#2ecc71'; 
+        if(curr.score < 85) color = '#f1c40f'; 
+        if(curr.score < 70) color = '#e74c3c'; 
 
         const diff = (curr.score - prev.score).toFixed(1);
         let trendHtml = '';
@@ -10639,34 +10673,55 @@ async function loadManagerHealthCard() {
         container.innerHTML = `
         <div style="background:white; border-radius:12px; box-shadow:0 4px 15px rgba(0,0,0,0.05); border:1px solid #eee; overflow:hidden; display:flex; flex-direction:column; position:relative;">
             <div style="position:absolute; top:0; right:0; width:6px; height:100%; background:${color};"></div>
-            <div style="padding:20px; display:flex; flex-wrap:wrap; gap:20px; align-items:center;">
-                <div style="flex:1; text-align:center; min-width:180px; border-left:1px dashed #eee; padding-left:15px;">
-                    <h3 style="margin:0 0 5px 0; font-size:16px; color:#2c3e50;"><i class="fas fa-heartbeat" style="color:${color};"></i> صحة الفرع (${myBranch})</h3>
-                    <div style="font-size:11px; color:#7f8c8d; margin-bottom:10px;">${currStartStr} إلى ${currEndStr}</div>
-                    <div style="font-size:55px; font-weight:900; color:${color}; line-height:1; text-shadow:1px 1px 2px rgba(0,0,0,0.1); direction:ltr;">
-                        ${curr.score}%
+            <div style="padding:20px;">
+                <div style="display:flex; flex-wrap:wrap; gap:20px; align-items:center;">
+                    <div style="flex:1; text-align:center; min-width:180px; border-left:1px dashed #eee; padding-left:15px;">
+                        <h3 style="margin:0 0 5px 0; font-size:16px; color:#2c3e50;"><i class="fas fa-heartbeat" style="color:${color};"></i> صحة الفرع (${myBranch})</h3>
+                        <div style="font-size:11px; color:#7f8c8d; margin-bottom:10px;">${currStartStr} إلى ${currEndStr}</div>
+                        <div style="font-size:55px; font-weight:900; color:${color}; line-height:1; text-shadow:1px 1px 2px rgba(0,0,0,0.1); direction:ltr;">
+                            ${curr.score}%
+                        </div>
+                        <div style="margin-top:10px;">${trendHtml}</div>
                     </div>
-                    <div style="margin-top:10px;">${trendHtml}</div>
+                    
+                    <div style="flex:2; display:grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap:10px;">
+                        <div style="background:#fcfcfc; padding:12px; border-radius:8px; text-align:center; border:1px solid #f0f0f0;">
+                            <div style="color:#7f8c8d; font-size:11px; font-weight:bold; margin-bottom:5px;"><i class="fas fa-user-times"></i> غياب الشهر</div>
+                            <div style="font-size:20px; font-weight:bold; color:#d35400;">${curr.aCount} <span style="font-size:11px; font-weight:normal; color:#555;">يوم</span></div>
+                        </div>
+                        <div style="background:#fcfcfc; padding:12px; border-radius:8px; text-align:center; border:1px solid #f0f0f0;">
+                            <div style="color:#7f8c8d; font-size:11px; font-weight:bold; margin-bottom:5px;"><i class="fas fa-procedures"></i> مرضي الشهر</div>
+                            <div style="font-size:20px; font-weight:bold; color:#8e44ad;">${curr.slCount} <span style="font-size:11px; font-weight:normal; color:#555;">يوم</span></div>
+                        </div>
+                        <div style="background:#fcfcfc; padding:12px; border-radius:8px; text-align:center; border:1px solid #f0f0f0;">
+                            <div style="color:#7f8c8d; font-size:11px; font-weight:bold; margin-bottom:5px;"><i class="fas fa-sign-out-alt"></i> استقالات</div>
+                            <div style="font-size:20px; font-weight:bold; color:#e74c3c;">${curr.rCount} <span style="font-size:11px; font-weight:normal; color:#555;">موظف</span></div>
+                        </div>
+                        <div style="background:#fdf2e9; padding:12px; border-radius:8px; text-align:center; border:1px solid #fad7a1;">
+                            <div style="color:#d35400; font-size:11px; font-weight:bold; margin-bottom:5px;"><i class="fas fa-exclamation-triangle"></i> نزيف النقاط</div>
+                            <div style="font-size:20px; font-weight:bold; color:#c0392b;">${curr.deductions.toFixed(1)} <span style="font-size:11px; font-weight:normal;">نقطة</span></div>
+                        </div>
+                    </div>
                 </div>
-                
-                <div style="flex:2; display:grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap:10px;">
-                    <div style="background:#fcfcfc; padding:12px; border-radius:8px; text-align:center; border:1px solid #f0f0f0;">
-                        <div style="color:#7f8c8d; font-size:11px; font-weight:bold; margin-bottom:5px;"><i class="fas fa-user-times"></i> غياب الشهر</div>
-                        <div style="font-size:20px; font-weight:bold; color:#d35400;">${curr.aCount} <span style="font-size:11px; font-weight:normal; color:#555;">يوم</span></div>
-                    </div>
-                    <div style="background:#fcfcfc; padding:12px; border-radius:8px; text-align:center; border:1px solid #f0f0f0;">
-                        <div style="color:#7f8c8d; font-size:11px; font-weight:bold; margin-bottom:5px;"><i class="fas fa-procedures"></i> مرضي الشهر</div>
-                        <div style="font-size:20px; font-weight:bold; color:#8e44ad;">${curr.slCount} <span style="font-size:11px; font-weight:normal; color:#555;">يوم</span></div>
-                    </div>
-                    <div style="background:#fcfcfc; padding:12px; border-radius:8px; text-align:center; border:1px solid #f0f0f0;">
-                        <div style="color:#7f8c8d; font-size:11px; font-weight:bold; margin-bottom:5px;"><i class="fas fa-sign-out-alt"></i> استقالات</div>
-                        <div style="font-size:20px; font-weight:bold; color:#e74c3c;">${curr.rCount} <span style="font-size:11px; font-weight:normal; color:#555;">موظف</span></div>
-                    </div>
-                    <div style="background:#fdf2e9; padding:12px; border-radius:8px; text-align:center; border:1px solid #fad7a1;">
-                        <div style="color:#d35400; font-size:11px; font-weight:bold; margin-bottom:5px;"><i class="fas fa-exclamation-triangle"></i> نزيف النقاط</div>
-                        <div style="font-size:20px; font-weight:bold; color:#c0392b;">${curr.deductions.toFixed(1)} <span style="font-size:11px; font-weight:normal;">نقطة</span></div>
+
+                <div style="margin-top: 20px; padding-top: 15px; border-top: 1px dashed #ddd;">
+                    <h4 style="margin: 0 0 10px 0; font-size: 13px; color: #34495e;"><i class="fas fa-search-chart"></i> استخبارات الشهر الماضي (${prevStartStr.substring(0,7)}) - <span style="font-size:10px; color:#7f8c8d;">للموظفين على رأس العمل</span></h4>
+                    <div style="display: flex; flex-wrap: wrap; gap: 10px;">
+                        <div style="flex: 1; min-width: 140px; background: #fdf2e9; padding: 10px; border-radius: 6px; border: 1px solid #fae5d3;">
+                            <div style="font-size: 11px; font-weight: bold; color: #c0392b; margin-bottom: 8px;"><i class="fas fa-user-times"></i> أعلى غيابات</div>
+                            ${renderList(topAbs, 'abs')}
+                        </div>
+                        <div style="flex: 1; min-width: 140px; background: #f4ecf7; padding: 10px; border-radius: 6px; border: 1px solid #ebdef0;">
+                            <div style="font-size: 11px; font-weight: bold; color: #8e44ad; margin-bottom: 8px;"><i class="fas fa-procedures"></i> إجازات مرضية متكررة</div>
+                            ${renderList(topSick, 'sick')}
+                        </div>
+                        <div style="flex: 1; min-width: 140px; background: #fcf3cf; padding: 10px; border-radius: 6px; border: 1px solid #f9e79f;">
+                            <div style="font-size: 11px; font-weight: bold; color: #d35400; margin-bottom: 8px;"><i class="fas fa-exclamation-circle"></i> مخالفات سلوكية</div>
+                            ${renderList(topPen, 'pen')}
+                        </div>
                     </div>
                 </div>
+
             </div>
         </div>
         `;
@@ -10675,6 +10730,7 @@ async function loadManagerHealthCard() {
         container.innerHTML = `<div style="color:#c0392b; text-align:center; padding:10px; background:#fdedec; border-radius:5px; font-weight:bold;"><i class="fas fa-times-circle"></i> تعذر تحميل مؤشر صحة الفرع</div>`;
     }
 }
+        
 // ==================== 👻 محرك وضع الشبح (Ghost Mode) ====================
 window.impersonateUser = function(targetUsername) {
     if(!confirm('سيتم تحويلك لواجهة الموظف المحددة.\nيمكنك العودة لحسابك الإداري من خلال الزر الأحمر أعلى الشاشة.\nهل تريد المتابعة؟')) return;
