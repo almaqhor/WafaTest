@@ -10635,7 +10635,7 @@ async function loadManagerHealthCard() {
 
         allAttendanceData.forEach(a => {
             if (a.date >= prevStartStr && a.date <= prevEndStr && activeUsernames.includes(String(a.username))) {
-                if (a.code === 'A' || a.code === 'D') empStats[a.username].absCount++;
+                if (a.code === 'A' || a.code === 'LOP') empStats[a.username].absCount++;
                 if (a.code === 'SL') empStats[a.username].sickCount++;
             }
         });
@@ -10705,7 +10705,7 @@ async function loadManagerHealthCard() {
                 </div>
 
                 <div style="margin-top: 20px; padding-top: 15px; border-top: 1px dashed #ddd;">
-                    <h4 style="margin: 0 0 10px 0; font-size: 13px; color: #34495e;"><i class="fas fa-search-chart"></i> استخبارات الشهر الماضي (${prevStartStr.substring(0,7)}) - <span style="font-size:10px; color:#7f8c8d;">للموظفين على رأس العمل</span></h4>
+                    <h4 style="margin: 0 0 10px 0; font-size: 13px; color: #34495e;"><i class="fas fa-search-chart"></i> ملخص الشهر الماضي (${prevStartStr.substring(0,7)}) - <span style="font-size:10px; color:#7f8c8d;">للموظفين على رأس العمل</span></h4>
                     <div style="display: flex; flex-wrap: wrap; gap: 10px;">
                         <div style="flex: 1; min-width: 140px; background: #fdf2e9; padding: 10px; border-radius: 6px; border: 1px solid #fae5d3;">
                             <div style="font-size: 11px; font-weight: bold; color: #c0392b; margin-bottom: 8px;"><i class="fas fa-user-times"></i> أعلى غيابات</div>
