@@ -404,7 +404,14 @@
                 <div id="manager-attendance-view" style="display:none;">
                     <div class="panel-box" style="border-top: 4px solid #27ae60;">
                         <h3 style="margin-top:0; color:#27ae60;"><i class="fas fa-calendar-check"></i> إدارة الحضور والانصراف</h3>
-                        
+                        <div style="margin-bottom: 20px; display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
+                        <button onclick="printBranchSheet('attendance')" style="background: #2c3e50; color: white; border: none; padding: 12px 20px; border-radius: 8px; cursor: pointer; font-weight: bold; box-shadow: 0 4px 6px rgba(0,0,0,0.1); transition: 0.3s;">
+                            <i class="fas fa-print"></i> طباعة سجل التحضير اليدوي
+                        </button>
+                        <button onclick="printBranchSheet('breaks')" style="background: #e67e22; color: white; border: none; padding: 12px 20px; border-radius: 8px; cursor: pointer; font-weight: bold; box-shadow: 0 4px 6px rgba(0,0,0,0.1); transition: 0.3s;">
+                            <i class="fas fa-coffee"></i> طباعة جدول فترات الراحة
+                        </button>
+                    </div>
                         <div class="tabs-header" style="border-bottom: 2px solid #27ae60;">
                             <button class="tab-btn active" id="btn-tab-daily" onclick="switchAttTab('daily')"><i class="fas fa-calendar-day"></i> التحضير اليومي</button>
                             <button class="tab-btn" id="btn-tab-pending" onclick="switchAttTab('pending')" style="color:#e74c3c;"><i class="fas fa-exclamation-circle"></i> معالجة الحالات المعلقة (T)</button>
@@ -10702,14 +10709,7 @@ async function loadManagerHealthCard() {
                             <div style="font-size:20px; font-weight:bold; color:#c0392b;">${curr.deductions.toFixed(1)} <span style="font-size:11px; font-weight:normal;">نقطة</span></div>
                         </div>
                     </div>
-                    <div style="margin-bottom: 20px; display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
-                        <button onclick="printBranchSheet('attendance')" style="background: #2c3e50; color: white; border: none; padding: 12px 20px; border-radius: 8px; cursor: pointer; font-weight: bold; box-shadow: 0 4px 6px rgba(0,0,0,0.1); transition: 0.3s;">
-                            <i class="fas fa-print"></i> طباعة سجل التحضير اليدوي
-                        </button>
-                        <button onclick="printBranchSheet('breaks')" style="background: #e67e22; color: white; border: none; padding: 12px 20px; border-radius: 8px; cursor: pointer; font-weight: bold; box-shadow: 0 4px 6px rgba(0,0,0,0.1); transition: 0.3s;">
-                            <i class="fas fa-coffee"></i> طباعة جدول فترات الراحة
-                        </button>
-                    </div>
+                    
                 </div>
                 
 
