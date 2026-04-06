@@ -577,31 +577,35 @@ app.post('/api/user-add', async (req, res) => {
         // 2. تجهيز البيانات للحفظ
         const userData = { ...req.body };
         
-        // 🎯 التقاط عهدة SAP (الكود) ثم حذفه من حقيبة الموظف حتى لا تغضب Prisma!
+        // 🎯 التقاط عهدة SAP (الكود) ثم حذفه
         const positionCodeToAssign = userData.positionCode;
         delete userData.positionCode; 
 
-        // 🛡️ بوابة التنقية: تحويل النصوص إلى أرقام لتجنب أخطاء الأنواع
+        // 🛡️ درع التنظيف: حذف البيانات التي ترسلها الواجهة ولا توجد في جدول Prisma
+        delete userData.byUser; 
+        delete userData.policyConfirmed; // احذف هذا السطر فقط إذا كانت policyConfirmed موجودة فعلاً في قاعدة بياناتك
+
+        // 🛡️ بوابة التنقية: تحويل النصوص إلى أرقام مع حماية ضد الـ NaN (Not a Number)
         if (userData.workingDays !== undefined && userData.workingDays !== '') {
-            userData.workingDays = parseInt(userData.workingDays, 10);
+            userData.workingDays = parseInt(userData.workingDays, 10) || 6; // 6 كقيمة افتراضية للطوارئ
         } else {
             userData.workingDays = null;
         }
 
         if (userData.offDays !== undefined && userData.offDays !== '') {
-            userData.offDays = parseInt(userData.offDays, 10);
+            userData.offDays = parseInt(userData.offDays, 10) || 1;
         } else {
             userData.offDays = null;
         }
 
         if (userData.leaveCredit !== undefined && userData.leaveCredit !== '') {
-            userData.leaveCredit = parseFloat(userData.leaveCredit);
+            userData.leaveCredit = parseFloat(userData.leaveCredit) || 0;
         }
         if (userData.usedLeaves !== undefined && userData.usedLeaves !== '') {
-            userData.usedLeaves = parseFloat(userData.usedLeaves);
+            userData.usedLeaves = parseFloat(userData.usedLeaves) || 0;
         }
         if (userData.leaveBalance !== undefined && userData.leaveBalance !== '') {
-            userData.leaveBalance = parseFloat(userData.leaveBalance);
+            userData.leaveBalance = parseFloat(userData.leaveBalance) || 0;
         }
 
         // 3. الضربة الأولى: إنشاء الموظف في قاعدة البيانات
@@ -4681,6 +4685,10 @@ app.post('/api/bulk-sync-users', async (req, res) => {
             if (hasValue(row['الايبان'])) updateData.bankIban = String(row['الايبان']);
 
             // --- يمكن إضافة باقي الحقول (مثل البلدية والطوارئ) بنفس النمط هنا ---
+            // --- بيانات البلدية ---
+            if (hasValue(row['كرت البلدية'])) updateData.baladiyahCondition = String(row['كرت البلدية']);
+            if (hasValue(row['انتهاء كرت البلدية'])) updateData.baladiyahValid = String(row['انتهاء كرت البلدية']);
+            if (hasValue(row['رسوم البلدية'])) updateData.baladiyahFees = String(row['رسوم البلدية']); // حولناها لنص لتجنب خطأ Prisma السابق
 
             // 4. الضربة النهائية: التحديث فقط إذا كانت هناك حقول جديدة
             if (Object.keys(updateData).length > 0) {
