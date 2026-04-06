@@ -925,7 +925,7 @@
             <button style="background:#d35400; color:white; border:none; padding:10px 15px; border-radius:5px; font-weight:bold; cursor:pointer;" onclick="openJobOfferModal()"><i class="fas fa-file-signature"></i> إصدار عرض وظيفي</button>
             <button style="background:var(--primary-green); color:white; border:none; padding:10px 15px; border-radius:5px; font-weight:bold; cursor:pointer;" onclick="openAddUserModal()"><i class="fas fa-plus"></i> مستخدم جديد</button>
             <button style="background:#c0392b; color:white; border:none; padding:10px 15px; border-radius:5px; font-weight:bold; cursor:pointer;" onclick="()"><i class="fas fa-user-sh"></i> إنهاء خدمات</button>
-            <button onclick="" style="background:#27ae60; color:white; border:none; padding:10px 15px; border-radius:5px; font-weight:bold; cursor:pointer; display:inline-flex; align-items:center; gap:8px;">
+            <button onclick="exportUsersToExcel()" style="background:#27ae60; color:white; border:none; padding:10px 15px; border-radius:5px; font-weight:bold; cursor:pointer; display:inline-flex; align-items:center; gap:8px;">
                 <i class="fas fa-file-excel"></i> تصدير البيانات
             </button>
         </div>
@@ -3694,46 +3694,13 @@ async function confirmTransferAction() {
 
             // 1. تحديد العناوين (مع إضافة عمود إجمالي الراتب)
             const headers = [
-  "الرقم الوظيفي",
-  "الاسم",
-  "رقم الهوية",
-  "تاريخ انتهاء الهوية",
-  "الجنسية",
-  "الجنس",
-  "تاريخ الميلاد",
-  "تاريخ الميلاد الهجري",
-  "الجوال",
-  "الايميل",
-  "المنطقة",
-  "المدينة",
-  "العنوان الوطني",
-  "تاريخ الالتحاق",
-  "الحالة الوظيفية",
-"تاريخ اخر يوم",
-  "الفرع",
-  "القسم الرئيسي",
-  "المسمى الوظيفي",
-  "المرتبة",
-  "المدير المباشر",
-  "ايام العمل",
-  "الراتب الاساسي",
-  "بدل السكن",
-  "بدلات اخرى",
-  "التامينات",
-  "إجمالي الراتب",
-  "اسم البنك",
-  "الايبان",
-  "شركة التامين",
-  "نوع التامين",
-  "تاريخ انتهاء التامين",
-  "كرت البلدية",
-  "انتهاء كرت البلدية",
-  "رسوم البلدية",
-  "اسم الطوارئ",
-  "رقم الطوارئ",
-  "صلة القرابة الطوارئ",
-  "رمز الشاغر"
-];       
+                "الرقم الوظيفي", "الاسم", "رقم الهوية", "تاريخ انتهاء الهوية", "الجنسية", "الجنس",
+                "تاريخ الميلاد", "تاريخ الميلاد الهجري", "الجوال", "الايميل", "المنطقة", "المدينة", "العنوان الوطني",
+                "تاريخ الالتحاق", "الحالة الوظيفية", "الفرع", "القسم الرئيسي", "المسمى الوظيفي", "المرتبة", "المدير المباشر",
+                "ايام العمل", "الراتب الاساسي", "بدل السكن", "بدلات اخرى", "التامينات", "إجمالي الراتب", "اسم البنك", "الايبان",
+                "شركة التامين", "نوع التامين", "تاريخ انتهاء التامين", "كرت البلدية", "انتهاء كرت البلدية", "رسوم البلدية",
+                "اسم الطوارئ", "رقم الطوارئ", "صلة القرابة الطوارئ","رمز الشاغر"
+            ];       
             const aoa = [headers]; // مصفوفة المصفوفات (Array of Arrays)
 
 
@@ -3766,7 +3733,6 @@ async function confirmTransferAction() {
         u.splAddress || u.nationalAddress || u.address || '', 
         u.joinDate || '',
         u.status || '',
-        u.lastWorkingDay||'',
         u.branch || '',
         u.primarySection || '',
         u.jobTitle || '',
