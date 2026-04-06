@@ -6121,7 +6121,19 @@ async function renderPenaltiesDashboard(penalties) {
             // 🌟 الإصلاح السحري لمعرف التذكرة (ندمج بين النظام القديم والجديد)
             const trueId = r.ticketId || r.id; 
             
-            const attachmentLink = r.attachment ? `<a href="${r.attachment}" target="_blank" style="color:#2980b9; font-weight:bold; font-size:12px;"><i class="fas fa-paperclip"></i> المرفق</a>` : '<span style="color:#ccc; font-size:11px;">لا يوجد</span>';
+            // 🎯 الرادار الذكي لاكتشاف نوع المرفق (رابط عادي أم إكسيل افتراضي)
+let attachmentLink = '<span style="color:#ccc; font-size:11px;">لا يوجد</span>';
+
+if (r.attachment) {
+    if (r.attachment.startsWith('{')) {
+        // إذا كان المرفق كبسولة JSON، نضع زر الإكسيل مع تشفير البيانات لمنع أخطاء HTML
+        const safePayload = encodeURIComponent(r.attachment);
+        attachmentLink = `<button onclick="downloadVirtualAttachment(decodeURIComponent('${safePayload}'))" style="background:#27ae60; color:white; border:none; padding:4px 8px; border-radius:4px; font-size:11px; font-weight:bold; cursor:pointer;"><i class="fas fa-file-excel"></i> إكسيل التصفية</button>`;
+    } else {
+        // إذا كان مرفقاً عادياً (رابط صورة أو PDF)
+        attachmentLink = `<a href="${r.attachment}" target="_blank" style="color:#2980b9; font-weight:bold; font-size:12px;"><i class="fas fa-paperclip"></i> المرفق</a>`;
+    }
+}
             
             let badge = '';
             if(r.status === 'escalated') badge = '<span class="status-badge" style="background:#e74c3c;">جديد 🔴</span>';
@@ -11748,6 +11760,32 @@ function updateEosReasons() {
 
 // 📡 رادار لتشغيل الدالة مرة واحدة عند فتح الشاشة لضمان ظهور أسباب الاستقالة كوضع افتراضي
 document.addEventListener('DOMContentLoaded', updateEosReasons);
+
+        // ==========================================
+// 📥 دالة استخراج وتوليد الإكسيل من المرفق الافتراضي
+// ==========================================
+function downloadVirtualAttachment(ticketAttachmentString) {
+    try {
+        // 1. فك تشفير الكبسولة النصية وتحويلها لكائن بيانات حقيقي
+        const reportData = JSON.parse(ticketAttachmentString);
+        
+        // 2. التحقق من وجود مكتبة الإكسيل واستدعاء صاروخ الإكسيل
+        if (typeof XLSX === 'undefined') {
+            console.log("⏳ جاري استدعاء مدفعية الإكسيل (SheetJS)...");
+            const script = document.createElement('script');
+            script.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+            script.onload = () => {
+                fireExcelMissile(reportData); // نطلق الدالة القديمة بنفس البيانات!
+            };
+            document.head.appendChild(script);
+        } else {
+            fireExcelMissile(reportData);
+        }
+    } catch (error) {
+        console.error("❌ فشل فك تشفير المرفق الافتراضي:", error);
+        alert("عذراً، لا يمكن قراءة بيانات هذا المرفق. قد يكون تالفاً.");
+    }
+}
         
 </script>
 </body>
