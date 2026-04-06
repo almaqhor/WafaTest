@@ -2952,6 +2952,8 @@ app.post('/api/terminate-employee', async (req, res) => {
                 termType: termType, // 👈 حفظ النوع (استقالة/استبعاد)
                 termReason: termReason, // 👈 حفظ السبب
                 leaveBalance: leaveBalance,
+                isRehireable: req.body.isRehireable,             // 👈 حفظ قابلية إعادة التوظيف
+                workedNoticePeriod: req.body.workedNoticePeriod, // 👈 حفظ حالة فترة الإشعار
                 baladiyahFees: String(finalBaladiyahFee) // 👈 التعديل هنا: درع إضافي يجبر القيمة لتكون نصاً
             }
         });
