@@ -9490,8 +9490,7 @@ async function magicJobOffer(name, idNumber, jobTitle, city, phone) {
     };
 
     // 4. إرسال الطلب لغرفة المحركات (SQL)
-    const confirmMsg = `سيتم إصدار عرض وظيفي كالتالي:\n- الاسم: ${name}\n- الرقم الوظيفي المولد: ${newUsername}\n- الراتب الأساسي: ${basicSalary}\n\nهل أنت متأكد من الاعتماد؟`;
-    
+const confirmMsg = `سيتم إصدار عرض وظيفي كالتالي:\n- الاسم: ${name}\n- الرقم الوظيفي المولد: ${newUsername}\n- الراتب الأساسي: ${basicSalary}\n\nهل أنت متأكد من الاعتماد؟`;    
     if (confirm(confirmMsg)) {
         try {
             const response = await fetch('/api/user-add', {
