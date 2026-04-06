@@ -6045,13 +6045,10 @@ async function renderPenaltiesDashboard(penalties) {
 
         async function renderHrTable() {
     try {
-        // 🛡️ درع حماية المصفوفات (إذا فشل الجلب، نعوضها بمصفوفة فارغة كي لا ينهار الكود)
-        if (typeof locationsArray === 'undefined' || !locationsArray || locationsArray.length === 0) {
-            try { locationsArray = await (await fetch('/api/locations')).json(); } catch(e) { locationsArray = []; }
+        if (typeof locationsArray === 'undefined' || locationsArray.length === 0) {
+            try { locationsArray = await (await fetch('/api/locations')).json(); } catch(e) {}
         }
-        
-        const safeLocations = locationsArray || [];
-        const safeUsersData = allUsersData || [];
+
         let filtered = hrAllRequests || [];
 
         // 👑 التعرف على الإدارة العليا
@@ -6061,14 +6058,14 @@ async function renderPenaltiesDashboard(penalties) {
                             currentUser.roleArabic === 'ادمن';
 
         if (!isAdminView) { 
-            const mySupervisedBranches = safeLocations
+            const mySupervisedBranches = locationsArray
                 .filter(loc => String(loc.hrUsername) === String(currentUsername))
                 .map(loc => loc.branch);
 
             filtered = filtered.filter(r => {
                 if (String(r.assignedHrEmp) === String(currentUsername)) return true;
                 const targetUsername = String(r.empUsername || r.username); 
-                const reqUser = safeUsersData.find(x => String(x.username) === targetUsername);
+                const reqUser = allUsersData.find(x => String(x.username) === targetUsername);
                 return reqUser && mySupervisedBranches.includes(reqUser.branch);
             });
         }
@@ -6102,7 +6099,7 @@ async function renderPenaltiesDashboard(penalties) {
         if(branchQ) { 
             filtered = filtered.filter(r => { 
                 const targetUsername = String(r.empUsername || r.username);
-                const u = safeUsersData.find(x => String(x.username) === targetUsername); 
+                const u = allUsersData.find(x => String(x.username) === targetUsername); 
                 return u && u.branch === branchQ; 
             }); 
         }
@@ -6117,27 +6114,14 @@ async function renderPenaltiesDashboard(penalties) {
 
         tbody.innerHTML = filtered.map(r => {
             const targetUsername = String(r.empUsername || r.username || '');
-            const u = safeUsersData.find(x => String(x.username) === targetUsername) || {};
+            const u = allUsersData.find(x => String(x.username) === targetUsername) || {};
             const safeDate = (r.date || r.createdAt || "").split(',')[0]; 
             const safeReason = r.reason || r.type || ''; 
             
+            // 🌟 الإصلاح السحري لمعرف التذكرة (ندمج بين النظام القديم والجديد)
             const trueId = r.ticketId || r.id; 
             
-            // 🎯 الرادار الذكي المُدرع لاكتشاف نوع المرفق
-            let attachmentLink = '<span style="color:#ccc; font-size:11px;">لا يوجد</span>';
-
-            if (r.attachment) {
-                // التأكد من أن المرفق نص (لأن بعض السيرفرات تعيده كـ Object إذا كان JSON)
-                const attachStr = typeof r.attachment === 'string' ? r.attachment : JSON.stringify(r.attachment);
-                
-                if (attachStr.trim().startsWith('{')) {
-                    // 🛡️ التعديل هنا: التشفير القوي الذي يمنع انهيار أزرار الـ HTML
-                    const safePayload = encodeURIComponent(attachStr).replace(/'/g, "%27");
-                    attachmentLink = `<button onclick="downloadVirtualAttachment(decodeURIComponent('${safePayload}'))" style="background:#27ae60; color:white; border:none; padding:4px 8px; border-radius:4px; font-size:11px; font-weight:bold; cursor:pointer;"><i class="fas fa-file-excel"></i> إكسيل التصفية</button>`;
-                } else {
-                    attachmentLink = `<a href="${attachStr}" target="_blank" style="color:#2980b9; font-weight:bold; font-size:12px;"><i class="fas fa-paperclip"></i> المرفق</a>`;
-                }
-            }
+            const attachmentLink = r.attachment ? `<a href="${r.attachment}" target="_blank" style="color:#2980b9; font-weight:bold; font-size:12px;"><i class="fas fa-paperclip"></i> المرفق</a>` : '<span style="color:#ccc; font-size:11px;">لا يوجد</span>';
             
             let badge = '';
             if(r.status === 'escalated') badge = '<span class="status-badge" style="background:#e74c3c;">جديد 🔴</span>';
@@ -6162,7 +6146,7 @@ async function renderPenaltiesDashboard(penalties) {
             }
 
             const actions = `<div style="display:flex; gap:5px; justify-content:center; min-width:180px;">${actionsInner}</div>`;
-            const assignedName = r.assignedHrEmp ? (safeUsersData.find(x => String(x.username) === String(r.assignedHrEmp))?.name || r.assignedHrEmp) : '<span style="color:#e74c3c; font-size:11px;">لم يُعين</span>';
+            const assignedName = r.assignedHrEmp ? (allUsersData.find(x => String(x.username) === String(r.assignedHrEmp))?.name || r.assignedHrEmp) : '<span style="color:#e74c3c; font-size:11px;">لم يُعين</span>';
 
             return `<tr>
                 <td style="font-size:11px; font-weight:bold; color:#555;">${String(trueId).replace('REQ-','')}</td>
@@ -6178,9 +6162,6 @@ async function renderPenaltiesDashboard(penalties) {
         }).join('');
     } catch(e) {
         console.error("❌ حدث خطأ أثناء رسم الجدول:", e);
-        // إظهار رسالة للمستخدم بدلاً من الشاشة البيضاء
-        const tbody = document.getElementById('hr-requests-table');
-        if(tbody) tbody.innerHTML = `<tr><td colspan="9" style="text-align:center; padding: 20px; color: red;">حدث خطأ في عرض البيانات. يرجى تحديث الصفحة.</td></tr>`;
     }
 }
     
@@ -11767,32 +11748,6 @@ function updateEosReasons() {
 
 // 📡 رادار لتشغيل الدالة مرة واحدة عند فتح الشاشة لضمان ظهور أسباب الاستقالة كوضع افتراضي
 document.addEventListener('DOMContentLoaded', updateEosReasons);
-
-        // ==========================================
-// 📥 دالة استخراج وتوليد الإكسيل من المرفق الافتراضي
-// ==========================================
-function downloadVirtualAttachment(ticketAttachmentString) {
-    try {
-        // 1. فك تشفير الكبسولة النصية وتحويلها لكائن بيانات حقيقي
-        const reportData = JSON.parse(ticketAttachmentString);
-        
-        // 2. التحقق من وجود مكتبة الإكسيل واستدعاء صاروخ الإكسيل
-        if (typeof XLSX === 'undefined') {
-            console.log("⏳ جاري استدعاء مدفعية الإكسيل (SheetJS)...");
-            const script = document.createElement('script');
-            script.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
-            script.onload = () => {
-                fireExcelMissile(reportData); // نطلق الدالة القديمة بنفس البيانات!
-            };
-            document.head.appendChild(script);
-        } else {
-            fireExcelMissile(reportData);
-        }
-    } catch (error) {
-        console.error("❌ فشل فك تشفير المرفق الافتراضي:", error);
-        alert("عذراً، لا يمكن قراءة بيانات هذا المرفق. قد يكون تالفاً.");
-    }
-}
         
 </script>
 </body>
