@@ -803,7 +803,7 @@
                             <div style="display:flex; gap:10px; flex:2; min-width:260px;">
                                 <button onclick="filterAdminAttendance()" style="flex:1; background:#16a085; color:white; border:none; padding:9px; border-radius:5px; font-weight:bold; cursor:pointer;" title="بحث"><i class="fas fa-search"></i> بحث</button>
                                 <button onclick="clearAttendanceFilters()" style="background:#e74c3c; color:white; border:none; padding:9px 15px; border-radius:5px; font-weight:bold; cursor:pointer;" title="مسح كل الفلاتر"><i class="fas fa-eraser"></i></button>
-                                <button onclick="downloadEOSExcel()" style="flex:1; background:#198754; color:white; border:none; padding:9px; border-radius:5px; font-weight:bold; cursor:pointer;" title="تصدير للإكسيل"><i class="fas fa-file-excel"></i> إكسيل</button>
+                                <button onclick="exportAttendanceToCSV()" style="flex:1; background:#198754; color:white; border:none; padding:9px; border-radius:5px; font-weight:bold; cursor:pointer;" title="تصدير للإكسيل"><i class="fas fa-file-excel"></i> إكسيل</button>
                             </div>
                         </div>
 
@@ -1558,7 +1558,7 @@
                     <button onclick="printEosDoc('experience')" style="background:#f39c12; color:white; border:none; padding:10px; border-radius:5px; font-weight:bold; cursor:pointer;"><i class="fas fa-certificate"></i> شهادة خبرة</button>
                 </div>
                 <div style="display:flex; gap:10px;">
-                    <button onclick="exportEOSToExcel()" style="background:#27ae60; color:white; border:none; padding:10px; border-radius:5px; flex:1; font-weight:bold; cursor:pointer;"><i class="fas fa-file-excel"></i> تصدير للإكسيل</button>
+                    <button onclick="downloadEOSExcel()" style="background:#27ae60; color:white; border:none; padding:10px; border-radius:5px; flex:1; font-weight:bold; cursor:pointer;"><i class="fas fa-file-excel"></i> تصدير للإكسيل</button>
                     <button onclick="document.getElementById('eos-modal').style.display='none'" style="background:#eee; color:#333; border:none; padding:10px; border-radius:5px; flex:1; font-weight:bold; cursor:pointer;">إغلاق</button>
                 </div>
             </div>
