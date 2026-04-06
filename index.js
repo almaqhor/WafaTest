@@ -2102,13 +2102,26 @@ app.post('/api/create-request', async (req, res) => {
             }
         }
 
-        // 3. 🔍 جلب الـ ID الخاص بصاحب الطلب لربطه في SQL
+        // 3. 🔍 جلب الـ ID الخاص بصاحب الطلب وفرعه
         const targetEmployeeRecord = await prisma.employee.findUnique({
             where: { username: String(finalEmpUsername).trim() }
         });
 
         if (!targetEmployeeRecord) {
              return res.json({ success: false, message: 'الموظف المعني غير موجود في قاعدة البيانات' });
+        }
+
+        // ==========================================
+        // 🎯 التوجيه التكتيكي الآلي (Auto-Routing)
+        // ==========================================
+        let autoHrSupervisor = isManagerForm ? (hrSupervisor || '') : '';
+        
+        // إذا لم يكن هناك مشرف محدد مسبقاً، نبحث عن مشرف الفرع
+        if (!autoHrSupervisor && targetEmployeeRecord.branch && typeof locationsDB !== 'undefined') {
+            const branchInfo = locationsDB.find(loc => loc.branch === targetEmployeeRecord.branch);
+            if (branchInfo && branchInfo.hrUsername) {
+                autoHrSupervisor = branchInfo.hrUsername; // 👈 التقاط المشرف آلياً!
+            }
         }
 
         // 4. 💾 الحفظ الشامل في قاعدة بيانات SQL
@@ -2121,15 +2134,15 @@ app.post('/api/create-request', async (req, res) => {
                 senderId: senderId,
                 empPhone: empPhone || '',
                 managerName: finalManagerName || '',
-                hrSupervisor: isManagerForm ? (hrSupervisor || '') : '',
+                hrSupervisor: autoHrSupervisor, // 👈 زرعنا المشرف هنا بأمان
                 type: reason || '',
                 details: details || '',
                 attachment: attachmentPath,
                 status: initialStatus,
-                createdAt: new Date().toLocaleString('ar-SA'),
+                createdAt: new Date().toLocaleString('en-CA', { timeZone: 'Asia/Riyadh' }),
                 history: JSON.stringify([{ 
                     action: isManagerForm ? `رفع إداري بواسطة ${actualActor}` : `تم الرفع بواسطة ${actualActor}`, 
-                    date: new Date().toLocaleString('ar-SA') 
+                    date: new Date().toLocaleString('en-CA', { timeZone: 'Asia/Riyadh' }) 
                 }])
             }
         });
@@ -4732,6 +4745,82 @@ app.post('/api/bulk-sync-users', async (req, res) => {
     } catch (error) {
         console.error("❌ خطأ في التحديث الشامل من الإكسيل:", error);
         res.status(500).json({ success: false, message: "حدث خطأ في السيرفر أثناء معالجة الإكسيل." });
+    }
+});
+// =========================================================
+// 🚀 مسار العمليات السريع لمشرفي وموظفي الموارد البشرية
+// =========================================================
+app.post('/api/hr-operations', async (req, res) => {
+    try {
+        const username = String(req.body.username || '').trim();
+        const role = req.body.role || '';
+        const isAdmin = req.body.isAdmin === true;
+
+        if (!username && !isAdmin) {
+            return res.json({ success: false, requests: [] });
+        }
+
+        // 1. الاستعلام الذكي من Prisma مباشرة (أسرع بـ 10 مرات من الفلترة القديمة)
+        let queryCondition = {};
+
+        if (isAdmin || role === 'موظف ادارة') {
+            // الإدارة وموظفو الإدارة المركزية يرون كل تذاكر الـ HR
+            queryCondition = {
+                status: { in: ['escalated', 'hr_assigned', 'resolved', 'completed'] }
+            };
+        } else {
+            // مشرف الفرع يرى فقط التذاكر الموجهة له كمشرف، أو المحولة له كموظف معالج
+            queryCondition = {
+                OR: [
+                    { hrSupervisor: username },
+                    { assignedHrEmp: username }
+                ],
+                status: { in: ['escalated', 'hr_assigned', 'resolved', 'completed'] }
+            };
+        }
+
+        const hrTickets = await prisma.requestTicket.findMany({
+            where: queryCondition,
+            orderBy: { id: 'desc' } // الأحدث أولاً
+        });
+
+        // 2. درع التطهير (التنسيق)
+        const formattedRequests = hrTickets.map(r => ({
+            id: r.ticketId,                   
+            employeeId: r.employeeId,
+            empUsername: r.empUsername || '',
+            empName: r.empName || '',
+            senderId: r.senderId || '',
+            empPhone: r.empPhone || '',
+            managerName: r.managerName || '',
+            hrSupervisor: r.hrSupervisor || '',
+            assignedHrEmp: r.assignedHrEmp || '',
+            reason: r.type || '',             
+            type: r.type || '',               
+            details: r.details || '',
+            attachment: r.attachment || '',
+            status: r.status || 'pending',
+            date: r.createdAt || '',          
+            createdAt: r.createdAt || '',     
+            resolveDate: r.resolveDate || '',
+            duration: r.duration || '',
+            managerComment: r.managerComment || '',
+            hrComment: r.hrComment || '',
+            supervisorAssignComment: r.supervisorAssignComment || '',
+            supervisorRejectComment: r.supervisorRejectComment || '',
+            escalationComment: r.escalationComment || '',
+            empComment: r.empComment || '',
+            rating: r.rating || '',
+            resolvedBy: r.resolvedBy || '',
+            history: r.history ? JSON.parse(r.history) : []
+        }));
+
+        // إرجاعها مغلفة بصندوق (success: true) لتطابق مسار الميجا!
+        res.json({ success: true, requests: formattedRequests });
+
+    } catch (error) {
+        console.error("❌ خطأ في مسار hr-operations السريع:", error);
+        res.json({ success: false, requests: [] }); 
     }
 });
 
