@@ -5999,7 +5999,7 @@ async function loadHrRequests() {
         
         // 🌟 الذكاء التوجيهي (Smart Routing):
         // تحديد المسار بناءً على صلاحية المستخدم
-        const apiEndpoint = globalIsAdmin ? '/api/admin-mega-requests' : '/api/hr-requests';
+        const apiEndpoint = globalIsAdmin ? '/api/admin-mega-requests' : '/api/hr-operations';
 
         // إرسال الطلب للمسار المناسب
         const response = await fetch(apiEndpoint, { 
