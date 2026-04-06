@@ -10702,15 +10702,16 @@ async function loadManagerHealthCard() {
                             <div style="font-size:20px; font-weight:bold; color:#c0392b;">${curr.deductions.toFixed(1)} <span style="font-size:11px; font-weight:normal;">نقطة</span></div>
                         </div>
                     </div>
+                    <div style="margin-bottom: 20px; display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
+                        <button onclick="printBranchSheet('attendance')" style="background: #2c3e50; color: white; border: none; padding: 12px 20px; border-radius: 8px; cursor: pointer; font-weight: bold; box-shadow: 0 4px 6px rgba(0,0,0,0.1); transition: 0.3s;">
+                            <i class="fas fa-print"></i> طباعة سجل التحضير اليدوي
+                        </button>
+                        <button onclick="printBranchSheet('breaks')" style="background: #e67e22; color: white; border: none; padding: 12px 20px; border-radius: 8px; cursor: pointer; font-weight: bold; box-shadow: 0 4px 6px rgba(0,0,0,0.1); transition: 0.3s;">
+                            <i class="fas fa-coffee"></i> طباعة جدول فترات الراحة
+                        </button>
+                    </div>
                 </div>
-                <div style="margin-bottom: 20px; display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
-    <button onclick="printBranchSheet('attendance')" style="background: #2c3e50; color: white; border: none; padding: 12px 20px; border-radius: 8px; cursor: pointer; font-weight: bold; box-shadow: 0 4px 6px rgba(0,0,0,0.1); transition: 0.3s;">
-        <i class="fas fa-print"></i> طباعة سجل التحضير اليدوي
-    </button>
-    <button onclick="printBranchSheet('breaks')" style="background: #e67e22; color: white; border: none; padding: 12px 20px; border-radius: 8px; cursor: pointer; font-weight: bold; box-shadow: 0 4px 6px rgba(0,0,0,0.1); transition: 0.3s;">
-        <i class="fas fa-coffee"></i> طباعة جدول فترات الراحة
-    </button>
-</div>
+                
 
                 <div style="margin-top: 20px; padding-top: 15px; border-top: 1px dashed #ddd;">
                     <h4 style="margin: 0 0 10px 0; font-size: 13px; color: #34495e;"><i class="fas fa-search-chart"></i> ملخص الشهر الماضي (${prevStartStr.substring(0,7)}) - <span style="font-size:10px; color:#7f8c8d;">للموظفين على رأس العمل</span></h4>
