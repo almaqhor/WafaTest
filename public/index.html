@@ -629,7 +629,7 @@
                         <div style="flex:1; min-width:150px;">
                             <label class="form-label">الفرع</label>
                             <select id="radar-branch" class="comment-input" onchange="runLeaveRadar()">
-                                <option value="">كل الفروع</option>
+                                <option value=""></option>
                             </select>
                         </div>
                         <div style="flex:1; min-width:150px;">
@@ -779,7 +779,7 @@
                             </div>
                             <div style="flex:1; min-width:130px;">
                                 <label style="font-size:12px; font-weight:bold; color:#555;">الفرع:</label>
-                                <select id="att-filter-branch" onchange="filterAdminAttendance()" style="width:100%; padding:8px; border:1px solid #ccc; border-radius:5px; font-family:inherit; box-sizing:border-box;">                                    <option value="">كل الفروع</option>
+                                <select id="att-filter-branch" onchange="filterAdminAttendance()" style="width:100%; padding:8px; border:1px solid #ccc; border-radius:5px; font-family:inherit; box-sizing:border-box;"><option value="">كل الفروع</option>
                                     </select>
                             </div>
                             <div style="flex:1; min-width:130px;">
@@ -11531,6 +11531,85 @@ function printBranchSheet(sheetType) {
     printWindow.document.close();
 }
 
+
+        // ==========================================
+// 🏢 دالة تعبئة قائمة الفروع آلياً (من قاعدة البيانات الرسمية /api/locations)
+// ==========================================
+async function populateBranchFilter() {
+    const branchSelect = document.getElementById('att-filter-branch');
+    if (!branchSelect) return;
+
+    try {
+        // 1. جلب الفروع الرسمية من السيرفر
+        const response = await fetch('/api/locations');
+        const locationsDB = await response.json();
+
+        let officialBranches = [];
+        
+        // 2. تحليل هيكل البيانات القادم من السيرفر (سواء كان نصوص أو كائنات)
+        if (locationsDB && locationsDB.length > 0) {
+            if (typeof locationsDB[0] === 'string') {
+                officialBranches = locationsDB; // إذا كانت مصفوفة نصوص مباشرة
+            } else if (locationsDB[0].name) {
+                officialBranches = locationsDB.map(loc => loc.name); // إذا كانت مصفوفة كائنات تحتوي على name
+            } else if (locationsDB[0].branch) {
+                officialBranches = locationsDB.map(loc => loc.branch); // إذا كانت مصفوفة كائنات تحتوي على branch
+            }
+        }
+
+        // 3. جلب الفروع من الموظفين (خطة احتياطية لضمان عدم ضياع أي فرع مكتوب بطريقة أخرى)
+        const usersBranches = allUsersData ? allUsersData.map(u => u.branch) : [];
+
+        // 4. الدمج والتنقية (إزالة التكرار والفراغات)
+        const allUniqueBranches = [...new Set([...officialBranches, ...usersBranches])].filter(b => b && String(b).trim() !== '');
+
+        // 5. الترتيب الأبجدي لتسهيل البحث
+        allUniqueBranches.sort();
+
+        // 6. تفريغ القائمة وزرع الخيارات الجديدة
+        branchSelect.innerHTML = '<option value="">كل الفروع</option>';
+        allUniqueBranches.forEach(branch => {
+            const option = document.createElement('option');
+            option.value = branch;
+            option.textContent = branch;
+            branchSelect.appendChild(option);
+        });
+
+    } catch (error) {
+        console.error("❌ خطأ استخباراتي في جلب قائمة الفروع من السيرفر:", error);
+        
+        // 🛡️ الخطة البديلة (Fallback) في حال انقطاع الاتصال: الاعتماد على الموظفين فقط
+        if (allUsersData) {
+            const fallbackBranches = [...new Set(allUsersData.map(u => u.branch).filter(b => b && String(b).trim() !== ''))].sort();
+            branchSelect.innerHTML = '<option value="">كل الفروع</option>';
+            fallbackBranches.forEach(branch => {
+                const option = document.createElement('option');
+                option.value = branch;
+                option.textContent = branch;
+                branchSelect.appendChild(option);
+            });
+        }
+    }
+}
+        // ==========================================
+// 📡 رادار المراقبة الذاتي لتعبئة قائمة الفروع
+// ==========================================
+let branchRadarInterval = setInterval(() => {
+    // 1. البحث عن القائمة في الشاشة
+    const branchSelect = document.getElementById('att-filter-branch');
+    
+    // 2. إذا وجد القائمة، وتأكد أنها شبه فارغة (بها خيار واحد فقط "كل الفروع")
+    if (branchSelect && branchSelect.options.length <= 1) {
+        
+        // 3. أطلق دالة التعبئة
+        populateBranchFilter();
+        
+        // 4. أوقف الرادار فوراً (المهمة أُنجزت بنجاح)
+        clearInterval(branchRadarInterval);
+        console.log("✅ [رادار غرفة العمليات]: تم رصد القائمة وتعبئة الفروع بنجاح!");
+    }
+}, 1000); // يمسح الميدان كل ثانية واحدة (1000 ملي ثانية)
+        
 </script>
 </body>
 </html>
