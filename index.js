@@ -2949,6 +2949,8 @@ app.post('/api/terminate-employee', async (req, res) => {
                 lastWorkingDay: lastWorkingDay,
                 leaveCredit: parseFloat(credit.toFixed(3)),
                 usedLeaves: used,
+                termType: termType, // 👈 حفظ النوع (استقالة/استبعاد)
+                termReason: termReason, // 👈 حفظ السبب
                 leaveBalance: leaveBalance,
                 baladiyahFees: String(finalBaladiyahFee) // 👈 التعديل هنا: درع إضافي يجبر القيمة لتكون نصاً
             }
@@ -2960,6 +2962,8 @@ app.post('/api/terminate-employee', async (req, res) => {
             idNumber: user.idNumber || '',
             joinDate: user.joinDate,
             lastWorkingDay: lastWorkingDay,
+            termType: termType, // 👈 إرسالها للفرونت إند
+            termReason: termReason || "لا يوجد",
             serviceDuration: serviceDurationStr,
             deservesEOS: deservesEOS,
             totalSalary: user.salaryE || 0,
