@@ -11406,7 +11406,7 @@ function printBranchSheet(sheetType) {
 
     // 4. إعداد الترويسة
     const today = new Date().toLocaleDateString('ar-SA', { year: 'numeric', month: 'long', day: 'numeric' });
-    const title = sheetType === 'attendance' ? 'سجل الحضور والانصراف اليدوي (للطوارئ)' : 'جدول فترات الراحة اليومية (البريك)';
+    const title = sheetType === 'attendance' ? 'سجل الحضور والانصراف' : 'جدول فترات الراحة';
 
     // 5. رسم الترويسة
     let tableHeaders = '';
