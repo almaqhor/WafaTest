@@ -1376,16 +1376,6 @@
                                 </tbody>
                             </table>
                         </div>
-                        ```
-
----
-
-### 🚀 الخطوة الثالثة: تفعيل الصلاحيات (JavaScript)
-ابحث عن الدالة `function setupDashboard(data)` (ستجدها في السطر 811 تقريباً).
-انزل إلى **نهاية هذه الدالة**، وقبل السطر `switchView('home');` مباشرة، **ضع هذا الكود ليقوم بإظهار البطاقة لمن يملك الصلاحية:**
-
-```javascript
-            // 🎯🎯🎯 زرع الصلاحيات للبطاقة الجديدة هنا 🎯🎯🎯
             const isAdminView = globalIsAdmin || 
                                 data.role === 'admin' || 
                                 data.roleArabic === 'ادمن' ||
@@ -2921,17 +2911,33 @@ const res = await fetch('https://wafatest-production.up.railway.app/auth/v1/logi
                 }
             } // نهاية شرط (!globalIsAdmin)
 
-            // 🎯🎯🎯 زرع الصلاحيات للبطاقة الجديدة لعمليات الموارد 🎯🎯🎯
-            const isAdminView = globalIsAdmin || 
-                                data.role === 'admin' || 
-                                data.roleArabic === 'ادمن' ||
-                                data.role === 'موظف ادارة' ||
-                                data.roleArabic === 'موظف ادارة';
-                                
-            const hrOpsCard = document.getElementById('card-nav-hrops');
-            if (hrOpsCard) {
-                hrOpsCard.style.display = isAdminView ? 'flex' : 'none';
-            }
+             const hasHrAccess = globalIsAdmin || 
+                        data.role === 'admin' || 
+                        data.roleArabic === 'ادمن' ||
+                        data.role === 'موظف ادارة' ||
+                        data.roleArabic === 'موظف ادارة';
+    
+    // إظهار البطاقة إذا كان المستخدم يملك الصلاحية
+    const hrOpsCard = document.getElementById('card-nav-hrops');
+    if (hrOpsCard) {
+        hrOpsCard.style.display = hasHrAccess ? 'flex' : 'none';
+        console.log('🔄 حالة بطاقة عمليات الموارد:', hasHrAccess ? 'ظهرت' : 'مخفية');
+    }
+    
+    // إضافة مستمع للنقر على البطاقة لتحميل البيانات تلقائياً
+    if (hrOpsCard && hasHrAccess) {
+        hrOpsCard.onclick = function() {
+            switchView('hr-dashboard');
+            // تأخير بسيط لضمان تحميل الشاشة ثم جلب البيانات
+            setTimeout(() => {
+                if (typeof loadHrOperations === 'function') {
+                    loadHrOperations();
+                } else {
+                    console.warn('⚠️ دالة loadHrOperations غير معرفة');
+                }
+            }, 100);
+        };
+    }
             // ========================================================
 
             if (!data.policyConfirmed && data.role !== 'admin') { document.getElementById('pledge-modal-box').style.display = 'flex'; }
@@ -6244,85 +6250,225 @@ async function renderHrTable() {
 }
     
         function openHrAssignModal(ticketId) {
-            document.getElementById('assign-ticket-id').value = ticketId; document.getElementById('assign-comment').value = '';
-            const hrStaff = allUsersData.filter(u => u.roleArabic === 'موظف ادارة' || u.role === 'admin');
-            document.getElementById('assign-emp-select').innerHTML = '<option value="">-- اختر موظف الموارد --</option>' + hrStaff.map(u => `<option value="${u.username}">${u.name}</option>`).join('');
-            document.getElementById('hr-assign-modal').style.display = 'flex';
-        }
+    // قائمة موظفي الموارد البشرية المتاحين للتعيين
+    const hrStaff = allUsersData.filter(u => 
+        u.roleArabic === 'موظف ادارة' || 
+        u.primarySection === 'الموارد البشرية' ||
+        u.role === 'admin'
+    );
+    
+    const selectHtml = hrStaff.map(u => `<option value="${u.username}">${u.name} (${u.jobTitle || 'موظف موارد'})</option>`).join('');
+    
+    const modalHtml = `
+        <div class="modal-overlay" id="assign-modal" style="display:flex;">
+            <div class="modal-content" style="max-width:400px;">
+                <h3 style="color:#27ae60;"><i class="fas fa-user-check"></i> تعيين الطلب</h3>
+                <input type="hidden" id="assign-ticket-id" value="${ticketId}">
+                <label class="form-label">اختر موظف الموارد:</label>
+                <select id="assign-hr-emp" class="comment-input">${selectHtml}</select>
+                <label class="form-label">تعليمات إضافية:</label>
+                <textarea id="assign-comment" class="comment-input" rows="3" placeholder="توجيهات للموظف..."></textarea>
+                <button onclick="submitHrAssign()" style="background:#27ae60; color:white; width:100%; padding:12px; margin-top:15px; border:none; border-radius:5px; font-weight:bold; cursor:pointer;">
+                    تأكيد التعيين
+                </button>
+                <button onclick="document.getElementById('assign-modal').remove()" style="background:#ccc; color:#333; width:100%; padding:12px; margin-top:10px; border:none; border-radius:5px; cursor:pointer;">
+                    إلغاء
+                </button>
+            </div>
+        </div>
+    `;
+    
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+}
 
 
         async function submitHrAssign() {
-            const ticketId = document.getElementById('assign-ticket-id').value; const assignedTo = document.getElementById('assign-emp-select').value; const comment = document.getElementById('assign-comment').value.trim();
-            if(!assignedTo) return alert("اختر الموظف");
-            await fetch('/api/hr-assign', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ticketId, assignedTo, comment, byUser: window.globalRealActor}) });
-            alert("تم التعيين بنجاح! ✅"); document.getElementById('hr-assign-modal').style.display = 'none'; loadHrRequests();
-        }
-
-
-        function openHrRejectModal(ticketId) { document.getElementById('reject-ticket-id').value = ticketId; document.getElementById('reject-comment').value = ''; validateHrReject(); document.getElementById('hr-reject-modal').style.display = 'flex'; }
+    const ticketId = document.getElementById('assign-ticket-id').value;
+    const assignedTo = document.getElementById('assign-hr-emp').value;
+    const comment = document.getElementById('assign-comment').value;
+    
+    try {
+        const res = await fetch('/api/hr-assign', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ticketId, assignedTo, comment, byUser: currentUsername })
+        });
         
+        const result = await res.json();
+        if (result.success) {
+            alert('✅ تم تعيين الطلب بنجاح');
+            document.getElementById('assign-modal')?.remove();
+            loadHrOperations(); // تحديث الجدول
+        } else {
+            alert('❌ فشل التعيين: ' + result.message);
+        }
+    } catch (e) {
+        alert('❌ حدث خطأ في الاتصال');
+    }
+}
+
+
+function openHrRejectModal(ticketId) {
+    const modalHtml = `
+        <div class="modal-overlay" id="reject-modal" style="display:flex;">
+            <div class="modal-content" style="max-width:400px;">
+                <h3 style="color:#e74c3c;"><i class="fas fa-times-circle"></i> رفض الطلب</h3>
+                <input type="hidden" id="reject-ticket-id" value="${ticketId}">
+                <label class="form-label">سبب الرفض (إجباري):</label>
+                <textarea id="reject-comment" class="comment-input" rows="4" placeholder="اكتب سبب الرفض بوضوح..."></textarea>
+                <button onclick="submitHrReject()" style="background:#e74c3c; color:white; width:100%; padding:12px; margin-top:15px; border:none; border-radius:5px; font-weight:bold; cursor:pointer;">
+                    تأكيد الرفض
+                </button>
+                <button onclick="document.getElementById('reject-modal').remove()" style="background:#ccc; color:#333; width:100%; padding:12px; margin-top:10px; border:none; border-radius:5px; cursor:pointer;">
+                    إلغاء
+                </button>
+            </div>
+        </div>
+    `;
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+}        
         function validateHrReject() { const c = document.getElementById('reject-comment').value.trim(); const b = document.getElementById('btn-hr-reject'); if(c.length >= 10) { b.disabled = false; b.style.background = '#e74c3c'; b.style.cursor='pointer'; } else { b.disabled = true; b.style.background = '#ccc'; b.style.cursor='not-allowed';} }
         
+        
         async function submitHrReject() {
-            const ticketId = document.getElementById('reject-ticket-id').value; const comment = document.getElementById('reject-comment').value.trim();
-            await fetch('/api/hr-reject', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ticketId, comment, byUser: window.globalRealActor}) });
-            alert("تم الرفض وإعادته للمدير! ❌"); document.getElementById('hr-reject-modal').style.display = 'none'; loadHrRequests();
+    const ticketId = document.getElementById('reject-ticket-id').value;
+    const comment = document.getElementById('reject-comment').value;
+    
+    if (!comment.trim()) {
+        alert('⚠️ يرجى كتابة سبب الرفض');
+        return;
+    }
+    
+    try {
+        const res = await fetch('/api/hr-reject', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ticketId, comment, byUser: currentUsername })
+        });
+        
+        const result = await res.json();
+        if (result.success) {
+            alert('✅ تم رفض الطلب وإعادته للمدير');
+            document.getElementById('reject-modal')?.remove();
+            loadHrOperations();
+        } else {
+            alert('❌ فشل الرفض: ' + result.message);
         }
+    } catch (e) {
+        alert('❌ حدث خطأ في الاتصال');
+    }
+}
 
+        
+// ==================== نافذة إنجاز الطلب (النسخة المتطورة) ====================
+window.openHrResolveModal = function(ticketId) { 
+    // حذف أي نوافذ عالقة لضمان النظافة
+    document.querySelectorAll('#hr-resolve-modal').forEach(el => el.remove());
+    
+    const modalHtml = `
+    <div class="modal-overlay" id="hr-resolve-modal" style="display:flex; z-index:9999; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); align-items:center; justify-content:center;">
+        <div class="modal-content" style="background:white; padding:25px; border-radius:12px; width:90%; max-width:400px; text-align:right; border-top: 5px solid #27ae60; box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
+            <h3 style="color: #27ae60; margin-top: 0; text-align: center; border-bottom: 1px solid #eee; padding-bottom: 10px;">
+                <i class="fas fa-check-double"></i> إنجاز الطلب
+            </h3>
+            <input type="hidden" id="resolve-ticket-id" value="${ticketId}">
+            <label style="display:block; font-size:13px; font-weight:bold; color:#555; margin-bottom:5px;">
+                تعليق الإنجاز (إجباري):
+            </label>
+            <textarea id="resolve-hr-comment" 
+                placeholder="ما هي الإجراءات التي تمت لحل هذا الطلب؟..." 
+                style="width: 100%; padding: 10px; margin-bottom: 15px; border-radius:5px; border:1px solid #ccc; font-family:inherit; min-height: 90px; box-sizing:border-box;" 
+                oninput="window.validateHrResolve()"></textarea>
+            <button id="btn-hr-resolve" 
+                disabled 
+                style="background:#ccc; color:white; border:none; padding:12px; width:100%; border-radius:8px; font-weight:bold; cursor:not-allowed; font-size:15px; margin-bottom:10px;" 
+                onclick="window.submitHrResolve()">
+                تأكيد الإنجاز
+            </button>
+            <button onclick="document.getElementById('hr-resolve-modal').remove()" 
+                style="background:#eee; color:#333; border:none; padding:10px; width:100%; border-radius:8px; font-weight:bold; cursor:pointer;">
+                إلغاء وإغلاق
+            </button>
+        </div>
+    </div>`;
+    
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+};
 
-        // ==================== القوة الضاربة: نافذة الإنجاز (تعمل برمجياً 100%) ====================
-        window.openHrResolveModal = function(ticketId) { 
-            // حذف أي نوافذ عالقة في المتصفح لضمان النظافة
-            document.querySelectorAll('#hr-resolve-modal').forEach(el => el.remove());
+// دالة التحقق من صحة الإدخال (تفعيل الزر فوراً)
+window.validateHrResolve = function() { 
+    const c = document.getElementById('resolve-hr-comment').value.trim(); 
+    const b = document.getElementById('btn-hr-resolve'); 
+    if(c.length >= 5) { 
+        b.disabled = false; 
+        b.style.background = '#27ae60'; 
+        b.style.cursor = 'pointer';
+        b.style.opacity = '1';
+    } else { 
+        b.disabled = true; 
+        b.style.background = '#ccc'; 
+        b.style.cursor = 'not-allowed';
+        b.style.opacity = '0.7';
+    } 
+};
+
+// دالة إرسال الإنجاز
+window.submitHrResolve = async function() {
+    console.log('🔍 currentUsername:', currentUsername);
+    console.log('🔍 window.globalRealActor:', window.globalRealActor);
+    console.log('✅ سيتم استخدام:', window.globalRealActor || currentUsername || 'system');
+    const ticketId = document.getElementById('resolve-ticket-id').value;
+    const comment = document.getElementById('resolve-hr-comment').value.trim();
+    
+    if (!comment) {
+        alert('⚠️ يرجى كتابة تعليق الإنجاز');
+        return;
+    }
+    
+    // تعطيل الزر أثناء الإرسال
+    const btn = document.getElementById('btn-hr-resolve');
+    const originalText = btn.innerHTML;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري...';
+    btn.disabled = true;
+    
+    try {
+        const res = await fetch('/api/hr-resolve', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+                ticketId: ticketId, 
+                comment: comment, 
+                byUser: currentUsername || window.globalRealActor 
+            })
+        });
+        
+        const result = await res.json();
+        
+        if (result.success) {
+            alert('✅ تم إنجاز الطلب وإعادته للمدير للتقييم');
+            document.getElementById('hr-resolve-modal')?.remove();
             
-            // بناء النافذة وإجبارها على الظهور بقوة الجافاسكريبت
-            const modalHtml = `
-            <div class="modal-overlay" id="hr-resolve-modal" style="display:flex; z-index:9999; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); align-items:center; justify-content:center;">
-                <div class="modal-content" style="background:white; padding:25px; border-radius:12px; width:90%; max-width:400px; text-align:right; border-top: 5px solid #27ae60; box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
-                    <h3 style="color: #27ae60; margin-top: 0; text-align: center; border-bottom: 1px solid #eee; padding-bottom: 10px;"><i class="fas fa-check-double"></i> إنجاز الطلب</h3>
-                    <input type="hidden" id="resolve-ticket-id" value="${ticketId}">
-                    <label style="display:block; font-size:13px; font-weight:bold; color:#555; margin-bottom:5px;">تعليق الإنجاز (إجباري):</label>
-                    <textarea id="resolve-hr-comment" placeholder="ما هي الإجراءات التي تمت لحل هذا الطلب؟..." style="width: 100%; padding: 10px; margin-bottom: 15px; border-radius:5px; border:1px solid #ccc; font-family:inherit; min-height: 90px; box-sizing:border-box;" oninput="window.validateHrResolve()"></textarea>
-                    <button id="btn-hr-resolve" disabled style="background:#ccc; color:white; border:none; padding:12px; width:100%; border-radius:8px; font-weight:bold; cursor:not-allowed; font-size:15px; margin-bottom:10px;" onclick="window.submitHrResolve()">تأكيد الإنجاز</button>
-                    <button onclick="document.getElementById('hr-resolve-modal').remove()" style="background:#eee; color:#333; border:none; padding:10px; width:100%; border-radius:8px; font-weight:bold; cursor:pointer;">إلغاء وإغلاق</button>
-                </div>
-            </div>`;
-            
-            document.body.insertAdjacentHTML('beforeend', modalHtml);
-        };
-
-
-        window.validateHrResolve = function() { 
-            const c = document.getElementById('resolve-hr-comment').value.trim(); 
-            const b = document.getElementById('btn-hr-resolve'); 
-            if(c.length >= 5) { b.disabled = false; b.style.background = '#27ae60'; b.style.cursor='pointer';} 
-            else { b.disabled = true; b.style.background = '#ccc'; b.style.cursor='not-allowed';} 
-        };
-
-
-        window.submitHrResolve = async function() {
-            const ticketId = document.getElementById('resolve-ticket-id').value; 
-            const comment = document.getElementById('resolve-hr-comment').value.trim();
-            const btn = document.getElementById('btn-hr-resolve');
-            
-            btn.disabled = true; btn.innerText = "⏳ جاري الحفظ...";
-
-
-            try {
-                const res = await (await fetch('/api/hr-resolve', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ticketId, comment, byUser: window.globalRealActor}) })).json();
-                if(res.success) {
-                    alert("تم إنجاز الطلب بنجاح! عاد الآن للإدارة. ✅"); 
-                    document.getElementById('hr-resolve-modal').remove(); 
-                    if (typeof loadHrRequests === 'function') loadHrRequests();
-                } else {
-                    alert("خطأ: تأكد من ملف السيرفر.");
-                    btn.disabled = false; btn.innerText = "تأكيد الإنجاز";
-                }
-            } catch(e) {
-                alert("خطأ في الاتصال بالخادم!");
-                btn.disabled = false; btn.innerText = "تأكيد الإنجاز";
+            // تحديث الجدول
+            if (typeof loadHrOperations === 'function') {
+                loadHrOperations();
+            } else if (typeof renderHrOpsTable === 'function') {
+                renderHrOpsTable();
             }
-        };
+        } else {
+            alert('❌ فشل الإنجاز: ' + (result.message || 'خطأ غير معروف'));
+            // إعادة تفعيل الزر
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+        }
+    } catch (e) {
+        console.error('خطأ:', e);
+        alert('❌ حدث خطأ في الاتصال بالخادم');
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+    }
+};
+
+        
          // ==================== نظام العروض الوظيفية (توليد الصور) ====================
         let currentOfferConditions = { ar: "", en: "" };
 
@@ -11843,131 +11989,173 @@ function openHrOpsPortal() {
 }
 
 // 2. جلب البيانات من السيرفر (المسار السريع)
+let hrOpsRequests = [];
+let currentHrOpsTab = 'all';
+
+// 1. جلب البيانات من السيرفر
 async function loadHrOperations() {
     try {
-        const currentUser = JSON.parse(localStorage.getItem('currentUser')) || {};
+        console.log("⏳ جاري تحميل طلبات الموارد البشرية...");
         
-        console.log("⏳ جاري الاتصال بمسار عمليات الموارد...");
         const response = await fetch('/api/hr-operations', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                username: typeof currentUsername !== 'undefined' ? currentUsername : (currentUser.username || ''),
-                role: typeof globalRoleArabic !== 'undefined' ? globalRoleArabic : (currentUser.role || ''),
-                isAdmin: typeof globalIsAdmin !== 'undefined' ? globalIsAdmin : false
+                username: currentUsername,
+                role: globalRoleArabic,
+                isAdmin: globalIsAdmin
             })
         });
 
         if (response.ok) {
             const result = await response.json();
             hrOpsRequests = result.requests || result.data || result || [];
-            console.log("✅ تمت الإمدادات بنجاح! عدد التذاكر:", hrOpsRequests.length);
+            console.log(`✅ تم تحميل ${hrOpsRequests.length} طلب بنجاح`);
         } else {
-            console.error("⚠️ السيرفر رفض الطلب.");
+            console.error("⚠️ فشل في جلب البيانات");
             hrOpsRequests = [];
         }
 
-        renderHrOpsTable(); // رسم الجدول
+        renderHrOpsTable();
     } catch (error) {
-        console.error("❌ فشل الاتصال بالبوابة:", error);
+        console.error("❌ خطأ في تحميل طلبات الموارد:", error);
+        hrOpsRequests = [];
+        renderHrOpsTable();
     }
 }
 
 // 3. تبديل التبويبات (طلباتي / كل الطلبات)
 function switchHrOpsTab(tab) {
     currentHrOpsTab = tab;
-    // تحديث ألوان الأزرار (إذا كانت موجودة)
+    
+    // تحديث مظهر الأزرار
     const btnAll = document.getElementById('btn-hrops-all');
     const btnMine = document.getElementById('btn-hrops-mine');
-    if (btnAll) btnAll.style.opacity = tab === 'all' ? '1' : '0.5';
-    if (btnMine) btnMine.style.opacity = tab === 'mine' ? '1' : '0.5';
+    
+    if (btnAll) btnAll.classList.toggle('active', tab === 'all');
+    if (btnMine) btnMine.classList.toggle('active', tab === 'mine');
     
     renderHrOpsTable();
 }
 
 // 4. دالة الرسم المدرعة (بدون فلاتر معقدة، نثق بالسيرفر)
-function renderHrOpsTable() {
-    const tbody = document.getElementById('hr-ops-table-body'); // 👈 تأكد من تحديث الـ ID في الـ HTML لديك
+
+    const tbody = document.getElementById('hr-ops-table-body');
     if (!tbody) {
-        console.warn("⚠️ لم يتم العثور على جسم الجدول hr-ops-table-body");
+        console.warn("⚠️ لم يتم العثور على عنصر الجدول hr-ops-table-body");
         return;
     }
 
-    let filtered = hrOpsRequests || [];
+    // تطبيق الفلاتر
+    let filtered = [...hrOpsRequests];
+    const empQ = document.getElementById('hrops-filter-emp')?.value.trim().toLowerCase() || '';
+    const statusQ = document.getElementById('hrops-filter-status')?.value || 'all';
 
-    // 🔍 تطبيق فلاتر الشاشة (التي يختارها المستخدم)
-    const empQ = document.getElementById('hrops-filter-emp') ? document.getElementById('hrops-filter-emp').value.trim().toLowerCase() : '';
-    const statusQ = document.getElementById('hrops-filter-status') ? document.getElementById('hrops-filter-status').value : 'all';
-
+    // فلترة حسب التبويب (طلباتي)
     if (currentHrOpsTab === 'mine') {
         filtered = filtered.filter(r => String(r.assignedHrEmp) === String(currentUsername));
     }
+
+    // فلترة حسب الحالة
     if (statusQ !== 'all') {
         filtered = filtered.filter(r => r.status === statusQ);
     }
+
+    // فلترة حسب اسم/رقم الموظف
     if (empQ) {
         filtered = filtered.filter(r => {
-            const searchUsername = r.empUsername || r.username || '';
-            return searchUsername.toLowerCase().includes(empQ) || (r.empName && r.empName.toLowerCase().includes(empQ));
+            const searchUsername = String(r.empUsername || r.username || '').toLowerCase();
+            const searchName = String(r.empName || '').toLowerCase();
+            return searchUsername.includes(empQ) || searchName.includes(empQ);
         });
     }
 
-    // 🎨 رسم الجدول
+    // عرض رسالة إذا كانت القائمة فارغة
     if (filtered.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding: 20px; font-weight: bold; color: #777;"><i class="fas fa-folder-open fa-2x" style="color:#ddd; margin-bottom:10px; display:block;"></i>صندوق العمليات فارغ حالياً</td></tr>';
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="8" style="text-align:center; padding: 40px; font-weight: bold; color: #777;">
+                    <i class="fas fa-folder-open fa-3x" style="color:#ddd; margin-bottom:15px; display:block;"></i>
+                    لا توجد طلبات لعرضها
+                </td>
+            </tr>
+        `;
         return;
     }
 
+    // رسم الجدول
     tbody.innerHTML = filtered.map(r => {
         const trueId = r.ticketId || r.id;
-        const safeDate = (r.date || r.createdAt || "").split(',')[0];
+        const safeDate = (r.date || r.createdAt || new Date().toISOString()).split(',')[0];
         const safeReason = r.reason || r.type || 'طلب عام';
         const targetUsername = String(r.empUsername || r.username || '');
         
-        // 📎 المرفقات (الرادار الذكي لملفات الإكسيل الافتراضية)
-        let attachmentLink = '<span style="color:#ccc; font-size:11px;">لا يوجد</span>';
-        if (r.attachment) {
-            const attachStr = typeof r.attachment === 'string' ? r.attachment : JSON.stringify(r.attachment);
-            if (attachStr.trim().startsWith('{')) {
-                const safePayload = encodeURIComponent(attachStr).replace(/'/g, "%27");
-                attachmentLink = `<button onclick="downloadVirtualAttachment(decodeURIComponent('${safePayload}'))" style="background:#27ae60; color:white; border:none; padding:4px 8px; border-radius:4px; font-size:11px; font-weight:bold; cursor:pointer;"><i class="fas fa-file-excel"></i> إكسيل التصفية</button>`;
-            } else {
-                attachmentLink = `<a href="${attachStr}" target="_blank" style="color:#2980b9; font-weight:bold; font-size:12px;"><i class="fas fa-paperclip"></i> المرفق</a>`;
-            }
-        }
-
         // 🏷️ شارات الحالة
         let badge = '';
-        if(r.status === 'escalated') badge = '<span style="background:#e74c3c; color:white; padding:3px 6px; border-radius:4px; font-size:11px;">جديد 🔴</span>';
-        else if(r.status === 'hr_assigned') badge = '<span style="background:#f39c12; color:white; padding:3px 6px; border-radius:4px; font-size:11px;">تحت الإجراء ⏳</span>';
-        else if(r.status === 'resolved') badge = '<span style="background:#3498db; color:white; padding:3px 6px; border-radius:4px; font-size:11px;">للاعتماد 🔄</span>';
-        else if(r.status === 'completed') badge = '<span style="background:#27ae60; color:white; padding:3px 6px; border-radius:4px; font-size:11px;">مغلق ✅</span>';
-        else badge = `<span style="background:#95a5a6; color:white; padding:3px 6px; border-radius:4px; font-size:11px;">${r.status}</span>`;
+        if (r.status === 'escalated') {
+            badge = '<span class="status-badge" style="background:#e74c3c;">جديد 🔴</span>';
+        } else if (r.status === 'hr_assigned') {
+            badge = '<span class="status-badge" style="background:#f39c12;">تحت الإجراء ⏳</span>';
+        } else if (r.status === 'resolved') {
+            badge = '<span class="status-badge" style="background:#3498db;">للاعتماد 🔄</span>';
+        } else if (r.status === 'completed') {
+            badge = '<span class="status-badge" style="background:#27ae60;">مغلق ✅</span>';
+        } else if (r.status === 'pending') {
+            badge = '<span class="status-badge" style="background:#95a5a6;">عند المدير ⏳</span>';
+        } else {
+            badge = `<span class="status-badge" style="background:#9b59b6;">${r.status}</span>`;
+        }
+
+        // 📎 عرض المرفق
+        let attachmentLink = '<span style="color:#ccc; font-size:11px;">لا يوجد</span>';
+        if (r.attachment && r.attachment.trim() !== '') {
+            attachmentLink = `<a href="${r.attachment}" target="_blank" style="color:#2980b9; font-size:12px;" title="فتح المرفق">
+                <i class="fas fa-paperclip"></i> عرض
+            </a>`;
+        }
 
         // ⚙️ أزرار الإجراءات
-        let actions = `<button onclick="viewRequestDetails('${trueId}')" style="background:#3498db; color:white; border:none; padding:4px 8px; border-radius:4px; cursor:pointer; font-size:11px;"><i class="fas fa-eye"></i></button>`;
+        let actions = `
+            <button onclick="viewRequestDetails('${trueId}')" class="action-btn view-btn" title="عرض التفاصيل">
+                <i class="fas fa-eye"></i>
+            </button>
+        `;
         
         if (r.status === 'escalated') {
             actions += `
-                <button onclick="openHrAssignModal('${trueId}')" title="تعيين" style="background:#27ae60; color:white; border:none; padding:4px 8px; border-radius:4px; cursor:pointer; font-size:11px; margin-right:5px;"><i class="fas fa-user-check"></i></button>
-                <button onclick="openHrRejectModal('${trueId}')" title="رفض" style="background:#e74c3c; color:white; border:none; padding:4px 8px; border-radius:4px; cursor:pointer; font-size:11px; margin-right:5px;"><i class="fas fa-times"></i></button>
+                <button onclick="openHrAssignModal('${trueId}')" class="action-btn" style="color:#27ae60;" title="تعيين لموظف موارد">
+                    <i class="fas fa-user-check"></i>
+                </button>
+                <button onclick="openHrRejectModal('${trueId}')" class="action-btn" style="color:#e74c3c;" title="رفض الطلب">
+                    <i class="fas fa-times-circle"></i>
+                </button>
             `;
         } else if (r.status === 'hr_assigned' && String(r.assignedHrEmp) === String(currentUsername)) {
-            actions += `<button onclick="window.openHrResolveModal('${trueId}')" style="background:#27ae60; color:white; border:none; padding:4px 8px; border-radius:4px; cursor:pointer; font-size:11px; margin-right:5px;"><i class="fas fa-check-double"></i> إنجاز</button>`;
+            actions += `
+                <button onclick="openHrResolveModal('${trueId}')" class="action-btn" style="color:#27ae60;" title="إنجاز الطلب">
+                    <i class="fas fa-check-double"></i>
+                </button>
+            `;
         }
 
-        const assignedName = r.assignedHrEmp ? r.assignedHrEmp : '<span style="color:#e74c3c; font-size:11px;">لم يُعين</span>';
+        // اسم الموظف المعين
+        let assignedName = r.assignedHrEmp || '<span style="color:#e74c3c;">لم يُعين</span>';
 
-        return `<tr>
-            <td style="font-size:11px; font-weight:bold; color:#555;">${String(trueId).replace('REQ-','')}</td>
-            <td style="font-size:12px;">${safeDate}</td>
-            <td><strong>${r.empName || 'غير متوفر'}</strong><br><span style="font-size:10px; color:#888;">${targetUsername}</span></td>
-            <td style="font-size:12px; color:#27ae60; font-weight:bold;">${safeReason}</td>
-            <td>${attachmentLink}</td>
-            <td>${badge}</td>
-            <td style="font-size:12px; font-weight:bold;">${assignedName}</td>
-            <td style="text-align:center;">${actions}</td> 
-        </tr>`;
+        return `
+            <tr>
+                <td style="font-weight:bold; color:#2980b9;">${String(trueId).replace('REQ-', '')}</td>
+                <td style="font-size:12px;">${safeDate}</td>
+                <td>
+                    <strong>${r.empName || 'غير متوفر'}</strong><br>
+                    <span style="font-size:10px; color:#888;">${targetUsername}</span>
+                </td>
+                <td style="font-weight:bold; color:#8e44ad;">${safeReason}</td>
+                <td>${attachmentLink}</td>
+                <td>${badge}</td>
+                <td style="font-size:12px;">${assignedName}</td>
+                <td style="text-align:center; white-space:nowrap;">${actions}</td>
+            </tr>
+        `;
     }).join('');
 }
                 // =========================================================
