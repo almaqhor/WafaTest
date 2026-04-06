@@ -11990,7 +11990,7 @@ function openHrOpsPortal() {
 let currentHrOpsTab = 'all';
 
 // 1. جلب البيانات من السيرفر
-async function loadHrOperations() {
+async function loadHrOperationsd() {
     try {
         console.log("⏳ جاري تحميل طلبات الموارد البشرية...");
         
@@ -12022,18 +12022,7 @@ async function loadHrOperations() {
 }
 
 // 3. تبديل التبويبات (طلباتي / كل الطلبات)
-function switchHrOpsTab(tab) {
-    currentHrOpsTab = tab;
-    
-    // تحديث مظهر الأزرار
-    const btnAll = document.getElementById('btn-hrops-all');
-    const btnMine = document.getElementById('btn-hrops-mine');
-    
-    if (btnAll) btnAll.classList.toggle('active', tab === 'all');
-    if (btnMine) btnMine.classList.toggle('active', tab === 'mine');
-    
-    renderHrOpsTable();
-}
+
 
 // 4. دالة الرسم المدرعة (بدون فلاتر معقدة، نثق بالسيرفر)
 
