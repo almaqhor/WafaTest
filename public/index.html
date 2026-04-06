@@ -924,7 +924,7 @@
             
             <button style="background:#d35400; color:white; border:none; padding:10px 15px; border-radius:5px; font-weight:bold; cursor:pointer;" onclick="openJobOfferModal()"><i class="fas fa-file-signature"></i> إصدار عرض وظيفي</button>
             <button style="background:var(--primary-green); color:white; border:none; padding:10px 15px; border-radius:5px; font-weight:bold; cursor:pointer;" onclick="openAddUserModal()"><i class="fas fa-plus"></i> مستخدم جديد</button>
-            <button style="background:#c0392b; color:white; border:none; padding:10px 15px; border-radius:5px; font-weight:bold; cursor:pointer;" onclick="openEosModal()"><i class="fas fa-user-sh"></i> إنهاء خدمات</button>
+            <button style="background:#c0392b; color:white; border:none; padding:10px 15px; border-radius:5px; font-weight:bold; cursor:pointer;" onclick="()"><i class="fas fa-user-sh"></i> إنهاء خدمات</button>
             <button onclick="exportUsersToExcel()" style="background:#27ae60; color:white; border:none; padding:10px 15px; border-radius:5px; font-weight:bold; cursor:pointer; display:inline-flex; align-items:center; gap:8px;">
                 <i class="fas fa-file-excel"></i> تصدير البيانات
             </button>
@@ -7661,21 +7661,32 @@ async function runEOSFetch(payload) {
 }
 
 
-        function exportEOSToExcel() {
-            if(!currentEOSReport) return;
-            const r = currentEOSReport;
-            
-            // أضفنا عمودي (اسم البنك) و (رقم الآيبان) في الترويسة والبيانات
-            const csvContent = "\uFEFF" + 
-                "الرقم الوظيفي,الاسم,رقم الهوية,تاريخ الانضمام,تاريخ آخر يوم عمل,مدة الخدمة,استحقاق المكافأة,الراتب الإجمالي,رسوم التأمينات الشهرية,أيام عمل مستحقة,أيام خصم غياب,أيام تأمينات مستردة/مخصومة,رصيد الإجازة المتبقي,رسوم كرت البلدية,اسم البنك,رقم الآيبان\n" +
-                `"${r.empId}","${r.name}","${r.idNumber}","${r.joinDate}","${r.lastWorkingDay}","${r.serviceDuration}","${r.deservesEOS}","${r.totalSalary}","${r.gosiFeeMonth}","${r.currentMonthPayableDays}","${r.prevMonthDeductDays}","${r.gosiDaysAdjustment}","${r.leaveBalance}","${r.baladiyahFee}","${r.bankName}","${r.bankIban}"`;
-            
-            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-            const link = document.createElement("a");
-            link.href = URL.createObjectURL(blob);
-            link.download = `تصفية_مستحقات_${r.empId}.csv`;
-            link.click();
-        }
+        const r = currentEOSReport;
+
+        // 1. تجهيز بيانات الصفحة الأولى (التصفية المالية الكاملة)
+        const sheet1Data = [
+            ["الرقم الوظيفي", "الاسم", "رقم الهوية", "تاريخ الانضمام", "تاريخ آخر يوم عمل", "مدة الخدمة", "استحقاق المكافأة", "الراتب الإجمالي", "رسوم التأمينات الشهرية", "أيام عمل مستحقة", "أيام خصم غياب", "أيام تأمينات مستردة/مخصومة", "رصيد الإجازة المتبقي", "رسوم كرت البلدية", "اسم البنك", "رقم الآيبان"],
+            [r.empId, r.name, r.idNumber, r.joinDate, r.lastWorkingDay, r.serviceDuration, r.deservesEOS, r.totalSalary, r.gosiFeeMonth, r.currentMonthPayableDays, r.prevMonthDeductDays, r.gosiDaysAdjustment, r.leaveBalance, r.baladiyahFee, r.bankName, r.bankIban]
+        ];
+
+        // 2. تجهيز بيانات الصفحة الثانية (ملخص الإنهاء) حسب طلبك
+        // ملاحظة: افترضت أن نوع الإنهاء موجود في المتغير r.status أو r.termType
+        const sheet2Data = [
+            ["الرقم الوظيفي", "الاسم", "رقم الهوية", "تاريخ اخر يوم عمل", "نوع الانهاء( الحالة )"],
+            [r.empId, r.name, r.idNumber, r.lastWorkingDay, r.status || r.termType || "غير محدد"]
+        ];
+
+        // 3. تحويل المصفوفات إلى صفحات إكسيل حقيقية
+        const worksheet1 = XLSX.utils.aoa_to_sheet(sheet1Data);
+        const worksheet2 = XLSX.utils.aoa_to_sheet(sheet2Data);
+
+        // 4. إنشاء ملف الإكسيل (Workbook) وربط الصفحات به
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet1, "التصفية المالية"); // اسم الصفحة الأولى
+        XLSX.utils.book_append_sheet(workbook, worksheet2, "حالة الإنهاء");  // اسم الصفحة الثانية
+
+        // 5. إطلاق الملف للمستخدم بصيغة xlsx الحقيقية
+        XLSX.writeFile(workbook, `تصفية_مستحقات_${r.empId}.xlsx`);
         // ==================== محرك إعدادات مصفوفة الجزاءات ====================
 
         // دالة قراءة الإكسيل ورفعه
