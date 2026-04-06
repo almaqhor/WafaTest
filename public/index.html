@@ -5978,11 +5978,10 @@ async function renderPenaltiesDashboard(penalties) {
         };
         // ==================== Tier 2: دوال مشرف الموارد البشرية ====================
         // let hrAllRequests = [];
-        let currentHrTab = 'all'; 
-        let currentHrStatusFilter = '';
+       let currentHrTab = 'all'; 
+let currentHrStatusFilter = '';
 
-
-       async function loadHrRequests() {
+async function loadHrRequests() {
     try {
         if (typeof allUsersData !== 'undefined' && allUsersData.length === 0) {
             try { allUsersData = await (await fetch('/api/users')).json(); } catch(e){}
@@ -6014,7 +6013,9 @@ async function renderPenaltiesDashboard(penalties) {
         });
 
         if (response.ok) {
-            hrAllRequests = await response.json();
+            const result = await response.json();
+            // تأكدنا من استخراج التذاكر سواء أرسلها السيرفر كـ array مباشر أو داخل كائن {requests: ...}
+            hrAllRequests = result.requests || result.data || result || [];
             console.log(globalIsAdmin ? "👑 بيانات الإدارة العليا الشاملة:" : "💼 بيانات الموارد البشرية المفلترة:", hrAllRequests);
         } else {
             hrAllRequests = [];
@@ -6039,37 +6040,43 @@ async function renderPenaltiesDashboard(penalties) {
     }
 }
         
-        function switchHrTab(tab) { 
-            currentHrTab = tab; 
-            const b1 = document.getElementById('btn-hr-tab-all'); if(b1) b1.classList.toggle('active', tab === 'all');
-            const b2 = document.getElementById('btn-hr-tab-mine'); if(b2) b2.classList.toggle('active', tab === 'mine');
-            renderHrTable(); 
-        }
-        function setHrStatusFilter(status) { currentHrStatusFilter = status; renderHrTable(); }
+function switchHrTab(tab) { 
+    currentHrTab = tab; 
+    const b1 = document.getElementById('btn-hr-tab-all'); if(b1) b1.classList.toggle('active', tab === 'all');
+    const b2 = document.getElementById('btn-hr-tab-mine'); if(b2) b2.classList.toggle('active', tab === 'mine');
+    renderHrTable(); 
+}
+function setHrStatusFilter(status) { currentHrStatusFilter = status; renderHrTable(); }
 
-        async function renderHrTable() {
+async function renderHrTable() {
     try {
         if (typeof locationsArray === 'undefined' || locationsArray.length === 0) {
-            try { locationsArray = await (await fetch('/api/locations')).json(); } catch(e) {}
+            try { locationsArray = await (await fetch('/api/locations')).json(); } catch(e) { locationsArray = []; }
         }
 
+        const safeLocations = locationsArray || [];
+        const safeUsersData = allUsersData || [];
         let filtered = hrAllRequests || [];
 
-        // 👑 التعرف على الإدارة العليا
+        // 👑 التعرف على الإدارة العليا والموارد البشرية
         const currentUser = JSON.parse(localStorage.getItem('currentUser')) || {};
+        
+        // 🎯 السماح لـ "موظف ادارة" برؤية التذاكر (ويمكن إضافة المزيد لاحقًا)
         const isAdminView = (typeof globalIsAdmin !== 'undefined' && globalIsAdmin === true) || 
                             currentUser.role === 'admin' || 
-                            currentUser.roleArabic === 'ادمن';
+                            currentUser.roleArabic === 'ادمن' ||
+                            currentUser.role === 'موظف ادارة' ||
+                            currentUser.roleArabic === 'موظف ادارة';
 
         if (!isAdminView) { 
-            const mySupervisedBranches = locationsArray
+            const mySupervisedBranches = safeLocations
                 .filter(loc => String(loc.hrUsername) === String(currentUsername))
                 .map(loc => loc.branch);
 
             filtered = filtered.filter(r => {
                 if (String(r.assignedHrEmp) === String(currentUsername)) return true;
                 const targetUsername = String(r.empUsername || r.username); 
-                const reqUser = allUsersData.find(x => String(x.username) === targetUsername);
+                const reqUser = safeUsersData.find(x => String(x.username) === targetUsername);
                 return reqUser && mySupervisedBranches.includes(reqUser.branch);
             });
         }
@@ -6103,7 +6110,7 @@ async function renderPenaltiesDashboard(penalties) {
         if(branchQ) { 
             filtered = filtered.filter(r => { 
                 const targetUsername = String(r.empUsername || r.username);
-                const u = allUsersData.find(x => String(x.username) === targetUsername); 
+                const u = safeUsersData.find(x => String(x.username) === targetUsername); 
                 return u && u.branch === branchQ; 
             }); 
         }
@@ -6118,14 +6125,27 @@ async function renderPenaltiesDashboard(penalties) {
 
         tbody.innerHTML = filtered.map(r => {
             const targetUsername = String(r.empUsername || r.username || '');
-            const u = allUsersData.find(x => String(x.username) === targetUsername) || {};
+            const u = safeUsersData.find(x => String(x.username) === targetUsername) || {};
             const safeDate = (r.date || r.createdAt || "").split(',')[0]; 
             const safeReason = r.reason || r.type || ''; 
             
-            // 🌟 الإصلاح السحري لمعرف التذكرة (ندمج بين النظام القديم والجديد)
+            // 🌟 الإصلاح السحري لمعرف التذكرة
             const trueId = r.ticketId || r.id; 
             
-            const attachmentLink = r.attachment ? `<a href="${r.attachment}" target="_blank" style="color:#2980b9; font-weight:bold; font-size:12px;"><i class="fas fa-paperclip"></i> المرفق</a>` : '<span style="color:#ccc; font-size:11px;">لا يوجد</span>';
+            // 🎯 الرادار الذكي المُدرع لاكتشاف نوع المرفق (JSON افتراضي أم رابط حقيقي)
+            let attachmentLink = '<span style="color:#ccc; font-size:11px;">لا يوجد</span>';
+
+            if (r.attachment) {
+                const attachStr = typeof r.attachment === 'string' ? r.attachment : JSON.stringify(r.attachment);
+                
+                if (attachStr.trim().startsWith('{')) {
+                    // التشفير القوي لمنع الانهيار بسبب علامات التنصيص
+                    const safePayload = encodeURIComponent(attachStr).replace(/'/g, "%27");
+                    attachmentLink = `<button onclick="downloadVirtualAttachment(decodeURIComponent('${safePayload}'))" style="background:#27ae60; color:white; border:none; padding:4px 8px; border-radius:4px; font-size:11px; font-weight:bold; cursor:pointer;"><i class="fas fa-file-excel"></i> إكسيل التصفية</button>`;
+                } else {
+                    attachmentLink = `<a href="${attachStr}" target="_blank" style="color:#2980b9; font-weight:bold; font-size:12px;"><i class="fas fa-paperclip"></i> المرفق</a>`;
+                }
+            }
             
             let badge = '';
             if(r.status === 'escalated') badge = '<span class="status-badge" style="background:#e74c3c;">جديد 🔴</span>';
@@ -6150,7 +6170,7 @@ async function renderPenaltiesDashboard(penalties) {
             }
 
             const actions = `<div style="display:flex; gap:5px; justify-content:center; min-width:180px;">${actionsInner}</div>`;
-            const assignedName = r.assignedHrEmp ? (allUsersData.find(x => String(x.username) === String(r.assignedHrEmp))?.name || r.assignedHrEmp) : '<span style="color:#e74c3c; font-size:11px;">لم يُعين</span>';
+            const assignedName = r.assignedHrEmp ? (safeUsersData.find(x => String(x.username) === String(r.assignedHrEmp))?.name || r.assignedHrEmp) : '<span style="color:#e74c3c; font-size:11px;">لم يُعين</span>';
 
             return `<tr>
                 <td style="font-size:11px; font-weight:bold; color:#555;">${String(trueId).replace('REQ-','')}</td>
@@ -6166,6 +6186,8 @@ async function renderPenaltiesDashboard(penalties) {
         }).join('');
     } catch(e) {
         console.error("❌ حدث خطأ أثناء رسم الجدول:", e);
+        const tbody = document.getElementById('hr-requests-table');
+        if(tbody) tbody.innerHTML = `<tr><td colspan="9" style="text-align:center; padding: 20px; color: red;">حدث خطأ في عرض البيانات. يرجى تحديث الصفحة.</td></tr>`;
     }
 }
     
