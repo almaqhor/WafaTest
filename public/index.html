@@ -344,7 +344,13 @@
     <div class="quick-icon-wrapper" style="color:#c0392b; background:#fadbd8;">
         <i class="fas fa-gavel"></i>
     </div>
-    <h4 style="margin:0; font-size:13px; color:#333;">الجزاءات والمخالفات</h4>
+            <h4 style="margin:0; font-size:13px; color:#333;">الجزاءات والمخالفات</h4>
+</div>
+                            <div class="quick-card" id="card-nav-hrops" onclick="switchView('hr-dashboard')" style="display:none; border-color:#8e44ad; cursor: pointer;">
+    <div class="quick-icon-wrapper" style="color:#8e44ad; background:#f4ecf7;">
+        <i class="fas fa-user-shield"></i>
+    </div>
+    <h4 style="margin:0; font-size:13px; color:#333; font-weight:bold;">عمليات الموارد البشرية</h4>
 </div>
                     </div>
 
@@ -423,11 +429,11 @@
                                 <input type="date" id="attendance-date" style="padding:10px; border:1px solid #ccc; border-radius:5px; font-family:inherit; flex:1; min-width: 200px;" onchange="loadTeamAttendance()">
                             </div>
                             <div style="overflow-x:auto;">
-                                <table style="margin-top:0;">
-                                    <thead><tr><th>الرقم الوظيفي</th><th>اسم الموظف</th><th>حالة الحضور</th></tr></thead>
-                                    <tbody id="attendance-table-body"></tbody>
-                                </table>
-                            </div>
+    <table style="margin-top:0; width: 100%;">
+        <thead><tr><th>الطلب</th><th>التاريخ</th><th>الموظف</th><th>الفرع</th><th>نوع الطلب</th><th>المرفق</th><th>الحالة</th><th>المُعين له</th><th>الإجراءات</th></tr></thead>
+        <tbody id="hr-ops-table-body"></tbody> 
+    </table>
+</div>
                             <div style="margin-top:20px; display:flex; gap:10px; flex-wrap:wrap;">
                                 <button onclick="saveTeamAttendance()" style="flex:1; background:#27ae60; color:white; border:none; padding:12px; border-radius:5px; font-weight:bold; cursor:pointer;"><i class="fas fa-save"></i> حفظ واعتماد التحضير</button>
                                 <button onclick="copyAttendanceReport()" style="flex:1; background:#25D366; color:white; border:none; padding:12px; border-radius:5px; font-weight:bold; cursor:pointer;"><i class="fab fa-whatsapp"></i> نسخ تقرير الواتساب</button>
@@ -1336,33 +1342,41 @@
                         </div>
                         
                         <div class="tabs-header">
-                            <button class="tab-btn active" id="btn-hr-tab-all" onclick="switchHrTab('all')"><i class="fas fa-globe"></i> جميع الطلبات المُحالة</button>
-                            <button class="tab-btn" id="btn-hr-tab-mine" onclick="switchHrTab('mine')"><i class="fas fa-user-check"></i> طلبات معينة لي</button>
+                            <button class="tab-btn active" id="btn-hrops-all" onclick="switchHrOpsTab('all')"><i class="fas fa-globe"></i> جميع الطلبات المُحالة</button>
+                            <button class="tab-btn" id="btn-hrops-mine" onclick="switchHrOpsTab('mine')"><i class="fas fa-user-check"></i> طلبات معينة لي</button>
                         </div>
-
 
                         <div style="display:flex; flex-wrap:wrap; gap:10px; margin-bottom:15px; background:#f9f9f9; padding:15px; border-radius:8px; border:1px solid #eee;">
-                            <input type="text" id="hr-filter-emp" placeholder="رقم أو اسم الموظف..." style="flex:1; min-width:120px; padding:8px; border:1px solid #ccc; border-radius:5px; font-family:inherit;" oninput="renderHrTable()">
-                            <select id="hr-filter-branch" style="flex:1; min-width:120px; padding:8px; border:1px solid #ccc; border-radius:5px; font-family:inherit;" onchange="renderHrTable()"><option value="">كل الفروع</option></select>
-                            <select id="hr-filter-type" style="flex:1; min-width:120px; padding:8px; border:1px solid #ccc; border-radius:5px; font-family:inherit;" onchange="renderHrTable()"><option value="">كل الأنواع</option></select>
+                            <input type="text" id="hrops-filter-emp" placeholder="رقم أو اسم الموظف..." style="flex:1; min-width:120px; padding:8px; border:1px solid #ccc; border-radius:5px; font-family:inherit;" oninput="renderHrOpsTable()">
+                            <select id="hrops-filter-status" style="flex:1; min-width:120px; padding:8px; border:1px solid #ccc; border-radius:5px; font-family:inherit;" onchange="renderHrOpsTable()">
+                                <option value="all">كل الحالات</option>
+                                <option value="escalated">جديدة (لم تعين)</option>
+                                <option value="hr_assigned">تحت الإجراء</option>
+                                <option value="resolved">بانتظار التقييم</option>
+                                <option value="completed">مكتملة</option>
+                            </select>
                         </div>
-
-
-                        <div style="display:flex; gap:10px; margin-bottom:15px; flex-wrap:wrap; font-size:12px;">
-                            <button onclick="setHrStatusFilter('')" style="padding:6px 12px; border-radius:15px; border:1px solid #ccc; background:white; cursor:pointer;">الكل</button>
-                            <button onclick="setHrStatusFilter('escalated')" style="padding:6px 12px; border-radius:15px; border:1px solid #e74c3c; background:#fdedec; color:#c0392b; font-weight:bold; cursor:pointer;">جديدة لم تعين 🔴</button>
-                            <button onclick="setHrStatusFilter('hr_assigned')" style="padding:6px 12px; border-radius:15px; border:1px solid #f39c12; background:#fef5e7; color:#d35400; font-weight:bold; cursor:pointer;">تحت الإجراء ⏳</button>
-                            <button onclick="setHrStatusFilter('resolved')" style="padding:6px 12px; border-radius:15px; border:1px solid #3498db; background:#ebf5fb; color:#2980b9; font-weight:bold; cursor:pointer;">بانتظار التقييم 🔄</button>
-                            <button onclick="setHrStatusFilter('completed')" style="padding:6px 12px; border-radius:15px; border:1px solid #27ae60; background:#e8f8f5; color:#16a085; font-weight:bold; cursor:pointer;">مكتملة ومغلقة ✅</button>
-                        </div>
-
 
                         <div style="overflow-x:auto;">
-                            <table style="margin-top:0; width: 100%;">
-                                <thead><tr><th>الطلب</th><th>التاريخ</th><th>الموظف</th><th>الفرع</th><th>نوع الطلب</th><th>المرفق</th><th>الحالة</th><th>المُعين له</th><th>الإجراءات</th></tr></thead>
-                                <tbody id="hr-requests-table"></tbody>
+                            <table style="margin-top:0; width: 100%; text-align: right;" class="styled-table">
+                                <thead style="background:#8e44ad; color:white;">
+                                    <tr>
+                                        <th style="padding:10px;">الطلب</th>
+                                        <th style="padding:10px;">التاريخ</th>
+                                        <th style="padding:10px;">الموظف</th>
+                                        <th style="padding:10px;">نوع الطلب</th>
+                                        <th style="padding:10px;">المرفق</th>
+                                        <th style="padding:10px;">الحالة</th>
+                                        <th style="padding:10px;">المُعين له</th>
+                                        <th style="padding:10px; text-align:center;">الإجراءات</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="hr-ops-table-body"></tbody>
                             </table>
                         </div>
+                        ```
+
+قم بالحفظ، واضغط "تحديث" في متصفحك.. ستجد البطاقة تعمل والجدول يمتلئ بالبيانات بقوة! ⚔️🚀 أخبرني بالنتائج!
                     </div>
                 </div>
                 <div class="modal-overlay" id="balance-penalty-modal" style="z-index: 1060;">
@@ -2727,38 +2741,47 @@ const res = await fetch('https://wafatest-production.up.railway.app/auth/v1/logi
         }
         
 
-        function switchView(view) { 
-            // 🔥 تمت إضافة 'interviews' للقائمة لكي يخفيها محرك التنقل الذكي
-            const views = ['home', 'forms', 'policies', 'team', 'announcements', 'admin-usage', 'admin-requests', 'admin-settings', 'admin-users', 'manager-attendance', 'admin-attendance', 'hr-dashboard', 'admin-leaves', 'admin-audit','mega-dashboard', 'penalties', 'interviews'];
-            
-            views.forEach(v => { const el = document.getElementById(v + '-view'); if (el) el.style.display = 'none'; });
-            const target = document.getElementById(view + '-view'); if(target) target.style.display = 'block'; 
-            
-            let title = 'الخدمات الذاتية'; 
-            if(view === 'forms') title = 'النماذج والطلبات'; if(view === 'policies') title = 'لوائح وسياسات الشركة'; if(view === 'team') title = 'فريق العمل'; 
-            if(view === 'announcements') title = 'التعميمات وجدول العمل'; if(view === 'admin-usage') title = 'متابعة استخدام النظام'; 
-            if(view === 'admin-requests') title = 'متابعة طلبات الموظفين'; if(view === 'admin-settings') title = 'إعدادات النظام'; if(view === 'admin-users') title = 'إدارة المستخدمين';
-            if(view === 'hr-dashboard')  title = 'عمليات الموارد البشرية'; 
-            if(view === 'admin-leaves') title = 'بوابة إدخال ومتابعة الإجازات'; 
-            if(view === 'penalties') title = 'سجل الجزاءات والمخالفات';
-            if(view === 'interviews') title = 'بوابة المقابلات الشخصية (ATS)';
-            if(view === 'mega-dashboard') title = 'لوحة القيادة';
-            
-            loadHrRequests(); 
-            if(view === 'admin-usage' && globalIsAdmin) loadUsersLog();
-            const pTitle = document.getElementById('page-title'); if(pTitle) pTitle.innerText = title; 
-            
-            if(view === 'policies') { renderUserPolicies(); if(globalIsAdmin) renderAdminPolicies(); } 
-            if(view === 'forms') { renderUserForms(); if(globalIsAdmin) renderAdminForms(); }
-            if(view === 'admin-users') loadAdminUsers(); 
-            if(view === 'announcements' && globalIsAdmin) loadAdminAnnouncements(); 
-            
-            if(view === 'admin-settings' && globalIsAdmin) {
-                renderAdminReasons();
-                renderAdminBranches();
-                renderAdminJobs();
-            }
-        } // 🔥 هذا هو القوس الذي كان مفقوداً وعطل النظام!
+     function switchView(view) { 
+    const views = ['home', 'forms', 'policies', 'team', 'announcements', 'admin-usage', 'admin-requests', 'admin-settings', 'admin-users', 'manager-attendance', 'admin-attendance', 'hr-dashboard', 'admin-leaves', 'admin-audit','mega-dashboard', 'penalties', 'interviews'];
+    
+    views.forEach(v => { const el = document.getElementById(v + '-view'); if (el) el.style.display = 'none'; });
+    const target = document.getElementById(view + '-view'); if(target) target.style.display = 'block'; 
+    
+    let title = 'الخدمات الذاتية'; 
+    if(view === 'forms') title = 'النماذج والطلبات'; 
+    if(view === 'policies') title = 'لوائح وسياسات الشركة'; 
+    if(view === 'team') title = 'فريق العمل'; 
+    if(view === 'announcements') title = 'التعميمات وجدول العمل'; 
+    if(view === 'admin-usage') title = 'متابعة استخدام النظام'; 
+    if(view === 'admin-requests') title = 'متابعة طلبات الموظفين'; 
+    if(view === 'admin-settings') title = 'إعدادات النظام'; 
+    if(view === 'admin-users') title = 'إدارة المستخدمين';
+    if(view === 'hr-dashboard')  title = 'عمليات الموارد البشرية'; 
+    if(view === 'admin-leaves') title = 'بوابة إدخال ومتابعة الإجازات'; 
+    if(view === 'penalties') title = 'سجل الجزاءات والمخالفات';
+    if(view === 'interviews') title = 'بوابة المقابلات الشخصية (ATS)';
+    if(view === 'mega-dashboard') title = 'لوحة القيادة';
+    
+    const pTitle = document.getElementById('page-title'); if(pTitle) pTitle.innerText = title; 
+    
+    // 🚀 التوجيه الذكي للإمدادات (نطلب البيانات فقط عند فتح شاشتها!)
+    if(view === 'hr-dashboard') {
+        loadHrOperations(); // 👈 استدعاء البوابة الجديدة للموارد
+    }
+    if(view === 'admin-requests' || view === 'mega-dashboard') {
+        loadHrRequests(); // 👈 استدعاء المسار القديم للادارة العليا (إذا كنت لا تزال تحتاجه)
+    }
+    if(view === 'admin-usage' && globalIsAdmin) loadUsersLog();
+    if(view === 'policies') { renderUserPolicies(); if(globalIsAdmin) renderAdminPolicies(); } 
+    if(view === 'forms') { renderUserForms(); if(globalIsAdmin) renderAdminForms(); }
+    if(view === 'admin-users') loadAdminUsers(); 
+    if(view === 'announcements' && globalIsAdmin) loadAdminAnnouncements(); 
+    if(view === 'admin-settings' && globalIsAdmin) {
+        renderAdminReasons();
+        renderAdminBranches();
+        renderAdminJobs();
+    }
+}
 
         function setupDashboard(data) {
             document.getElementById('login-container').style.display = 'none'; 
@@ -2884,7 +2907,18 @@ const res = await fetch('https://wafatest-production.up.railway.app/auth/v1/logi
                 }
             }
             if (!data.policyConfirmed && data.role !== 'admin') { document.getElementById('pledge-modal-box').style.display = 'flex'; }
-            renderUserPolicies(); switchView('home');
+            renderUserPolicies();
+            // 🎯🎯🎯 زرع الصلاحيات للبطاقة الجديدة هنا 🎯🎯🎯
+            const isAdminView = globalIsAdmin || 
+                                data.role === 'admin' || 
+                                data.roleArabic === 'ادمن' ||
+                                data.role === 'موظف ادارة' ||
+                                data.roleArabic === 'موظف ادارة';
+                                
+            const hrOpsCard = document.getElementById('card-nav-hrops');
+            if (hrOpsCard) {
+                hrOpsCard.style.display = isAdminView ? 'flex' : 'none';
+            } switchView('home');
             setupWebNotifications();
         }
 
@@ -11774,7 +11808,151 @@ function updateEosReasons() {
 
 // 📡 رادار لتشغيل الدالة مرة واحدة عند فتح الشاشة لضمان ظهور أسباب الاستقالة كوضع افتراضي
 document.addEventListener('DOMContentLoaded', updateEosReasons);
+        // =========================================================
+// 🚀 نظام بوابة عمليات الموارد البشرية (الجيل الجديد)
+// =========================================================
+
+let hrOpsRequests = [];
+let currentHrOpsTab = 'all'; // 'all' للكل، 'mine' لطلباتي
+
+// 1. فتح البوابة وتجهيز الشاشة
+function openHrOpsPortal() {
+    // أخفِ الشاشات الأخرى وأظهر شاشة الموارد (عدل الـ IDs حسب تصميمك)
+    document.querySelectorAll('.dashboard-section').forEach(sec => sec.style.display = 'none');
+    document.getElementById('hr-operations-section').style.display = 'block'; // تأكد من وجود قسم بهذا الـ ID
+    
+    // تحميل البيانات فوراً
+    loadHrOperations();
+}
+
+// 2. جلب البيانات من السيرفر (المسار السريع)
+async function loadHrOperations() {
+    try {
+        const currentUser = JSON.parse(localStorage.getItem('currentUser')) || {};
         
+        console.log("⏳ جاري الاتصال بمسار عمليات الموارد...");
+        const response = await fetch('/api/hr-operations', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                username: typeof currentUsername !== 'undefined' ? currentUsername : (currentUser.username || ''),
+                role: typeof globalRoleArabic !== 'undefined' ? globalRoleArabic : (currentUser.role || ''),
+                isAdmin: typeof globalIsAdmin !== 'undefined' ? globalIsAdmin : false
+            })
+        });
+
+        if (response.ok) {
+            const result = await response.json();
+            hrOpsRequests = result.requests || result.data || result || [];
+            console.log("✅ تمت الإمدادات بنجاح! عدد التذاكر:", hrOpsRequests.length);
+        } else {
+            console.error("⚠️ السيرفر رفض الطلب.");
+            hrOpsRequests = [];
+        }
+
+        renderHrOpsTable(); // رسم الجدول
+    } catch (error) {
+        console.error("❌ فشل الاتصال بالبوابة:", error);
+    }
+}
+
+// 3. تبديل التبويبات (طلباتي / كل الطلبات)
+function switchHrOpsTab(tab) {
+    currentHrOpsTab = tab;
+    // تحديث ألوان الأزرار (إذا كانت موجودة)
+    const btnAll = document.getElementById('btn-hrops-all');
+    const btnMine = document.getElementById('btn-hrops-mine');
+    if (btnAll) btnAll.style.opacity = tab === 'all' ? '1' : '0.5';
+    if (btnMine) btnMine.style.opacity = tab === 'mine' ? '1' : '0.5';
+    
+    renderHrOpsTable();
+}
+
+// 4. دالة الرسم المدرعة (بدون فلاتر معقدة، نثق بالسيرفر)
+function renderHrOpsTable() {
+    const tbody = document.getElementById('hr-ops-table-body'); // 👈 تأكد من تحديث الـ ID في الـ HTML لديك
+    if (!tbody) {
+        console.warn("⚠️ لم يتم العثور على جسم الجدول hr-ops-table-body");
+        return;
+    }
+
+    let filtered = hrOpsRequests || [];
+
+    // 🔍 تطبيق فلاتر الشاشة (التي يختارها المستخدم)
+    const empQ = document.getElementById('hrops-filter-emp') ? document.getElementById('hrops-filter-emp').value.trim().toLowerCase() : '';
+    const statusQ = document.getElementById('hrops-filter-status') ? document.getElementById('hrops-filter-status').value : 'all';
+
+    if (currentHrOpsTab === 'mine') {
+        filtered = filtered.filter(r => String(r.assignedHrEmp) === String(currentUsername));
+    }
+    if (statusQ !== 'all') {
+        filtered = filtered.filter(r => r.status === statusQ);
+    }
+    if (empQ) {
+        filtered = filtered.filter(r => {
+            const searchUsername = r.empUsername || r.username || '';
+            return searchUsername.toLowerCase().includes(empQ) || (r.empName && r.empName.toLowerCase().includes(empQ));
+        });
+    }
+
+    // 🎨 رسم الجدول
+    if (filtered.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding: 20px; font-weight: bold; color: #777;"><i class="fas fa-folder-open fa-2x" style="color:#ddd; margin-bottom:10px; display:block;"></i>صندوق العمليات فارغ حالياً</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = filtered.map(r => {
+        const trueId = r.ticketId || r.id;
+        const safeDate = (r.date || r.createdAt || "").split(',')[0];
+        const safeReason = r.reason || r.type || 'طلب عام';
+        const targetUsername = String(r.empUsername || r.username || '');
+        
+        // 📎 المرفقات (الرادار الذكي لملفات الإكسيل الافتراضية)
+        let attachmentLink = '<span style="color:#ccc; font-size:11px;">لا يوجد</span>';
+        if (r.attachment) {
+            const attachStr = typeof r.attachment === 'string' ? r.attachment : JSON.stringify(r.attachment);
+            if (attachStr.trim().startsWith('{')) {
+                const safePayload = encodeURIComponent(attachStr).replace(/'/g, "%27");
+                attachmentLink = `<button onclick="downloadVirtualAttachment(decodeURIComponent('${safePayload}'))" style="background:#27ae60; color:white; border:none; padding:4px 8px; border-radius:4px; font-size:11px; font-weight:bold; cursor:pointer;"><i class="fas fa-file-excel"></i> إكسيل التصفية</button>`;
+            } else {
+                attachmentLink = `<a href="${attachStr}" target="_blank" style="color:#2980b9; font-weight:bold; font-size:12px;"><i class="fas fa-paperclip"></i> المرفق</a>`;
+            }
+        }
+
+        // 🏷️ شارات الحالة
+        let badge = '';
+        if(r.status === 'escalated') badge = '<span style="background:#e74c3c; color:white; padding:3px 6px; border-radius:4px; font-size:11px;">جديد 🔴</span>';
+        else if(r.status === 'hr_assigned') badge = '<span style="background:#f39c12; color:white; padding:3px 6px; border-radius:4px; font-size:11px;">تحت الإجراء ⏳</span>';
+        else if(r.status === 'resolved') badge = '<span style="background:#3498db; color:white; padding:3px 6px; border-radius:4px; font-size:11px;">للاعتماد 🔄</span>';
+        else if(r.status === 'completed') badge = '<span style="background:#27ae60; color:white; padding:3px 6px; border-radius:4px; font-size:11px;">مغلق ✅</span>';
+        else badge = `<span style="background:#95a5a6; color:white; padding:3px 6px; border-radius:4px; font-size:11px;">${r.status}</span>`;
+
+        // ⚙️ أزرار الإجراءات
+        let actions = `<button onclick="viewRequestDetails('${trueId}')" style="background:#3498db; color:white; border:none; padding:4px 8px; border-radius:4px; cursor:pointer; font-size:11px;"><i class="fas fa-eye"></i></button>`;
+        
+        if (r.status === 'escalated') {
+            actions += `
+                <button onclick="openHrAssignModal('${trueId}')" title="تعيين" style="background:#27ae60; color:white; border:none; padding:4px 8px; border-radius:4px; cursor:pointer; font-size:11px; margin-right:5px;"><i class="fas fa-user-check"></i></button>
+                <button onclick="openHrRejectModal('${trueId}')" title="رفض" style="background:#e74c3c; color:white; border:none; padding:4px 8px; border-radius:4px; cursor:pointer; font-size:11px; margin-right:5px;"><i class="fas fa-times"></i></button>
+            `;
+        } else if (r.status === 'hr_assigned' && String(r.assignedHrEmp) === String(currentUsername)) {
+            actions += `<button onclick="window.openHrResolveModal('${trueId}')" style="background:#27ae60; color:white; border:none; padding:4px 8px; border-radius:4px; cursor:pointer; font-size:11px; margin-right:5px;"><i class="fas fa-check-double"></i> إنجاز</button>`;
+        }
+
+        const assignedName = r.assignedHrEmp ? r.assignedHrEmp : '<span style="color:#e74c3c; font-size:11px;">لم يُعين</span>';
+
+        return `<tr>
+            <td style="font-size:11px; font-weight:bold; color:#555;">${String(trueId).replace('REQ-','')}</td>
+            <td style="font-size:12px;">${safeDate}</td>
+            <td><strong>${r.empName || 'غير متوفر'}</strong><br><span style="font-size:10px; color:#888;">${targetUsername}</span></td>
+            <td style="font-size:12px; color:#27ae60; font-weight:bold;">${safeReason}</td>
+            <td>${attachmentLink}</td>
+            <td>${badge}</td>
+            <td style="font-size:12px; font-weight:bold;">${assignedName}</td>
+            <td style="text-align:center;">${actions}</td> 
+        </tr>`;
+    }).join('');
+}
 </script>
 </body>
 </html>
