@@ -803,7 +803,7 @@
                             <div style="display:flex; gap:10px; flex:2; min-width:260px;">
                                 <button onclick="filterAdminAttendance()" style="flex:1; background:#16a085; color:white; border:none; padding:9px; border-radius:5px; font-weight:bold; cursor:pointer;" title="بحث"><i class="fas fa-search"></i> بحث</button>
                                 <button onclick="clearAttendanceFilters()" style="background:#e74c3c; color:white; border:none; padding:9px 15px; border-radius:5px; font-weight:bold; cursor:pointer;" title="مسح كل الفلاتر"><i class="fas fa-eraser"></i></button>
-                                <button onclick="exportAttendanceToCSV()" style="flex:1; background:#198754; color:white; border:none; padding:9px; border-radius:5px; font-weight:bold; cursor:pointer;" title="تصدير للإكسيل"><i class="fas fa-file-excel"></i> إكسيل</button>
+                                <button onclick="downloadEOSExcel()" style="flex:1; background:#198754; color:white; border:none; padding:9px; border-radius:5px; font-weight:bold; cursor:pointer;" title="تصدير للإكسيل"><i class="fas fa-file-excel"></i> إكسيل</button>
                             </div>
                         </div>
 
@@ -7660,33 +7660,65 @@ async function runEOSFetch(payload) {
     }
 }
 
+const r = currentEOSReport;
 
-        const r = currentEOSReport;
+        // ========================================================
+        // 🚀 تكتيك الإسقاط المظلي لمكتبة الإكسيل (SheetJS)
+        // ========================================================
+        if (typeof XLSX === 'undefined') {
+            console.log("⏳ جاري استدعاء مدفعية الإكسيل (SheetJS)...");
+            const script = document.createElement('script');
+            script.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+            script.onload = () => {
+                console.log("✅ وصلت المدفعية! جاري توليد الملف...");
+                fireExcelMissile(r); // إطلاق الملف بعد وصول المكتبة
+            };
+            document.head.appendChild(script);
+        } else {
+            // المكتبة موجودة مسبقاً، أطلق فوراً
+            fireExcelMissile(r);
+        }
 
-        // 1. تجهيز بيانات الصفحة الأولى (التصفية المالية الكاملة)
-        const sheet1Data = [
-            ["الرقم الوظيفي", "الاسم", "رقم الهوية", "تاريخ الانضمام", "تاريخ آخر يوم عمل", "مدة الخدمة", "استحقاق المكافأة", "الراتب الإجمالي", "رسوم التأمينات الشهرية", "أيام عمل مستحقة", "أيام خصم غياب", "أيام تأمينات مستردة/مخصومة", "رصيد الإجازة المتبقي", "رسوم كرت البلدية", "اسم البنك", "رقم الآيبان"],
-            [r.empId, r.name, r.idNumber, r.joinDate, r.lastWorkingDay, r.serviceDuration, r.deservesEOS, r.totalSalary, r.gosiFeeMonth, r.currentMonthPayableDays, r.prevMonthDeductDays, r.gosiDaysAdjustment, r.leaveBalance, r.baladiyahFee, r.bankName, r.bankIban]
-        ];
+        // ========================================================
+        // 🎯 دالة تصنيع وتوجيه ملف الإكسيل ذو الصفحات المتعددة
+        // ========================================================
+        function fireExcelMissile(reportData) {
+            try {
+                // 1. تجهيز بيانات الصفحة الأولى (التصفية المالية الكاملة)
+                const sheet1Data = [
+                    ["الرقم الوظيفي", "الاسم", "رقم الهوية", "تاريخ الانضمام", "تاريخ آخر يوم عمل", "مدة الخدمة", "استحقاق المكافأة", "الراتب الإجمالي", "رسوم التأمينات الشهرية", "أيام عمل مستحقة", "أيام خصم غياب", "أيام تأمينات مستردة/مخصومة", "رصيد الإجازة المتبقي", "رسوم كرت البلدية", "اسم البنك", "رقم الآيبان"],
+                    [reportData.empId, reportData.name, reportData.idNumber, reportData.joinDate, reportData.lastWorkingDay, reportData.serviceDuration, reportData.deservesEOS, reportData.totalSalary, reportData.gosiFeeMonth, reportData.currentMonthPayableDays, reportData.prevMonthDeductDays, reportData.gosiDaysAdjustment, reportData.leaveBalance, reportData.baladiyahFee, reportData.bankName, reportData.bankIban]
+                ];
 
-        // 2. تجهيز بيانات الصفحة الثانية (ملخص الإنهاء) حسب طلبك
-        // ملاحظة: افترضت أن نوع الإنهاء موجود في المتغير r.status أو r.termType
-        const sheet2Data = [
-            ["الرقم الوظيفي", "الاسم", "رقم الهوية", "تاريخ اخر يوم عمل", "نوع الانهاء( الحالة )"],
-            [r.empId, r.name, r.idNumber, r.lastWorkingDay, r.status || r.termType || "غير محدد"]
-        ];
+                // 2. تجهيز بيانات الصفحة الثانية (ملخص الإنهاء) 
+                // استخراج الحالة (سواء كانت محفوظة في status أو termType)
+                const termStatus = reportData.status || reportData.termType || "غير محدد";
+                const sheet2Data = [
+                    ["الرقم الوظيفي", "الاسم", "رقم الهوية", "تاريخ اخر يوم عمل", "نوع الانهاء( الحالة )"],
+                    [reportData.empId, reportData.name, reportData.idNumber, reportData.lastWorkingDay, termStatus]
+                ];
 
-        // 3. تحويل المصفوفات إلى صفحات إكسيل حقيقية
-        const worksheet1 = XLSX.utils.aoa_to_sheet(sheet1Data);
-        const worksheet2 = XLSX.utils.aoa_to_sheet(sheet2Data);
+                // 3. تحويل المصفوفات إلى صفحات إكسيل حقيقية
+                const worksheet1 = XLSX.utils.aoa_to_sheet(sheet1Data);
+                const worksheet2 = XLSX.utils.aoa_to_sheet(sheet2Data);
 
-        // 4. إنشاء ملف الإكسيل (Workbook) وربط الصفحات به
-        const workbook = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(workbook, worksheet1, "التصفية المالية"); // اسم الصفحة الأولى
-        XLSX.utils.book_append_sheet(workbook, worksheet2, "حالة الإنهاء");  // اسم الصفحة الثانية
+                // ضبط اتجاه الصفحات ليكون من اليمين لليسار (RTL) ليتناسب مع اللغة العربية
+                worksheet1['!dir'] = 'rtl';
+                worksheet2['!dir'] = 'rtl';
 
-        // 5. إطلاق الملف للمستخدم بصيغة xlsx الحقيقية
-        XLSX.writeFile(workbook, `تصفية_مستحقات_${r.empId}.xlsx`);
+                // 4. إنشاء ملف الإكسيل (Workbook) وربط الصفحات به
+                const workbook = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(workbook, worksheet1, "التصفية المالية");
+                XLSX.utils.book_append_sheet(workbook, worksheet2, "حالة الإنهاء");
+
+                // 5. إطلاق الملف للمستخدم
+                XLSX.writeFile(workbook, `تصفية_مستحقات_${reportData.empId}.xlsx`);
+                
+            } catch (error) {
+                console.error("❌ فشل إطلاق صاروخ الإكسيل:", error);
+                alert("حدث خطأ تقني أثناء محاولة إنشاء الإكسيل. يرجى مراجعة لوحة التحكم (Console).");
+            }
+        }
         // ==================== محرك إعدادات مصفوفة الجزاءات ====================
 
         // دالة قراءة الإكسيل ورفعه
@@ -11620,6 +11652,65 @@ let branchRadarInterval = setInterval(() => {
         console.log("✅ [رادار غرفة العمليات]: تم رصد القائمة وتعبئة الفروع بنجاح!");
     }
 }, 1000); // يمسح الميدان كل ثانية واحدة (1000 ملي ثانية)
+
+        // ========================================================
+// 📥 دالة تحميل تقرير الإكسيل (اربطها بزر التحميل)
+// ========================================================
+function downloadEOSExcel() {
+    // 1. التحقق من وجود تقرير أصلاً قبل محاولة الطباعة
+    if (!currentEOSReport || !currentEOSReport.empId) {
+        alert("⚠️ لا يوجد تقرير مالي جاهز للتحميل بعد.");
+        return;
+    }
+
+    const r = currentEOSReport;
+
+    // 🚀 تكتيك الإسقاط المظلي لمكتبة الإكسيل (SheetJS)
+    if (typeof XLSX === 'undefined') {
+        console.log("⏳ جاري استدعاء مدفعية الإكسيل (SheetJS)...");
+        const script = document.createElement('script');
+        script.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+        script.onload = () => {
+            console.log("✅ وصلت المدفعية! جاري توليد الملف...");
+            fireExcelMissile(r); 
+        };
+        document.head.appendChild(script);
+    } else {
+        fireExcelMissile(r);
+    }
+}
+
+// 🎯 دالة تصنيع وتوجيه ملف الإكسيل ذو الصفحات المتعددة
+function fireExcelMissile(reportData) {
+    try {
+        const sheet1Data = [
+            ["الرقم الوظيفي", "الاسم", "رقم الهوية", "تاريخ الانضمام", "تاريخ آخر يوم عمل", "مدة الخدمة", "استحقاق المكافأة", "الراتب الإجمالي", "رسوم التأمينات الشهرية", "أيام عمل مستحقة", "أيام خصم غياب", "أيام تأمينات مستردة/مخصومة", "رصيد الإجازة المتبقي", "رسوم كرت البلدية", "اسم البنك", "رقم الآيبان"],
+            [reportData.empId, reportData.name, reportData.idNumber, reportData.joinDate, reportData.lastWorkingDay, reportData.serviceDuration, reportData.deservesEOS, reportData.totalSalary, reportData.gosiFeeMonth, reportData.currentMonthPayableDays, reportData.prevMonthDeductDays, reportData.gosiDaysAdjustment, reportData.leaveBalance, reportData.baladiyahFee, reportData.bankName, reportData.bankIban]
+        ];
+
+        const termStatus = reportData.status || reportData.termType || "غير محدد";
+        const sheet2Data = [
+            ["الرقم الوظيفي", "الاسم", "رقم الهوية", "تاريخ اخر يوم عمل", "نوع الانهاء( الحالة )"],
+            [reportData.empId, reportData.name, reportData.idNumber, reportData.lastWorkingDay, termStatus]
+        ];
+
+        const worksheet1 = XLSX.utils.aoa_to_sheet(sheet1Data);
+        const worksheet2 = XLSX.utils.aoa_to_sheet(sheet2Data);
+
+        worksheet1['!dir'] = 'rtl';
+        worksheet2['!dir'] = 'rtl';
+
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet1, "التصفية المالية");
+        XLSX.utils.book_append_sheet(workbook, worksheet2, "حالة الإنهاء");
+
+        XLSX.writeFile(workbook, `تصفية_مستحقات_${reportData.empId}.xlsx`);
+        
+    } catch (error) {
+        console.error("❌ فشل إطلاق صاروخ الإكسيل:", error);
+        alert("حدث خطأ تقني أثناء محاولة إنشاء الإكسيل.");
+    }
+}
         
 </script>
 </body>
