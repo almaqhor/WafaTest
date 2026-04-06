@@ -2979,62 +2979,10 @@ app.post('/api/terminate-employee', async (req, res) => {
             bankIban: user.bankIban || 'غير مسجل'
         };
 
-try {
-            const autoTicketId = `EOS-REQ-${Date.now()}`;
-
-            // 1. تجميع كل البيانات في الكبسولة (مع استخدام المتغيرات المحسوبة في الكود أعلاه)
-            const virtualExcelData = JSON.stringify({
-                empId: user.username,
-                name: user.name,
-                idNumber: user.idNumber || '',
-                joinDate: user.joinDate,
-                lastWorkingDay: lastWorkingDay,
-                serviceDuration: serviceDurationStr,   // 👈 تم مطابقة المتغير
-                deservesEOS: deservesEOS,              // 👈 تم مطابقة المتغير
-                totalSalary: user.salaryE || 0,        // 👈 تم مطابقة المتغير
-                gosiFeeMonth: user.gosiFees || 0,      // 👈 تم مطابقة المتغير
-                currentMonthPayableDays: currentMonthPayableDays,
-                prevMonthDeductDays: prevMonthDeductDays,
-                gosiDaysAdjustment: finalGosiDisplay,  // 👈 تم مطابقة المتغير
-                leaveBalance: leaveBalance || 0,
-                baladiyahFee: finalBaladiyahFee,       // 👈 تم مطابقة المتغير
-                bankName: user.bankName || 'غير مسجل',
-                bankIban: user.bankIban || 'غير مسجل',
-                status: termType === 'استقالة' ? 'Resign' : 'Terminated',
-                termType: termType,
-                termReason: termReason || "لا يوجد"
-            });
-
-            // 2. إطلاق التذكرة في قاعدة البيانات
-            await prisma.requestTicket.create({
-                data: {
-                    ticketId: autoTicketId,
-                    employeeId: user.id,
-                    empUsername: user.username,
-                    empName: user.name,
-                    empPhone: user.phone || 'غير مسجل',
-                    senderId: "SYSTEM",
-                    assignedHrEmp: "77416", // موظف الرواتب
-                    type: "إنهاء مستحقات",
-                    details: `إنهاء مستحقات الموظف (${user.name}) - الرقم الوظيفي (${user.username}) - آخر يوم عمل (${lastWorkingDay}). يرجى تحميل المرفق لمعاينة الإكسيل.`,
-                    attachment: virtualExcelData, // 👈 وضعنا الكبسولة هنا كمرفق
-                    status: "hr_assigned",
-                    createdAt: new Date().toLocaleString('en-CA', { timeZone: 'Asia/Riyadh' }),
-                    rating: "5",
-                    history: "تم إطلاق التذكرة آلياً من نظام الإنهاء."
-                }
-            });
-            console.log(`✅ تم إطلاق تذكرة الإنهاء الآلية: ${autoTicketId}`);
-        } catch (ticketError) {
-            console.error("⚠️ فشل في إطلاق التذكرة الآلية (ولكن الإنهاء تم):", ticketError);
-        }
-        // =========================================================
-
         if (typeof safeLogAudit === 'function') {
             safeLogAudit(byUser, 'إنهاء خدمة', `${user.name} (${user.username})`, `النوع: ${termType}, آخر يوم: ${lastWorkingDay}`);
         }
 
-        // 🎯 الضربة النهائية (إرجاع التقرير للشاشة)
         res.json({ success: true, report: eosReport });
 
     } catch (error) {
