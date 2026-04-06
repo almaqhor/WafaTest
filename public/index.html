@@ -11378,6 +11378,142 @@ function updateFileName(input) {
     }
 }    
 
+        // =================================================================
+// 🖨️ محرك الطباعة الذكي للفروع (النسخة المدرعة ضد التعارض والتشويش)
+// =================================================================
+function printBranchSheet(sheetType) {
+    // 1. تحديد الفرع الحالي للمدير (مع حماية ضد الـ undefined)
+    let myBranch = typeof globalEmpBranch !== 'undefined' && globalEmpBranch ? globalEmpBranch : localStorage.getItem('empBranch');
+    if (!myBranch || myBranch === 'undefined') {
+        myBranch = 'غير محدد (يرجى تحديث البيانات)';
+    }
+
+    // 2. تصفية القوات
+    let branchUsers = typeof allUsersData !== 'undefined' ? allUsersData.filter(u => 
+        u.branch === myBranch && 
+        (u.status === 'in Duty' || u.status === 'Job Offer')
+    ) : [];
+
+    // 3. ترتيب القوات
+    branchUsers.sort((a, b) => String(a.username).localeCompare(String(b.username)));
+
+    // 4. إعداد الترويسة
+    const today = new Date().toLocaleDateString('ar-SA', { year: 'numeric', month: 'long', day: 'numeric' });
+    const title = sheetType === 'attendance' ? 'سجل الحضور والانصراف اليدوي (للطوارئ)' : 'جدول فترات الراحة اليومية (البريك)';
+
+    // 5. رسم الترويسة
+    let tableHeaders = '';
+    if (sheetType === 'attendance') {
+        tableHeaders = `
+            <tr>
+                <th style="width: 5%;">م</th>
+                <th style="width: 15%;">الرقم الوظيفي</th>
+                <th style="width: 25%;">اسم الموظف</th>
+                <th style="width: 15%;">الوظيفة</th>
+                <th style="width: 10%;">وقت الحضور</th>
+                <th style="width: 10%;">التوقيع</th>
+                <th style="width: 10%;">وقت الانصراف</th>
+                <th style="width: 10%;">التوقيع</th>
+            </tr>`;
+    } else {
+        tableHeaders = `
+            <tr>
+                <th style="width: 5%;">م</th>
+                <th style="width: 15%;">الرقم الوظيفي</th>
+                <th style="width: 25%;">اسم الموظف</th>
+                <th style="width: 15%;">الوظيفة</th>
+                <th style="width: 15%;">بداية الراحة</th>
+                <th style="width: 15%;">نهاية الراحة</th>
+                <th style="width: 10%;">توقيع الموظف</th>
+            </tr>`;
+    }
+
+    // 6 و 7. توليد صفوف الموظفين مع 5 خانات احتياطية
+    let tableRows = '';
+    let counter = 1;
+    branchUsers.forEach(u => {
+        tableRows += `
+            <tr>
+                <td>${counter}</td>
+                <td>${u.username}</td>
+                <td>${u.name}</td>
+                <td>${u.jobTitle || '-'}</td>
+                <td></td><td></td><td></td>
+                ${sheetType === 'attendance' ? '<td></td>' : ''}
+            </tr>`;
+        counter++;
+    });
+
+    for (let i = 0; i < 5; i++) {
+        tableRows += `
+            <tr>
+                <td>${counter}</td>
+                <td></td><td></td><td></td><td></td><td></td><td></td>
+                ${sheetType === 'attendance' ? '<td></td>' : ''}
+            </tr>`;
+        counter++;
+    }
+
+    // 8. بناء الورقة (مضافاً إليها درع الـ UTF-8 وحل مشكلة الإغلاق المبكر)
+    const printContent = `
+        <!DOCTYPE html>
+        <html lang="ar" dir="rtl">
+        <head>
+            <meta charset="UTF-8"> <title>${title}</title>
+            <style>
+                @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&display=swap');
+                body { font-family: 'Cairo', sans-serif; padding: 20px; color: #000; background: #fff; }
+                .header-section { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #000; padding-bottom: 15px; margin-bottom: 20px; }
+                .logo-area h1 { margin: 0; font-size: 24px; color: #2c3e50; }
+                .logo-area p { margin: 5px 0 0; font-size: 14px; font-weight: bold; }
+                .doc-title { text-align: center; flex-grow: 1; }
+                .doc-title h2 { margin: 0; font-size: 22px; text-decoration: underline; }
+                .date-area { text-align: left; font-size: 14px; font-weight: bold; }
+                table { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
+                th, td { border: 1px solid #000; padding: 12px 8px; text-align: center; font-size: 13px; }
+                th { background-color: #f2f2f2; font-weight: bold; }
+                td { height: 40px; }
+                .footer { display: flex; justify-content: space-between; margin-top: 50px; font-weight: bold; }
+                @media print { @page { size: A4 portrait; margin: 1cm; } body { padding: 0; } th { background-color: #f2f2f2 !important; -webkit-print-color-adjust: exact; } }
+            </style>
+        </head>
+        <body>
+            <div class="header-section">
+                <div class="logo-area">
+                    <h1>شركة هايبر الوفاء</h1>
+                    <p>الفرع: ${myBranch}</p>
+                </div>
+                <div class="doc-title"><h2>${title}</h2></div>
+                <div class="date-area">
+                    <p>تاريخ اليوم: ${today}</p>
+                    <p>اليوم: .....................</p>
+                </div>
+            </div>
+
+            <table>
+                <thead>${tableHeaders}</thead>
+                <tbody>${tableRows}</tbody>
+            </table>
+
+            <div class="footer">
+                <div>اعتماد مدير الفرع: ........................................</div>
+                <div>توقيع مدير الفرع: ........................................</div>
+            </div>
+            
+            <script>
+                // تفعيل الطباعة التلقائية
+                window.onload = function() { window.print(); }
+            <\\/script> </body>
+        </html>
+    `;
+
+    // 9. فتح نافذة جديدة
+    const printWindow = window.open('', '_blank', 'width=900,height=700');
+    printWindow.document.open();
+    printWindow.document.write(printContent);
+    printWindow.document.close();
+}
+
 </script>
 </body>
 </html>
