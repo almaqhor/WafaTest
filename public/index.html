@@ -7683,42 +7683,37 @@ const r = currentEOSReport;
         // 🎯 دالة تصنيع وتوجيه ملف الإكسيل ذو الصفحات المتعددة
         // ========================================================
         function fireExcelMissile(reportData) {
-            try {
-                // 1. تجهيز بيانات الصفحة الأولى (التصفية المالية الكاملة)
-                const sheet1Data = [
-                    ["الرقم الوظيفي", "الاسم", "رقم الهوية", "تاريخ الانضمام", "تاريخ آخر يوم عمل", "مدة الخدمة", "استحقاق المكافأة", "الراتب الإجمالي", "رسوم التأمينات الشهرية", "أيام عمل مستحقة", "أيام خصم غياب", "أيام تأمينات مستردة/مخصومة", "رصيد الإجازة المتبقي", "رسوم كرت البلدية", "اسم البنك", "رقم الآيبان"],
-                    [reportData.empId, reportData.name, reportData.idNumber, reportData.joinDate, reportData.lastWorkingDay, reportData.serviceDuration, reportData.deservesEOS, reportData.totalSalary, reportData.gosiFeeMonth, reportData.currentMonthPayableDays, reportData.prevMonthDeductDays, reportData.gosiDaysAdjustment, reportData.leaveBalance, reportData.baladiyahFee, reportData.bankName, reportData.bankIban]
-                ];
+    try {
+        // دمج الحالة ونوع الإنهاء في نص واحد
+        const finalStatus = `${reportData.termType} (${reportData.status})`;
+        
+        // تجهيز الصفحة الثانية (ملخص الإنهاء)
+        const sheet2Data = [
+            ["الرقم الوظيفي", "الاسم", "رقم الهوية", "تاريخ اخر يوم عمل", "نوع الإنهاء (الحالة)", "سبب الإنهاء"],
+            [
+                reportData.empId, 
+                reportData.name, 
+                reportData.idNumber, 
+                reportData.lastWorkingDay, 
+                finalStatus, // 👈 هنا دمجنا (استقالة - Resign)
+                reportData.termReason // 👈 إضافة السبب أيضاً لتوثيق قانوني كامل
+            ]
+        ];
 
-                // 2. تجهيز بيانات الصفحة الثانية (ملخص الإنهاء) 
-                // استخراج الحالة (سواء كانت محفوظة في status أو termType)
-                const termStatus = reportData.status || reportData.termType || "غير محدد";
-                const sheet2Data = [
-                    ["الرقم الوظيفي", "الاسم", "رقم الهوية", "تاريخ اخر يوم عمل", "نوع الانهاء( الحالة )"],
-                    [reportData.empId, reportData.name, reportData.idNumber, reportData.lastWorkingDay, termStatus]
-                ];
+        // بقية الكود الخاص بتوليد الإكسيل...
+        const worksheet1 = XLSX.utils.aoa_to_sheet(sheet1Data);
+        const worksheet2 = XLSX.utils.aoa_to_sheet(sheet2Data);
+        
+        worksheet1['!dir'] = 'rtl';
+        worksheet2['!dir'] = 'rtl';
 
-                // 3. تحويل المصفوفات إلى صفحات إكسيل حقيقية
-                const worksheet1 = XLSX.utils.aoa_to_sheet(sheet1Data);
-                const worksheet2 = XLSX.utils.aoa_to_sheet(sheet2Data);
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet1, "التصفية المالية");
+        XLSX.utils.book_append_sheet(workbook, worksheet2, "حالة الإنهاء");
 
-                // ضبط اتجاه الصفحات ليكون من اليمين لليسار (RTL) ليتناسب مع اللغة العربية
-                worksheet1['!dir'] = 'rtl';
-                worksheet2['!dir'] = 'rtl';
-
-                // 4. إنشاء ملف الإكسيل (Workbook) وربط الصفحات به
-                const workbook = XLSX.utils.book_new();
-                XLSX.utils.book_append_sheet(workbook, worksheet1, "التصفية المالية");
-                XLSX.utils.book_append_sheet(workbook, worksheet2, "حالة الإنهاء");
-
-                // 5. إطلاق الملف للمستخدم
-                XLSX.writeFile(workbook, `تصفية_مستحقات_${reportData.empId}.xlsx`);
-                
-            } catch (error) {
-                console.error("❌ فشل إطلاق صاروخ الإكسيل:", error);
-                alert("حدث خطأ تقني أثناء محاولة إنشاء الإكسيل. يرجى مراجعة لوحة التحكم (Console).");
-            }
-        }
+        XLSX.writeFile(workbook, `تصفية_مستحقات_${reportData.empId}.xlsx`);
+    } catch (e) { console.error(e); }
+}
         // ==================== محرك إعدادات مصفوفة الجزاءات ====================
 
         // دالة قراءة الإكسيل ورفعه
