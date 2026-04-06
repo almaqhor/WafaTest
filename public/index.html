@@ -1501,23 +1501,23 @@
                 <input type="text" id="eos-name" class="comment-input" readonly style="background:#eee;">
 
 
-                <div class="input-grid" style="grid-template-columns: 1fr 1fr;">
-                    <div>
-                        <label class="form-label">نوع الإنهاء</label>
-                        <select id="eos-type" class="comment-input">
-                            <option value="استقالة">استقالة</option>
-                            <option value="استبعاد">استبعاد / فصل</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label class="form-label">تاريخ آخر يوم عمل</label>
-                        <input type="date" id="eos-last-day" class="comment-input">
-                    </div>
+                            <div class="input-grid" style="grid-template-columns: 1fr 1fr;">
+                <div>
+                    <label class="form-label">نوع الإنهاء</label>
+                    <select id="eos-type" class="comment-input" onchange="updateEosReasons()">
+                        <option value="استقالة">استقالة</option>
+                        <option value="استبعاد">استبعاد / فصل</option>
+                    </select>
                 </div>
-
-
-                <label class="form-label">سبب الإنهاء</label>
-                <input type="text" id="eos-reason" class="comment-input" placeholder="مثال: بناءً على طلبه / عدم اجتياز التجربة">
+                <div>
+                    <label class="form-label">تاريخ آخر يوم عمل</label>
+                    <input type="date" id="eos-last-day" class="comment-input">
+                </div>
+            </div>
+            
+            <label class="form-label">سبب الإنهاء</label>
+            <select id="eos-reason" class="comment-input">
+                </select>
 
 
                 <div style="display:flex; gap:15px; margin-top:15px; background:#f9f9f9; padding:10px; border-radius:5px;">
@@ -7562,6 +7562,8 @@ async function submitEOS() {
             lastWorkingDay: document.getElementById('eos-last-day').value,
             termType: document.getElementById('eos-type').value,
             termReason: document.getElementById('eos-reason').value.trim(),
+            isRehireable: document.getElementById('eos-rehire').checked, // 👈 التقاط الزر الأول
+            workedNoticePeriod: document.getElementById('eos-notice').checked, // 👈 التقاط الزر الثاني
             byUser: window.globalRealActor
         };
 
@@ -11706,6 +11708,50 @@ function fireExcelMissile(reportData) {
         //alert("حدث خطأ تقني أثناء محاولة إنشاء الإكسيل.");
     }
 }
+  // ==========================================
+// 🔄 محرك الأسباب الديناميكية لإنهاء الخدمة
+// ==========================================
+function updateEosReasons() {
+    const type = document.getElementById('eos-type').value;
+    const reasonSelect = document.getElementById('eos-reason');
+    
+    // تفريغ القائمة الحالية استعداداً للذخيرة الجديدة
+    reasonSelect.innerHTML = ''; 
+
+    let options = [];
+
+    if (type === 'استقالة') {
+        options = [
+            'عرض وظيفي أفضل',
+            'انتقال إلى مدينة أخرى',
+            'ظروف شخصية / عائلية',
+            'متابعة دراسة',
+            'عدم الرغبة في تجديد العقد',
+            'أخرى'
+        ];
+    } else if (type === 'استبعاد') {
+        options = [
+            'عدم اجتياز فترة التجربة',
+            'الغياب المتكرر (المادة 80)',
+            'ضعف الأداء المستمر',
+            'إفشاء أسرار العمل',
+            'سلوك غير أخلاقي / مخالفة سياسات',
+            'إعادة هيكلة / إلغاء الوظيفة',
+            'أخرى'
+        ];
+    }
+
+    // زرع الخيارات في القائمة المنسدلة
+    options.forEach(opt => {
+        const newOption = document.createElement('option');
+        newOption.value = opt;
+        newOption.textContent = opt;
+        reasonSelect.appendChild(newOption);
+    });
+}
+
+// 📡 رادار لتشغيل الدالة مرة واحدة عند فتح الشاشة لضمان ظهور أسباب الاستقالة كوضع افتراضي
+document.addEventListener('DOMContentLoaded', updateEosReasons);
         
 </script>
 </body>
