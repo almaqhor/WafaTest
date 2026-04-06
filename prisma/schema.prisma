@@ -67,6 +67,8 @@ model Employee {
   currentPeriod      String?
   termType           String?  // سيعرض (استقالة / استبعاد / عدم تجديد)
   termReason         String?  // سبب الإنهاء التفصيلي
+  isRehireable       Boolean? @default(false)  // قابل لإعادة التوظيف
+  workedNoticePeriod Boolean? @default(false) // عمل خلال فترة الإشعار
 // 🔗 ربط الموظف بالشاغر المعين له
   position         SapPosition?
   
