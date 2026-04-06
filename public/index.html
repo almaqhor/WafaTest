@@ -1341,7 +1341,7 @@
                             </div>
                         </div>
                         
-                        <div class="tabs-header">
+                        <div class="tabs-header" style="border-bottom: 2px solid #8e44ad; padding-bottom: 10px; margin-bottom: 15px;">
                             <button class="tab-btn active" id="btn-hrops-all" onclick="switchHrOpsTab('all')"><i class="fas fa-globe"></i> جميع الطلبات المُحالة</button>
                             <button class="tab-btn" id="btn-hrops-mine" onclick="switchHrOpsTab('mine')"><i class="fas fa-user-check"></i> طلبات معينة لي</button>
                         </div>
@@ -1358,7 +1358,7 @@
                         </div>
 
                         <div style="overflow-x:auto;">
-                            <table style="margin-top:0; width: 100%; text-align: right;" class="styled-table">
+                            <table style="margin-top:0; width: 100%; text-align: right; font-size:13px;" class="styled-table">
                                 <thead style="background:#8e44ad; color:white;">
                                     <tr>
                                         <th style="padding:10px;">الطلب</th>
@@ -1371,9 +1371,35 @@
                                         <th style="padding:10px; text-align:center;">الإجراءات</th>
                                     </tr>
                                 </thead>
-                                <tbody id="hr-ops-table-body"></tbody>
+                                <tbody id="hr-ops-table-body">
+                                    <tr><td colspan="8" style="text-align:center;">جاري تحميل البيانات...</td></tr>
+                                </tbody>
                             </table>
                         </div>
+                        ```
+
+---
+
+### 🚀 الخطوة الثالثة: تفعيل الصلاحيات (JavaScript)
+ابحث عن الدالة `function setupDashboard(data)` (ستجدها في السطر 811 تقريباً).
+انزل إلى **نهاية هذه الدالة**، وقبل السطر `switchView('home');` مباشرة، **ضع هذا الكود ليقوم بإظهار البطاقة لمن يملك الصلاحية:**
+
+```javascript
+            // 🎯🎯🎯 زرع الصلاحيات للبطاقة الجديدة هنا 🎯🎯🎯
+            const isAdminView = globalIsAdmin || 
+                                data.role === 'admin' || 
+                                data.roleArabic === 'ادمن' ||
+                                data.role === 'موظف ادارة' ||
+                                data.roleArabic === 'موظف ادارة';
+                                
+            const hrOpsCard = document.getElementById('card-nav-hrops');
+            if (hrOpsCard) {
+                hrOpsCard.style.display = isAdminView ? 'flex' : 'none';
+            }
+            // ===============================================
+            
+            // احذف هذه الأسطر القديمة إن وجدتها لمنع التعارض:
+            // if (globalRoleArabic === 'موظف ادارة') { const hrBtn = document.getElementById('card-nav-hr'); if(hrBtn) hrBtn.style.display = 'flex'; }
                     </div>
                 </div>
                 <div class="modal-overlay" id="balance-penalty-modal" style="z-index: 1060;">
@@ -2868,12 +2894,6 @@ const res = await fetch('https://wafatest-production.up.railway.app/auth/v1/logi
                 
                 if (data.roleArabic !== 'موظف') { document.getElementById('card-nav-forms').style.display = 'flex'; renderUserForms(); }
                 
-                if (globalRoleArabic === 'موظف ادارة') {
-                    const hrBtn = document.getElementById('card-nav-hr');
-                    if(hrBtn) hrBtn.style.display = 'flex'; // بوابة الطلبات العادية للموارد
-                }
-
-
                 // 🎯 السحر هنا: إذا كان موظف موارد، نظهر له أدوات الإدارة داخل شبكته!
                 if (isHrSpecialist) {
                     const btnUsers = document.getElementById('card-nav-hr-users'); if(btnUsers) btnUsers.style.display = 'flex';
@@ -2886,15 +2906,12 @@ const res = await fetch('https://wafatest-production.up.railway.app/auth/v1/logi
                     const eosBtn = document.querySelector('button[onclick="openEosModal()"]');
                     if (eosBtn) eosBtn.parentElement.style.display = 'flex'; 
 
-
                     applyHrAdminRestrictions(); // تطبيق حجب الإكسيل والحذف
                 }
-
 
                 loadEmployeeRequests(currentUsername); 
                 loadEmployeeAnnouncements(currentUsername); 
                 loadMyShiftToday(currentUsername);
-
 
                 if (data.roleArabic && data.roleArabic.includes('مدير')) { 
                     document.getElementById('manager-panel').style.display = 'block'; 
@@ -2902,10 +2919,9 @@ const res = await fetch('https://wafatest-production.up.railway.app/auth/v1/logi
                     document.getElementById('manager-announcements-panel').style.display = 'block'; 
                     loadManagerRequests(data.name); loadManagerHistory(data.name); loadMyTeam(data.name); loadManagerAnnouncements(data.name); 
                 }
-            }
-            if (!data.policyConfirmed && data.role !== 'admin') { document.getElementById('pledge-modal-box').style.display = 'flex'; }
-            renderUserPolicies();
-            // 🎯🎯🎯 زرع الصلاحيات للبطاقة الجديدة هنا 🎯🎯🎯
+            } // نهاية شرط (!globalIsAdmin)
+
+            // 🎯🎯🎯 زرع الصلاحيات للبطاقة الجديدة لعمليات الموارد 🎯🎯🎯
             const isAdminView = globalIsAdmin || 
                                 data.role === 'admin' || 
                                 data.roleArabic === 'ادمن' ||
@@ -2915,7 +2931,12 @@ const res = await fetch('https://wafatest-production.up.railway.app/auth/v1/logi
             const hrOpsCard = document.getElementById('card-nav-hrops');
             if (hrOpsCard) {
                 hrOpsCard.style.display = isAdminView ? 'flex' : 'none';
-            } switchView('home');
+            }
+            // ========================================================
+
+            if (!data.policyConfirmed && data.role !== 'admin') { document.getElementById('pledge-modal-box').style.display = 'flex'; }
+            renderUserPolicies(); 
+            switchView('home');
             setupWebNotifications();
         }
 
@@ -11950,6 +11971,165 @@ function renderHrOpsTable() {
         </tr>`;
     }).join('');
 }
+                // =========================================================
+// 🚀 نظام بوابة عمليات الموارد البشرية (الجيل الجديد - مدرع)
+// =========================================================
+
+let hrOpsRequests = [];
+let currentHrOpsTab = 'all';
+
+// 1. جلب البيانات من السيرفر (المسار السريع)
+async function loadHrOperations() {
+    try {
+        const currentUser = JSON.parse(localStorage.getItem('currentUser')) || {};
+        
+        console.log("⏳ جاري الاتصال بمسار عمليات الموارد...");
+        const response = await fetch('/api/hr-operations', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                username: typeof currentUsername !== 'undefined' ? currentUsername : (currentUser.username || ''),
+                role: typeof globalRoleArabic !== 'undefined' ? globalRoleArabic : (currentUser.roleArabic || ''),
+                isAdmin: typeof globalIsAdmin !== 'undefined' ? globalIsAdmin : false
+            })
+        });
+
+        if (response.ok) {
+            const result = await response.json();
+            hrOpsRequests = result.requests || result.data || result || [];
+            console.log("✅ تمت الإمدادات بنجاح! عدد التذاكر:", hrOpsRequests.length);
+        } else {
+            console.error("⚠️ السيرفر رفض الطلب.");
+            hrOpsRequests = [];
+        }
+
+        // التأكد من جلب بيانات المستخدمين لترجمة الأسماء
+        if (typeof allUsersData === 'undefined' || allUsersData.length === 0) {
+            try { allUsersData = await (await fetch('/api/users')).json(); } catch(e){}
+        }
+
+        renderHrOpsTable(); 
+    } catch (error) {
+        console.error("❌ فشل الاتصال بالبوابة:", error);
+    }
+}
+
+// 2. تبديل التبويبات
+function switchHrOpsTab(tab) {
+    currentHrOpsTab = tab;
+    const btnAll = document.getElementById('btn-hrops-all');
+    const btnMine = document.getElementById('btn-hrops-mine');
+    if (btnAll) btnAll.classList.toggle('active', tab === 'all');
+    if (btnMine) btnMine.classList.toggle('active', tab === 'mine');
+    
+    renderHrOpsTable();
+}
+
+// 3. دالة فك تشفير وتنزيل المرفقات الافتراضية (Virtual Attachments)
+window.downloadVirtualAttachment = function(ticketAttachmentString) {
+    try {
+        const reportData = JSON.parse(ticketAttachmentString);
+        if (typeof XLSX === 'undefined') {
+            console.log("⏳ جاري استدعاء مدفعية الإكسيل...");
+            const script = document.createElement('script');
+            script.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+            script.onload = () => { fireExcelMissile(reportData); };
+            document.head.appendChild(script);
+        } else {
+            fireExcelMissile(reportData);
+        }
+    } catch (error) {
+        console.error("❌ فشل فك التشفير:", error);
+        alert("عذراً، لا يمكن قراءة بيانات هذا المرفق.");
+    }
+};
+
+// 4. رسم الجدول
+window.renderHrOpsTable = function() {
+    const tbody = document.getElementById('hr-ops-table-body');
+    if (!tbody) return;
+
+    let filtered = hrOpsRequests || [];
+
+    // تطبيق ഫلاتر الشاشة
+    const empQ = document.getElementById('hrops-filter-emp') ? document.getElementById('hrops-filter-emp').value.trim().toLowerCase() : '';
+    const statusQ = document.getElementById('hrops-filter-status') ? document.getElementById('hrops-filter-status').value : 'all';
+
+    if (currentHrOpsTab === 'mine') {
+        filtered = filtered.filter(r => String(r.assignedHrEmp) === String(currentUsername));
+    }
+    if (statusQ !== 'all') {
+        filtered = filtered.filter(r => r.status === statusQ);
+    }
+    if (empQ) {
+        filtered = filtered.filter(r => {
+            const searchUsername = r.empUsername || r.username || '';
+            return searchUsername.toLowerCase().includes(empQ) || (r.empName && r.empName.toLowerCase().includes(empQ));
+        });
+    }
+
+    if (filtered.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding: 20px; font-weight: bold; color: #777;"><i class="fas fa-folder-open fa-2x" style="color:#ddd; margin-bottom:10px; display:block;"></i>صندوق العمليات فارغ حالياً</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = filtered.map(r => {
+        const trueId = r.ticketId || r.id;
+        const safeDate = (r.date || r.createdAt || "").split(',')[0];
+        const safeReason = r.reason || r.type || 'طلب عام';
+        const targetUsername = String(r.empUsername || r.username || '');
+        
+        // الرادار الذكي لملفات الإكسيل الافتراضية
+        let attachmentLink = '<span style="color:#ccc; font-size:11px;">لا يوجد</span>';
+        if (r.attachment && r.attachment.trim() !== '') {
+            const attachStr = typeof r.attachment === 'string' ? r.attachment : JSON.stringify(r.attachment);
+            if (attachStr.trim().startsWith('{')) {
+                const safePayload = encodeURIComponent(attachStr).replace(/'/g, "%27");
+                attachmentLink = `<button onclick="downloadVirtualAttachment(decodeURIComponent('${safePayload}'))" style="background:#27ae60; color:white; border:none; padding:4px 8px; border-radius:4px; font-size:11px; font-weight:bold; cursor:pointer;"><i class="fas fa-file-excel"></i> إكسيل التصفية</button>`;
+            } else {
+                attachmentLink = `<a href="${attachStr}" target="_blank" style="color:#2980b9; font-weight:bold; font-size:12px;"><i class="fas fa-paperclip"></i> المرفق</a>`;
+            }
+        }
+
+        // شارات الحالة
+        let badge = '';
+        if(r.status === 'escalated') badge = '<span style="background:#e74c3c; color:white; padding:3px 6px; border-radius:4px; font-size:11px;">جديد 🔴</span>';
+        else if(r.status === 'hr_assigned') badge = '<span style="background:#f39c12; color:white; padding:3px 6px; border-radius:4px; font-size:11px;">تحت الإجراء ⏳</span>';
+        else if(r.status === 'resolved') badge = '<span style="background:#3498db; color:white; padding:3px 6px; border-radius:4px; font-size:11px;">للاعتماد 🔄</span>';
+        else if(r.status === 'completed') badge = '<span style="background:#27ae60; color:white; padding:3px 6px; border-radius:4px; font-size:11px;">مغلق ✅</span>';
+        else badge = `<span style="background:#95a5a6; color:white; padding:3px 6px; border-radius:4px; font-size:11px;">${r.status}</span>`;
+
+        // أزرار الإجراءات
+        let actions = `<button onclick="viewRequestDetails('${trueId}')" style="background:#3498db; color:white; border:none; padding:4px 8px; border-radius:4px; cursor:pointer; font-size:11px;"><i class="fas fa-eye"></i></button>`;
+        
+        if (r.status === 'escalated') {
+            actions += `
+                <button onclick="openHrAssignModal('${trueId}')" title="تعيين" style="background:#27ae60; color:white; border:none; padding:4px 8px; border-radius:4px; cursor:pointer; font-size:11px; margin-right:5px;"><i class="fas fa-user-check"></i></button>
+                <button onclick="openHrRejectModal('${trueId}')" title="رفض" style="background:#e74c3c; color:white; border:none; padding:4px 8px; border-radius:4px; cursor:pointer; font-size:11px; margin-right:5px;"><i class="fas fa-times"></i></button>
+            `;
+        } else if (r.status === 'hr_assigned' && String(r.assignedHrEmp) === String(currentUsername)) {
+            actions += `<button onclick="window.openHrResolveModal('${trueId}')" style="background:#27ae60; color:white; border:none; padding:4px 8px; border-radius:4px; cursor:pointer; font-size:11px; margin-right:5px;"><i class="fas fa-check-double"></i> إنجاز</button>`;
+        }
+
+        // ترجمة اسم الموظف المعين
+        let assignedNameHtml = '<span style="color:#e74c3c; font-size:11px;">لم يُعين</span>';
+        if (r.assignedHrEmp) {
+            const assignedUser = allUsersData ? allUsersData.find(x => String(x.username) === String(r.assignedHrEmp)) : null;
+            assignedNameHtml = assignedUser ? assignedUser.name : r.assignedHrEmp;
+        }
+
+        return `<tr>
+            <td style="font-size:11px; font-weight:bold; color:#555;">${String(trueId).replace('REQ-','')}</td>
+            <td style="font-size:12px;">${safeDate}</td>
+            <td><strong>${r.empName || 'غير متوفر'}</strong><br><span style="font-size:10px; color:#888;">${targetUsername}</span></td>
+            <td style="font-size:12px; color:#8e44ad; font-weight:bold;">${safeReason}</td>
+            <td>${attachmentLink}</td>
+            <td>${badge}</td>
+            <td style="font-size:12px; font-weight:bold;">${assignedNameHtml}</td>
+            <td style="text-align:center;">${actions}</td> 
+        </tr>`;
+    }).join('');
+};
 </script>
 </body>
 </html>
