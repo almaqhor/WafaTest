@@ -6045,10 +6045,13 @@ async function renderPenaltiesDashboard(penalties) {
 
         async function renderHrTable() {
     try {
-        if (typeof locationsArray === 'undefined' || locationsArray.length === 0) {
-            try { locationsArray = await (await fetch('/api/locations')).json(); } catch(e) {}
+        // 🛡️ درع حماية المصفوفات (إذا فشل الجلب، نعوضها بمصفوفة فارغة كي لا ينهار الكود)
+        if (typeof locationsArray === 'undefined' || !locationsArray || locationsArray.length === 0) {
+            try { locationsArray = await (await fetch('/api/locations')).json(); } catch(e) { locationsArray = []; }
         }
-
+        
+        const safeLocations = locationsArray || [];
+        const safeUsersData = allUsersData || [];
         let filtered = hrAllRequests || [];
 
         // 👑 التعرف على الإدارة العليا
@@ -6058,14 +6061,14 @@ async function renderPenaltiesDashboard(penalties) {
                             currentUser.roleArabic === 'ادمن';
 
         if (!isAdminView) { 
-            const mySupervisedBranches = locationsArray
+            const mySupervisedBranches = safeLocations
                 .filter(loc => String(loc.hrUsername) === String(currentUsername))
                 .map(loc => loc.branch);
 
             filtered = filtered.filter(r => {
                 if (String(r.assignedHrEmp) === String(currentUsername)) return true;
                 const targetUsername = String(r.empUsername || r.username); 
-                const reqUser = allUsersData.find(x => String(x.username) === targetUsername);
+                const reqUser = safeUsersData.find(x => String(x.username) === targetUsername);
                 return reqUser && mySupervisedBranches.includes(reqUser.branch);
             });
         }
@@ -6099,7 +6102,7 @@ async function renderPenaltiesDashboard(penalties) {
         if(branchQ) { 
             filtered = filtered.filter(r => { 
                 const targetUsername = String(r.empUsername || r.username);
-                const u = allUsersData.find(x => String(x.username) === targetUsername); 
+                const u = safeUsersData.find(x => String(x.username) === targetUsername); 
                 return u && u.branch === branchQ; 
             }); 
         }
@@ -6114,26 +6117,27 @@ async function renderPenaltiesDashboard(penalties) {
 
         tbody.innerHTML = filtered.map(r => {
             const targetUsername = String(r.empUsername || r.username || '');
-            const u = allUsersData.find(x => String(x.username) === targetUsername) || {};
+            const u = safeUsersData.find(x => String(x.username) === targetUsername) || {};
             const safeDate = (r.date || r.createdAt || "").split(',')[0]; 
             const safeReason = r.reason || r.type || ''; 
             
-            // 🌟 الإصلاح السحري لمعرف التذكرة (ندمج بين النظام القديم والجديد)
             const trueId = r.ticketId || r.id; 
             
-            // 🎯 الرادار الذكي لاكتشاف نوع المرفق (رابط عادي أم إكسيل افتراضي)
-let attachmentLink = '<span style="color:#ccc; font-size:11px;">لا يوجد</span>';
+            // 🎯 الرادار الذكي المُدرع لاكتشاف نوع المرفق
+            let attachmentLink = '<span style="color:#ccc; font-size:11px;">لا يوجد</span>';
 
-if (r.attachment) {
-    if (r.attachment.startsWith('{')) {
-        // إذا كان المرفق كبسولة JSON، نضع زر الإكسيل مع تشفير البيانات لمنع أخطاء HTML
-        const safePayload = encodeURIComponent(r.attachment);
-        attachmentLink = `<button onclick="downloadVirtualAttachment(decodeURIComponent('${safePayload}'))" style="background:#27ae60; color:white; border:none; padding:4px 8px; border-radius:4px; font-size:11px; font-weight:bold; cursor:pointer;"><i class="fas fa-file-excel"></i> إكسيل التصفية</button>`;
-    } else {
-        // إذا كان مرفقاً عادياً (رابط صورة أو PDF)
-        attachmentLink = `<a href="${r.attachment}" target="_blank" style="color:#2980b9; font-weight:bold; font-size:12px;"><i class="fas fa-paperclip"></i> المرفق</a>`;
-    }
-}
+            if (r.attachment) {
+                // التأكد من أن المرفق نص (لأن بعض السيرفرات تعيده كـ Object إذا كان JSON)
+                const attachStr = typeof r.attachment === 'string' ? r.attachment : JSON.stringify(r.attachment);
+                
+                if (attachStr.trim().startsWith('{')) {
+                    // 🛡️ التعديل هنا: التشفير القوي الذي يمنع انهيار أزرار الـ HTML
+                    const safePayload = encodeURIComponent(attachStr).replace(/'/g, "%27");
+                    attachmentLink = `<button onclick="downloadVirtualAttachment(decodeURIComponent('${safePayload}'))" style="background:#27ae60; color:white; border:none; padding:4px 8px; border-radius:4px; font-size:11px; font-weight:bold; cursor:pointer;"><i class="fas fa-file-excel"></i> إكسيل التصفية</button>`;
+                } else {
+                    attachmentLink = `<a href="${attachStr}" target="_blank" style="color:#2980b9; font-weight:bold; font-size:12px;"><i class="fas fa-paperclip"></i> المرفق</a>`;
+                }
+            }
             
             let badge = '';
             if(r.status === 'escalated') badge = '<span class="status-badge" style="background:#e74c3c;">جديد 🔴</span>';
@@ -6158,7 +6162,7 @@ if (r.attachment) {
             }
 
             const actions = `<div style="display:flex; gap:5px; justify-content:center; min-width:180px;">${actionsInner}</div>`;
-            const assignedName = r.assignedHrEmp ? (allUsersData.find(x => String(x.username) === String(r.assignedHrEmp))?.name || r.assignedHrEmp) : '<span style="color:#e74c3c; font-size:11px;">لم يُعين</span>';
+            const assignedName = r.assignedHrEmp ? (safeUsersData.find(x => String(x.username) === String(r.assignedHrEmp))?.name || r.assignedHrEmp) : '<span style="color:#e74c3c; font-size:11px;">لم يُعين</span>';
 
             return `<tr>
                 <td style="font-size:11px; font-weight:bold; color:#555;">${String(trueId).replace('REQ-','')}</td>
@@ -6174,6 +6178,9 @@ if (r.attachment) {
         }).join('');
     } catch(e) {
         console.error("❌ حدث خطأ أثناء رسم الجدول:", e);
+        // إظهار رسالة للمستخدم بدلاً من الشاشة البيضاء
+        const tbody = document.getElementById('hr-requests-table');
+        if(tbody) tbody.innerHTML = `<tr><td colspan="9" style="text-align:center; padding: 20px; color: red;">حدث خطأ في عرض البيانات. يرجى تحديث الصفحة.</td></tr>`;
     }
 }
     
