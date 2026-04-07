@@ -12192,13 +12192,13 @@ window.renderHrOpsTable = function() {
         else if (r.status === 'pending') badge = '<span class="status-badge" style="background:#95a5a6;">عند المدير ⏳</span>';
         else badge = `<span class="status-badge" style="background:#9b59b6;">${r.status}</span>`;
 
-        // 📎 المرفق (هنا تم إصلاح اللغم - نستخدم اسم المتغير الصحيح attachmentLink)
+       // 📎 المرفق (تم تصحيح الزر ليرسل رقم التذكرة trueId فقط)
         let attachmentLink = '<span style="color:#ccc; font-size:11px;">لا يوجد</span>';
         if (r.attachment && r.attachment.trim() !== '') {
             const attachStr = typeof r.attachment === 'string' ? r.attachment : JSON.stringify(r.attachment);
             if (attachStr.trim().startsWith('{')) {
-                const safePayload = encodeURIComponent(attachStr).replace(/'/g, "%27");
-                attachmentLink = `<button onclick="window.downloadVirtualAttachment(decodeURIComponent('${safePayload}'))" style="background:#27ae60; color:white; border:none; padding:4px 8px; border-radius:4px; font-size:11px; font-weight:bold; cursor:pointer;"><i class="fas fa-file-excel"></i> إكسيل التصفية</button>`;
+                // 🚀 السطر المصحح: إرسال trueId بدلاً من البيانات المشفرة
+                attachmentLink = `<button onclick="window.downloadVirtualAttachment('${trueId}')" style="background:#27ae60; color:white; border:none; padding:4px 8px; border-radius:4px; font-size:11px; font-weight:bold; cursor:pointer;"><i class="fas fa-file-excel"></i> إكسيل التصفية</button>`;
             } else {
                 attachmentLink = `<a href="${attachStr}" target="_blank" style="color:#2980b9; font-weight:bold; font-size:12px;"><i class="fas fa-paperclip"></i> المرفق</a>`;
             }
@@ -12264,22 +12264,32 @@ function openHrOpsPortal() {
         
 
 
-// 3. دالة فك تشفير وتنزيل المرفقات الافتراضية (Virtual Attachments)
-window.downloadVirtualAttachment = function(ticketAttachmentString) {
+// 2. تحويل الـ JSON إلى إكسيل (التصفية المالية)
+window.downloadVirtualAttachment = function(ticketId) {
+    // 🔍 نبحث عن التذكرة بالرقم (تم إضافة String لضمان المطابقة حتى لو كان أحدهما نصاً والآخر رقماً)
+    const req = hrOpsRequests.find(r => String(r.ticketId || r.id) === String(ticketId));
+    
+    if (!req || !req.attachment) {
+        return alert("⚠️ البيانات غير متوفرة أو لم يتم العثور على التذكرة.");
+    }
+
     try {
-        const reportData = JSON.parse(ticketAttachmentString);
+        // فك تشفير المرفق من التذكرة التي وجدناها
+        const reportData = typeof req.attachment === 'string' ? JSON.parse(req.attachment) : req.attachment;
+        
+        // استدعاء مدفعية الإكسيل
         if (typeof XLSX === 'undefined') {
             console.log("⏳ جاري استدعاء مدفعية الإكسيل...");
             const script = document.createElement('script');
             script.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
-            script.onload = () => { fireExcelMissile(reportData); };
+            script.onload = () => { window.fireExcelMissile(reportData); };
             document.head.appendChild(script);
         } else {
-            fireExcelMissile(reportData);
+            window.fireExcelMissile(reportData);
         }
     } catch (error) {
-        console.error("❌ فشل فك التشفير:", error);
-        alert("عذراً، لا يمكن قراءة بيانات هذا المرفق.");
+        console.error("❌ فشل قراءة بيانات الإكسيل:", error);
+        alert("عذراً، البيانات المحفوظة غير صالحة لاستخراج ملف إكسيل.");
     }
 };
 // =========================================================
