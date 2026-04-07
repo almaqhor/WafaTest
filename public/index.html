@@ -6267,115 +6267,17 @@ async function renderHrTable() {
     }
 }
     
-        function openHrAssignModal(ticketId) {
-    // قائمة موظفي الموارد البشرية المتاحين للتعيين
-    const hrStaff = allUsersData.filter(u => 
-        u.roleArabic === 'موظف ادارة' || 
-        u.primarySection === 'الموارد البشرية' ||
-        u.role === 'admin'
-    );
-    
-    const selectHtml = hrStaff.map(u => `<option value="${u.username}">${u.name} (${u.jobTitle || 'موظف موارد'})</option>`).join('');
-    
-    const modalHtml = `
-        <div class="modal-overlay" id="assign-modal" style="display:flex;">
-            <div class="modal-content" style="max-width:400px;">
-                <h3 style="color:#27ae60;"><i class="fas fa-user-check"></i> تعيين الطلب</h3>
-                <input type="hidden" id="assign-ticket-id" value="${ticketId}">
-                <label class="form-label">اختر موظف الموارد:</label>
-                <select id="assign-hr-emp" class="comment-input">${selectHtml}</select>
-                <label class="form-label">تعليمات إضافية:</label>
-                <textarea id="assign-comment" class="comment-input" rows="3" placeholder="توجيهات للموظف..."></textarea>
-                <button onclick="submitHrAssign()" style="background:#27ae60; color:white; width:100%; padding:12px; margin-top:15px; border:none; border-radius:5px; font-weight:bold; cursor:pointer;">
-                    تأكيد التعيين
-                </button>
-                <button onclick="document.getElementById('assign-modal').remove()" style="background:#ccc; color:#333; width:100%; padding:12px; margin-top:10px; border:none; border-radius:5px; cursor:pointer;">
-                    إلغاء
-                </button>
-            </div>
-        </div>
-    `;
-    
-    document.body.insertAdjacentHTML('beforeend', modalHtml);
-}
-
-
-        async function submitHrAssign() {
-    const ticketId = document.getElementById('assign-ticket-id').value;
-    const assignedTo = document.getElementById('assign-hr-emp').value;
-    const comment = document.getElementById('assign-comment').value;
-    
-    try {
-        const res = await fetch('/api/hr-assign', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ ticketId, assignedTo, comment, byUser: currentUsername })
-        });
         
-        const result = await res.json();
-        if (result.success) {
-            alert('✅ تم تعيين الطلب بنجاح');
-            document.getElementById('assign-modal')?.remove();
-            loadHrOperations(); // تحديث الجدول
-        } else {
-            alert('❌ فشل التعيين: ' + result.message);
-        }
-    } catch (e) {
-        alert('❌ حدث خطأ في الاتصال');
-    }
-}
 
 
-function openHrRejectModal(ticketId) {
-    const modalHtml = `
-        <div class="modal-overlay" id="reject-modal" style="display:flex;">
-            <div class="modal-content" style="max-width:400px;">
-                <h3 style="color:#e74c3c;"><i class="fas fa-times-circle"></i> رفض الطلب</h3>
-                <input type="hidden" id="reject-ticket-id" value="${ticketId}">
-                <label class="form-label">سبب الرفض (إجباري):</label>
-                <textarea id="reject-comment" class="comment-input" rows="4" placeholder="اكتب سبب الرفض بوضوح..."></textarea>
-                <button onclick="submitHrReject()" style="background:#e74c3c; color:white; width:100%; padding:12px; margin-top:15px; border:none; border-radius:5px; font-weight:bold; cursor:pointer;">
-                    تأكيد الرفض
-                </button>
-                <button onclick="document.getElementById('reject-modal').remove()" style="background:#ccc; color:#333; width:100%; padding:12px; margin-top:10px; border:none; border-radius:5px; cursor:pointer;">
-                    إلغاء
-                </button>
-            </div>
-        </div>
-    `;
-    document.body.insertAdjacentHTML('beforeend', modalHtml);
-}        
+        
+
+
+        
         function validateHrReject() { const c = document.getElementById('reject-comment').value.trim(); const b = document.getElementById('btn-hr-reject'); if(c.length >= 10) { b.disabled = false; b.style.background = '#e74c3c'; b.style.cursor='pointer'; } else { b.disabled = true; b.style.background = '#ccc'; b.style.cursor='not-allowed';} }
         
         
-        async function submitHrReject() {
-    const ticketId = document.getElementById('reject-ticket-id').value;
-    const comment = document.getElementById('reject-comment').value;
-    
-    if (!comment.trim()) {
-        alert('⚠️ يرجى كتابة سبب الرفض');
-        return;
-    }
-    
-    try {
-        const res = await fetch('/api/hr-reject', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ ticketId, comment, byUser: currentUsername })
-        });
         
-        const result = await res.json();
-        if (result.success) {
-            alert('✅ تم رفض الطلب وإعادته للمدير');
-            document.getElementById('reject-modal')?.remove();
-            loadHrOperations();
-        } else {
-            alert('❌ فشل الرفض: ' + result.message);
-        }
-    } catch (e) {
-        alert('❌ حدث خطأ في الاتصال');
-    }
-}
 
         
 // ==================== نافذة إنجاز الطلب (النسخة المتطورة) ====================
@@ -6469,8 +6371,8 @@ window.submitHrResolve = async function() {
             // تحديث الجدول
             if (typeof loadHrOperations === 'function') {
                 loadHrOperations();
-            } else if (typeof renderHrOpsTable === 'function') {
-                renderHrOpsTable();
+            } else if (typeof  === 'function') {
+                ();
             }
         } else {
             alert('❌ فشل الإنجاز: ' + (result.message || 'خطأ غير معروف'));
@@ -12046,13 +11948,13 @@ async function loadHrOperations() {
             hrOpsRequests = [];
         }
 
-        console.log("⏳ [13] استدعاء renderHrOpsTable...");
-        renderHrOpsTable();
+        console.log("⏳ [13] استدعاء ...");
+        ();
         
     } catch (error) {
         console.error("❌ [14] خطأ في تحميل طلبات الموارد:", error);
         hrOpsRequests = [];
-        renderHrOpsTable();
+        ();
     }
 }
 
@@ -12157,6 +12059,7 @@ function renderHrOpsTable() {
     tbody.innerHTML = rowsHtml;
     console.log("🎨 [R13] عدد الصفوف المرسومة:", filtered.length);
 }
+        
 
 // 3. تبديل التبويبات
 function switchHrOpsTab(tab) {
@@ -12176,7 +12079,183 @@ function openHrOpsPortal() {
 }
 
 
+        
+// ==================== تعيين الطلب لموظف موارد ====================
+let currentUsername = "";
+let window.globalRealActor = null;
+        
+function openHrAssignModal(ticketId) {
+    // جلب قائمة موظفي الموارد البشرية المتاحين
+    const hrStaff = allUsersData.filter(u => 
+        u.roleArabic === 'موظف ادارة' || 
+        u.primarySection === 'الموارد البشرية' ||
+        u.role === 'admin'
+    );
+    
+    if (hrStaff.length === 0) {
+        alert("❌ لا يوجد موظفين موارد متاحين للتعيين حالياً.");
+        return;
+    }
+    
+    const selectHtml = `<option value="">-- اختر موظف الموارد --</option>` + 
+        hrStaff.map(u => `<option value="${u.username}">${u.name} (${u.jobTitle || 'موظف موارد'})</option>`).join('');
+    
+    const modalHtml = `
+        <div class="modal-overlay" id="assign-modal" style="display:flex; z-index:10000;">
+            <div class="modal-content" style="max-width:450px; text-align:right;">
+                <h3 style="color:#27ae60; margin-top:0; text-align:center;">
+                    <i class="fas fa-user-check"></i> تعيين الطلب
+                </h3>
+                <p style="font-size:12px; color:#555; text-align:center;">رقم الطلب: <strong>${ticketId}</strong></p>
+                <input type="hidden" id="assign-ticket-id" value="${ticketId}">
+                
+                <label class="form-label">اختر موظف الموارد:</label>
+                <select id="assign-hr-emp" class="comment-input" style="margin-bottom:15px;">${selectHtml}</select>
+                
+                <label class="form-label">تعليمات إضافية (اختياري):</label>
+                <textarea id="assign-comment" class="comment-input" rows="3" placeholder="أضف أي توجيهات للموظف..."></textarea>
+                
+                <button onclick="submitHrAssign()" style="background:#27ae60; color:white; width:100%; padding:12px; margin-top:10px; border:none; border-radius:8px; font-weight:bold; cursor:pointer;">
+                    <i class="fas fa-save"></i> تأكيد التعيين
+                </button>
+                <button onclick="closeAssignModal()" style="background:#ccc; color:#333; width:100%; padding:12px; margin-top:10px; border:none; border-radius:8px; font-weight:bold; cursor:pointer;">
+                    إلغاء
+                </button>
+            </div>
+        </div>
+    `;
+    
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+}
 
+function closeAssignModal() {
+    const modal = document.getElementById('assign-modal');
+    if (modal) modal.remove();
+}
+
+async function submitHrAssign() {
+    const ticketId = document.getElementById('assign-ticket-id').value;
+    const assignedTo = document.getElementById('assign-hr-emp').value;
+    const comment = document.getElementById('assign-comment').value;
+    
+    if (!assignedTo) {
+        alert("⚠️ يرجى اختيار موظف الموارد لتعيين الطلب إليه.");
+        return;
+    }
+    
+    const btn = event.currentTarget;
+    const originalText = btn.innerHTML;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري التعيين...';
+    btn.disabled = true;
+    
+    try {
+        const res = await fetch('/api/hr-assign', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+                ticketId, 
+                assignedTo, 
+                comment, 
+                byUser: currentUsername || window.globalRealActor 
+            })
+        });
+        
+        const result = await res.json();
+        if (result.success) {
+            alert('✅ تم تعيين الطلب بنجاح!');
+            closeAssignModal();
+            loadHrOperations(); // تحديث الجدول
+        } else {
+            alert('❌ فشل التعيين: ' + result.message);
+        }
+    } catch (e) {
+        console.error(e);
+        alert('❌ حدث خطأ في الاتصال');
+    } finally {
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+    }
+}
+        // ==================== رفض الطلب ====================
+
+function openHrRejectModal(ticketId) {
+    const modalHtml = `
+        <div class="modal-overlay" id="reject-modal" style="display:flex; z-index:10000;">
+            <div class="modal-content" style="max-width:450px; text-align:right;">
+                <h3 style="color:#e74c3c; margin-top:0; text-align:center;">
+                    <i class="fas fa-times-circle"></i> رفض الطلب
+                </h3>
+                <p style="font-size:12px; color:#555; text-align:center;">رقم الطلب: <strong>${ticketId}</strong></p>
+                <input type="hidden" id="reject-ticket-id" value="${ticketId}">
+                
+                <label class="form-label" style="color:#e74c3c;">سبب الرفض <span style="color:red;">*</span></label>
+                <textarea id="reject-comment" class="comment-input" rows="4" placeholder="اكتب سبب الرفض بوضوح... هذا السبب سيظهر للمدير والموظف"></textarea>
+                
+                <button onclick="submitHrReject()" style="background:#e74c3c; color:white; width:100%; padding:12px; margin-top:10px; border:none; border-radius:8px; font-weight:bold; cursor:pointer;">
+                    <i class="fas fa-check"></i> تأكيد الرفض
+                </button>
+                <button onclick="closeRejectModal()" style="background:#ccc; color:#333; width:100%; padding:12px; margin-top:10px; border:none; border-radius:8px; font-weight:bold; cursor:pointer;">
+                    إلغاء
+                </button>
+            </div>
+        </div>
+    `;
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+}
+
+function closeRejectModal() {
+    const modal = document.getElementById('reject-modal');
+    if (modal) modal.remove();
+}
+
+async function submitHrReject() {
+    const ticketId = document.getElementById('reject-ticket-id').value;
+    const comment = document.getElementById('reject-comment').value.trim();
+    
+    if (!comment) {
+        alert("⚠️ يرجى كتابة سبب الرفض.");
+        return;
+    }
+    
+    const btn = event.currentTarget;
+    const originalText = btn.innerHTML;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري...';
+    btn.disabled = true;
+    
+    try {
+        const res = await fetch('/api/hr-reject', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+                ticketId, 
+                comment, 
+                byUser: currentUsername || window.globalRealActor 
+            })
+        });
+        
+        const result = await res.json();
+        if (result.success) {
+            alert('✅ تم رفض الطلب وإعادته للمدير!');
+            closeRejectModal();
+            loadHrOperations(); // تحديث الجدول
+        } else {
+            alert('❌ فشل الرفض: ' + result.message);
+        }
+    } catch (e) {
+        console.error(e);
+        alert('❌ حدث خطأ في الاتصال');
+    } finally {
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+    }
+}
+        
+function closeResolveModal() {
+    const modal = document.getElementById('resolve-modal');
+    if (modal) modal.remove();
+}
+
+        
         
 
 
