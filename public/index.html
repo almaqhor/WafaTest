@@ -11976,44 +11976,7 @@ document.addEventListener('DOMContentLoaded', updateEosReasons);
 // 🚀 نظام بوابة عمليات الموارد البشرية (الجيل الجديد - مدرع)
 // =========================================================
 
-//let hrOpsRequests = [];
-//let currentHrOpsTab = 'all';
 
-// 1. جلب البيانات من السيرفر (المسار السريع)
-async function loadHrOperations() {
-    try {
-        const currentUser = JSON.parse(localStorage.getItem('currentUser')) || {};
-        
-        console.log("⏳ جاري الاتصال بمسار عمليات الموارد...");
-        const response = await fetch('/api/hr-operations', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                username: typeof currentUsername !== 'undefined' ? currentUsername : (currentUser.username || ''),
-                role: typeof globalRoleArabic !== 'undefined' ? globalRoleArabic : (currentUser.roleArabic || ''),
-                isAdmin: typeof globalIsAdmin !== 'undefined' ? globalIsAdmin : false
-            })
-        });
-
-        if (response.ok) {
-            const result = await response.json();
-            hrOpsRequests = result.requests || result.data || result || [];
-            console.log("✅ تمت الإمدادات بنجاح! عدد التذاكر:", hrOpsRequests.length);
-        } else {
-            console.error("⚠️ السيرفر رفض الطلب.");
-            hrOpsRequests = [];
-        }
-
-        // التأكد من جلب بيانات المستخدمين لترجمة الأسماء
-        if (typeof allUsersData === 'undefined' || allUsersData.length === 0) {
-            try { allUsersData = await (await fetch('/api/users')).json(); } catch(e){}
-        }
-
-        renderHrOpsTable(); 
-    } catch (error) {
-        console.error("❌ فشل الاتصال بالبوابة:", error);
-    }
-}
 // =========================================================
 // 🚀 نظام بوابة عمليات الموارد البشرية
 // =========================================================
