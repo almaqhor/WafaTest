@@ -12213,9 +12213,17 @@ function renderHrOpsTable() {
         const assignedName = r.assignedHrEmp || '<span style="color:#e74c3c;">لم يُعين</span>';
         
         // المرفق
-        let attachmentHtml = '<span style="color:#ccc;">لا يوجد</span>';
+        // 📎 المرفق (الرادار الذكي المحدث)
+        let attachmentLink = '<span style="color:#ccc; font-size:11px;">لا يوجد</span>';
         if (r.attachment && r.attachment.trim() !== '') {
-            attachmentHtml = `<a href="${r.attachment}" target="_blank" style="color:#2980b9;"><i class="fas fa-paperclip"></i></a>`;
+            const attachStr = typeof r.attachment === 'string' ? r.attachment : JSON.stringify(r.attachment);
+            if (attachStr.trim().startsWith('{')) {
+                // 🚀 مسار الإكسيل (بيانات التصفية)
+                attachmentLink = `<button onclick="window.downloadVirtualAttachment('${trueId}')" style="background:#27ae60; color:white; border:none; padding:4px 8px; border-radius:4px; font-size:11px; font-weight:bold; cursor:pointer;"><i class="fas fa-file-excel"></i> إكسيل</button>`;
+            } else {
+                // 🖼️ مسار الصور والـ PDF
+                attachmentLink = `<button onclick="window.viewGeneralAttachment('${trueId}')" style="background:#2980b9; color:white; border:none; padding:4px 8px; border-radius:4px; font-size:11px; font-weight:bold; cursor:pointer;"><i class="fas fa-paperclip"></i> عرض</button>`;
+            }
         }
 
         rowsHtml += `
@@ -12279,9 +12287,79 @@ window.downloadVirtualAttachment = function(ticketAttachmentString) {
         alert("عذراً، لا يمكن قراءة بيانات هذا المرفق.");
     }
 };
+// =========================================================
+// 🗂️ محركات إدارة المرفقات وتصدير الإكسيل
+// =========================================================
 
-// 4. رسم الجدول
+// 1. فتح المرفقات العادية (صور/PDF) بأمان
+window.viewGeneralAttachment = function(ticketId) {
+    const req = hrOpsRequests.find(r => (r.ticketId || r.id) === ticketId);
+    if (!req || !req.attachment) return alert("المرفق غير متوفر.");
+    
+    const win = window.open();
+    win.document.write('<iframe src="' + req.attachment + '" frameborder="0" style="border:0; top:0px; left:0px; bottom:0px; right:0px; width:100%; height:100%;" allowfullscreen></iframe>');
+};
 
+// 2. تحويل الـ JSON إلى إكسيل (التصفية المالية)
+window.downloadVirtualAttachment = function(ticketId) {
+    const req = hrOpsRequests.find(r => (r.ticketId || r.id) === ticketId);
+    if (!req || !req.attachment) return alert("البيانات غير متوفرة.");
+
+    try {
+        const reportData = JSON.parse(req.attachment);
+        
+        // استدعاء مكتبة SheetJS إذا لم تكن موجودة
+        if (typeof XLSX === 'undefined') {
+            console.log("⏳ جاري استدعاء مدفعية الإكسيل...");
+            const script = document.createElement('script');
+            script.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+            script.onload = () => { window.fireExcelMissile(reportData); };
+            document.head.appendChild(script);
+        } else {
+            window.fireExcelMissile(reportData);
+        }
+    } catch (error) {
+        console.error("❌ فشل قراءة بيانات الإكسيل:", error);
+        alert("عذراً، البيانات المحفوظة غير صالحة لاستخراج ملف إكسيل.");
+    }
+};
+
+// 3. مدفعية الإكسيل (بناء وتصدير الملف)
+window.fireExcelMissile = function(reportData) {
+    try {
+        // تجهيز الصفحة الأولى (بيانات المالية)
+        const sheet1Data = [
+            ["الرقم الوظيفي", "الاسم", "رقم الهوية", "تاريخ الانضمام", "تاريخ آخر يوم عمل", "مدة الخدمة", "استحقاق المكافأة", "الراتب الإجمالي", "رسوم التأمينات الشهرية", "أيام عمل مستحقة", "أيام خصم غياب", "أيام تأمينات مستردة/مخصومة", "رصيد الإجازة المتبقي", "رسوم كرت البلدية", "اسم البنك", "رقم الآيبان"],
+            [reportData.empId, reportData.name, reportData.idNumber, reportData.joinDate, reportData.lastWorkingDay, reportData.serviceDuration, reportData.deservesEOS, reportData.totalSalary, reportData.gosiFeeMonth, reportData.currentMonthPayableDays, reportData.prevMonthDeductDays, reportData.gosiDaysAdjustment, reportData.leaveBalance, reportData.baladiyahFee, reportData.bankName, reportData.bankIban]
+        ];
+
+        // تجهيز الصفحة الثانية (الحالة)
+        const termStatus = reportData.status || reportData.termType || "غير محدد";
+        const sheet2Data = [
+            ["الرقم الوظيفي", "الاسم", "رقم الهوية", "تاريخ اخر يوم عمل", "نوع الانهاء( الحالة )", "سبب الإنهاء"],
+            [reportData.empId, reportData.name, reportData.idNumber, reportData.lastWorkingDay, termStatus, reportData.termReason || '-']
+        ];
+
+        // تحويل المصفوفات إلى أوراق إكسيل
+        const worksheet1 = XLSX.utils.aoa_to_sheet(sheet1Data);
+        const worksheet2 = XLSX.utils.aoa_to_sheet(sheet2Data);
+
+        // توجيه الورقة من اليمين لليسار (RTL)
+        worksheet1['!dir'] = 'rtl';
+        worksheet2['!dir'] = 'rtl';
+
+        // تجميع الورقتين في ملف واحد
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet1, "التصفية المالية");
+        XLSX.utils.book_append_sheet(workbook, worksheet2, "حالة الإنهاء");
+
+        // إطلاق الملف كتحميل للمستخدم
+        XLSX.writeFile(workbook, `تصفية_مستحقات_${reportData.empId}.xlsx`);
+    } catch (error) {
+        console.error("❌ فشل إطلاق صاروخ الإكسيل:", error);
+        alert("حدث خطأ تقني أثناء محاولة إنشاء الإكسيل.");
+    }
+};
 </script>
 </body>
 </html>
