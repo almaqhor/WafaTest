@@ -9810,7 +9810,7 @@ window.viewRequestDetails = async function(reqId) {
 
         if (typeof hrAllRequests !== 'undefined' && Array.isArray(hrAllRequests)) req = findReq(hrAllRequests);
         if (!req && typeof allAdminRequestsData !== 'undefined' && Array.isArray(allAdminRequestsData)) req = findReq(allAdminRequestsData);
-
+        if (!req && typeof hrOpsRequests !== 'undefined' && Array.isArray(hrOpsRequests)) req = findReq(hrOpsRequests);
         if (!req) {
             console.log("🌐 لم نجده محلياً، جاري السحب من السيرفر مباشرة...");
             const response = await fetch('/api/all-requests');
