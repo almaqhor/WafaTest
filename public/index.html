@@ -2878,11 +2878,14 @@ const res = await fetch('https://wafatest-production.up.railway.app/auth/v1/logi
                     const btnInterviews = document.getElementById('card-nav-interviews'); if(btnInterviews) btnInterviews.style.display = 'flex';
                     const btnMegaHR = document.getElementById('card-nav-hr-mega'); if(btnMegaHR) btnMegaHR.style.display = 'flex';
                     
+                    // 🔥 أضف هذا السطر الجديد لإظهار بطاقة عمليات الموارد البشرية
+                    const btnHrOps = document.getElementById('card-nav-hrops'); if(btnHrOps) btnHrOps.style.display = 'flex';
+                    
                     // 🔥 السطر الجديد: إظهار زر "إنهاء الخدمات" لموظف الإدارة في شريط الأزرار العلوي
                     const eosBtn = document.querySelector('button[onclick="openEosModal()"]');
                     if (eosBtn) eosBtn.parentElement.style.display = 'flex'; 
-
-                    applyHrAdminRestrictions(); // تطبيق حجب الإكسيل والحذف
+                
+                    applyHrAdminRestrictions();
                 }
 
                 loadEmployeeRequests(currentUsername); 
@@ -2897,11 +2900,13 @@ const res = await fetch('https://wafatest-production.up.railway.app/auth/v1/logi
                 }
             } // نهاية شرط (!globalIsAdmin)
 
-             const hasHrAccess = globalIsAdmin || 
-                        data.role === 'admin' || 
-                        data.roleArabic === 'ادمن' ||
-                        data.role === 'موظف ادارة' ||
-                        data.roleArabic === 'موظف ادارة';
+             const hasHrAccess = globalIsAdmin === true || 
+                    data.role === 'admin' || 
+                    data.roleArabic === 'ادمن' ||
+                    data.role === 'موظف ادارة' ||
+                    data.roleArabic === 'موظف ادارة' ||
+                    (data.roleArabic && data.roleArabic.includes('ادارة')) ||
+                    (data.role && data.role.includes('ادارة'));
     
     // إظهار البطاقة إذا كان المستخدم يملك الصلاحية
     const hrOpsCard = document.getElementById('card-nav-hrops');
