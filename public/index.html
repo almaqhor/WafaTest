@@ -6267,63 +6267,112 @@ async function renderHrTable() {
     }
 }
     
-        function openHrAssignModal(ticketId) {
-    // قائمة موظفي الموارد البشرية المتاحين للتعيين
-    const hrStaff = allUsersData.filter(u => 
-        u.roleArabic === 'موظف ادارة' || 
-        u.primarySection === 'الموارد البشرية' ||
-        u.role === 'admin'
-    );
-    
-    const selectHtml = hrStaff.map(u => `<option value="${u.username}">${u.name} (${u.jobTitle || 'موظف موارد'})</option>`).join('');
-    
+        window.openHrAssignModal = async function(ticketId) {
+    // 1. ضمان وصول الإمدادات (بيانات الموظفين) قبل فتح النافذة
+    if (typeof allUsersData === 'undefined' || allUsersData.length === 0) {
+        try { 
+            const res = await fetch('/api/users');
+            if(res.ok) allUsersData = await res.json(); 
+        } catch(e){ 
+            console.error("❌ فشل جلب الموظفين"); 
+        }
+    }
+
+    // 2. الرادار الذكي والمرن (يلتقط أي موظف إدارة، موارد، أو أدمن)
+    const hrStaff = allUsersData.filter(u => {
+        const roleAr = String(u.roleArabic || '').trim();
+        const roleEn = String(u.role || '').trim().toLowerCase();
+        const section = String(u.primarySection || '').trim();
+
+        return roleAr.includes('ادارة') || 
+               roleAr.includes('إدارة') || 
+               roleAr.includes('موارد') || 
+               roleAr.includes('ادمن') || 
+               roleEn.includes('admin') || 
+               section.includes('موارد');
+    });
+
+    console.log("👥 موظفو الموارد المتاحون للتعيين:", hrStaff);
+
+    // 3. تجهيز القائمة المنسدلة
+    let selectHtml = '<option value="">-- اختر موظف الموارد --</option>';
+    if (hrStaff.length === 0) {
+        selectHtml = '<option value="">⚠️ لا يوجد موظفو موارد بصلاحيات في النظام</option>';
+    } else {
+        selectHtml += hrStaff.map(u => `<option value="${u.username}">${u.name} (${u.jobTitle || 'موارد بشرية'})</option>`).join('');
+    }
+
+    // 4. تنظيف الميدان من أي نوافذ عالقة
+    document.querySelectorAll('#assign-modal').forEach(el => el.remove());
+
+    // 5. بناء وإظهار النافذة
     const modalHtml = `
-        <div class="modal-overlay" id="assign-modal" style="display:flex;">
-            <div class="modal-content" style="max-width:400px;">
-                <h3 style="color:#27ae60;"><i class="fas fa-user-check"></i> تعيين الطلب</h3>
+        <div class="modal-overlay" id="assign-modal" style="display:flex; z-index:9999; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); align-items:center; justify-content:center;">
+            <div class="modal-content" style="background:white; padding:25px; border-radius:12px; width:90%; max-width:400px; text-align:right; border-top: 5px solid #27ae60; box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
+                <h3 style="color:#27ae60; margin-top:0; border-bottom:1px solid #eee; padding-bottom:10px; text-align:center;">
+                    <i class="fas fa-user-check"></i> تعيين الطلب
+                </h3>
+                
                 <input type="hidden" id="assign-ticket-id" value="${ticketId}">
-                <label class="form-label">اختر موظف الموارد:</label>
-                <select id="assign-hr-emp" class="comment-input">${selectHtml}</select>
-                <label class="form-label">تعليمات إضافية:</label>
-                <textarea id="assign-comment" class="comment-input" rows="3" placeholder="توجيهات للموظف..."></textarea>
-                <button onclick="submitHrAssign()" style="background:#27ae60; color:white; width:100%; padding:12px; margin-top:15px; border:none; border-radius:5px; font-weight:bold; cursor:pointer;">
-                    تأكيد التعيين
+                
+                <label class="form-label" style="display:block; margin-bottom:5px; font-weight:bold; color:#555;">اختر موظف الموارد:</label>
+                <select id="assign-hr-emp" class="comment-input" style="width:100%; padding:10px; margin-bottom:15px; border-radius:5px; border:1px solid #ccc; font-family:inherit;">
+                    ${selectHtml}
+                </select>
+                
+                <label class="form-label" style="display:block; margin-bottom:5px; font-weight:bold; color:#555;">تعليمات إضافية (اختياري):</label>
+                <textarea id="assign-comment" class="comment-input" rows="3" placeholder="اكتب توجيهات للموظف المُعالج هنا..." style="width:100%; padding:10px; margin-bottom:15px; border-radius:5px; border:1px solid #ccc; font-family:inherit; resize:vertical;"></textarea>
+                
+                <button onclick="window.submitHrAssign()" style="background:#27ae60; color:white; width:100%; padding:12px; border:none; border-radius:8px; font-weight:bold; cursor:pointer; font-size:15px; margin-bottom:10px;">
+                    <i class="fas fa-check"></i> تأكيد التعيين
                 </button>
-                <button onclick="document.getElementById('assign-modal').remove()" style="background:#ccc; color:#333; width:100%; padding:12px; margin-top:10px; border:none; border-radius:5px; cursor:pointer;">
-                    إلغاء
+                <button onclick="document.getElementById('assign-modal').remove()" style="background:#eee; color:#333; width:100%; padding:12px; border:none; border-radius:8px; font-weight:bold; cursor:pointer; font-size:15px;">
+                    إلغاء وإغلاق
                 </button>
             </div>
         </div>
     `;
     
     document.body.insertAdjacentHTML('beforeend', modalHtml);
-}
+};
 
 
-        async function submitHrAssign() {
+        window.submitHrAssign = async function() {
     const ticketId = document.getElementById('assign-ticket-id').value;
     const assignedTo = document.getElementById('assign-hr-emp').value;
     const comment = document.getElementById('assign-comment').value;
     
+    if (!assignedTo) return alert("⚠️ الرجاء اختيار موظف الموارد البشرية من القائمة.");
+    
+    // تعطيل الزر أثناء التحميل
+    const btn = document.querySelector('#assign-modal button');
+    const originalText = btn.innerHTML;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري التعيين...';
+    btn.disabled = true;
+
     try {
         const res = await fetch('/api/hr-assign', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ ticketId, assignedTo, comment, byUser: currentUsername })
+            body: JSON.stringify({ ticketId, assignedTo, comment, byUser: currentUsername || window.globalRealActor })
         });
         
         const result = await res.json();
         if (result.success) {
             alert('✅ تم تعيين الطلب بنجاح');
-            document.getElementById('assign-modal')?.remove();
-            loadHrOperations(); // تحديث الجدول
+            document.getElementById('assign-modal').remove();
+            if (typeof loadHrOperations === 'function') loadHrOperations(); // تحديث الجدول
         } else {
             alert('❌ فشل التعيين: ' + result.message);
+            btn.innerHTML = originalText;
+            btn.disabled = false;
         }
     } catch (e) {
-        alert('❌ حدث خطأ في الاتصال');
+        alert('❌ حدث خطأ في الاتصال بالخادم.');
+        btn.innerHTML = originalText;
+        btn.disabled = false;
     }
-}
+};
 
 
 function openHrRejectModal(ticketId) {
