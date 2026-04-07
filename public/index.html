@@ -1465,7 +1465,7 @@
                     <div class="modal-content" style="border-top: 5px solid #e74c3c; text-align:right;">
                         <h3 style="color: #c0392b; margin-top: 0; text-align: center;"><i class="fas fa-times-circle"></i> رفض الطلب</h3>
                         <input type="hidden" id="reject-ticket-id">
-                        <textarea id="reject-comment" placeholder="سبب الرفض..." style="width: 100%; padding: 10px; margin-bottom: 15px; border-radius:5px; border:1px solid #ccc; font-family:inherit; min-height: 80px;" oninput="validateHrReject()"></textarea>
+                        <textarea id="reject-comment" placeholder="سبب الرفض..." style="width: 100%; padding: 10px; margin-bottom: 15px; border-radius:5px; border:1px solid #ccc; font-family:inherit; min-height: 80px;" oninput="()"></textarea>
                         <button id="btn-hr-reject" disabled style="background:#ccc; color:white; border:none; padding:12px; width:100%; border-radius:8px; font-weight:bold; cursor:not-allowed;" onclick="submitHrReject()">تأكيد الرفض</button>
                         <button onclick="document.getElementById('hr-reject-modal').style.display='none'" style="background:#eee; color:#333; border:none; padding:12px; width:100%; margin-top:10px; border-radius:8px; font-weight:bold; cursor:pointer;">إلغاء</button>
                     </div>
@@ -6370,57 +6370,93 @@ window.submitHrAssign = async function() {
     }
 };
 
+// ==================== نافذة الرفض (النسخة المتطورة والمدرعة) ====================
+window.openHrRejectModal = function(ticketId) {
+    // 1. تنظيف أي نوافذ قديمة عالقة في الميدان لضمان عدم التعارض
+    document.querySelectorAll('#dynamic-reject-modal').forEach(el => el.remove());
 
-function openHrRejectModal(ticketId) {
+    // 2. بناء النافذة بأسماء (IDs) فريدة
     const modalHtml = `
-        <div class="modal-overlay" id="reject-modal" style="display:flex;">
-            <div class="modal-content" style="max-width:400px;">
-                <h3 style="color:#e74c3c;"><i class="fas fa-times-circle"></i> رفض الطلب</h3>
-                <input type="hidden" id="reject-ticket-id" value="${ticketId}">
-                <label class="form-label">سبب الرفض (إجباري):</label>
-                <textarea id="reject-comment" class="comment-input" rows="4" placeholder="اكتب سبب الرفض بوضوح..."></textarea>
-                <button onclick="submitHrReject()" style="background:#e74c3c; color:white; width:100%; padding:12px; margin-top:15px; border:none; border-radius:5px; font-weight:bold; cursor:pointer;">
-                    تأكيد الرفض
+        <div class="modal-overlay" id="dynamic-reject-modal" style="display:flex; z-index:9999; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); align-items:center; justify-content:center;">
+            <div class="modal-content" style="background:white; padding:25px; border-radius:12px; width:90%; max-width:400px; text-align:right; border-top: 5px solid #e74c3c; box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
+                <h3 style="color:#e74c3c; margin-top:0; border-bottom:1px solid #eee; padding-bottom:10px; text-align:center;">
+                    <i class="fas fa-times-circle"></i> رفض الطلب
+                </h3>
+                
+                <input type="hidden" id="dynamic-reject-ticket-id" value="${ticketId}">
+                
+                <label class="form-label" style="display:block; margin-bottom:5px; font-weight:bold; color:#555;">سبب الرفض (إجباري):</label>
+                <textarea id="dynamic-reject-comment" class="comment-input" rows="4" placeholder="اكتب سبب الرفض بوضوح ليتمكن الموظف من التعديل..." style="width:100%; padding:10px; margin-bottom:15px; border-radius:5px; border:1px solid #ccc; font-family:inherit; resize:vertical;" oninput="window.validateDynamicReject()"></textarea>
+                
+                <button id="btn-dynamic-reject" disabled onclick="window.submitHrReject()" style="background:#ccc; color:white; width:100%; padding:12px; border:none; border-radius:8px; font-weight:bold; cursor:not-allowed; font-size:15px; margin-bottom:10px; transition:0.3s;">
+                    <i class="fas fa-ban"></i> تأكيد الرفض
                 </button>
-                <button onclick="document.getElementById('reject-modal').remove()" style="background:#ccc; color:#333; width:100%; padding:12px; margin-top:10px; border:none; border-radius:5px; cursor:pointer;">
-                    إلغاء
+                <button onclick="document.getElementById('dynamic-reject-modal').remove()" style="background:#eee; color:#333; width:100%; padding:12px; border:none; border-radius:8px; font-weight:bold; cursor:pointer; font-size:15px;">
+                    إلغاء وإغلاق
                 </button>
             </div>
         </div>
     `;
-    document.body.insertAdjacentHTML('beforeend', modalHtml);
-}        
-        function validateHrReject() { const c = document.getElementById('reject-comment').value.trim(); const b = document.getElementById('btn-hr-reject'); if(c.length >= 10) { b.disabled = false; b.style.background = '#e74c3c'; b.style.cursor='pointer'; } else { b.disabled = true; b.style.background = '#ccc'; b.style.cursor='not-allowed';} }
-        
-        
-        async function submitHrReject() {
-    const ticketId = document.getElementById('reject-ticket-id').value;
-    const comment = document.getElementById('reject-comment').value;
     
-    if (!comment.trim()) {
-        alert('⚠️ يرجى كتابة سبب الرفض');
+    // 3. إنزال النافذة في الشاشة
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+};
+
+// 🛡️ صمام الأمان: يفحص عدد الأحرف ويُفعل الزر الأحمر آلياً
+window.validateDynamicReject = function() {
+    const comment = document.getElementById('dynamic-reject-comment').value.trim();
+    const btn = document.getElementById('btn-dynamic-reject');
+    if (comment.length >= 10) {
+        btn.disabled = false;
+        btn.style.background = '#e74c3c';
+        btn.style.cursor = 'pointer';
+    } else {
+        btn.disabled = true;
+        btn.style.background = '#ccc';
+        btn.style.cursor = 'not-allowed';
+    }
+};
+
+// 🚀 دالة الإرسال للسيرفر
+window.submitHrReject = async function() {
+    // الالتقاط الذكي للبيانات من الـ IDs الجديدة
+    const ticketId = document.getElementById('dynamic-reject-ticket-id').value;
+    const comment = document.getElementById('dynamic-reject-comment').value.trim();
+    
+    if (comment.length < 10) {
+        alert('⚠️ يرجى كتابة سبب الرفض بوضوح (10 أحرف على الأقل).');
         return;
     }
+    
+    // تجميد الزر أثناء الإرسال لمنع التكرار
+    const btn = document.getElementById('btn-dynamic-reject');
+    const originalText = btn.innerHTML;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري الرفض...';
+    btn.disabled = true;
     
     try {
         const res = await fetch('/api/hr-reject', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ ticketId, comment, byUser: currentUsername })
+            body: JSON.stringify({ ticketId, comment, byUser: currentUsername || window.globalRealActor })
         });
         
         const result = await res.json();
         if (result.success) {
-            alert('✅ تم رفض الطلب وإعادته للمدير');
-            document.getElementById('reject-modal')?.remove();
-            loadHrOperations();
+            alert('✅ تم رفض الطلب وإعادته بنجاح');
+            document.getElementById('dynamic-reject-modal').remove();
+            if (typeof loadHrOperations === 'function') loadHrOperations(); // تحديث الجدول فوراً
         } else {
             alert('❌ فشل الرفض: ' + result.message);
+            btn.innerHTML = originalText;
+            btn.disabled = false;
         }
     } catch (e) {
-        alert('❌ حدث خطأ في الاتصال');
+        alert('❌ حدث خطأ في الاتصال بالخادم.');
+        btn.innerHTML = originalText;
+        btn.disabled = false;
     }
-}
+};
 
         
 // ==================== نافذة إنجاز الطلب (النسخة المتطورة) ====================
