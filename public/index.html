@@ -12060,11 +12060,8 @@ async function loadHrOperations() {
 function renderHrOpsTable() {
     console.log("🎨 [R1] بدء رسم الجدول");
     console.log("🎨 [R2] hrOpsRequests.length:", hrOpsRequests.length);
-    console.log("🎨 [R3] hrOpsRequests:", hrOpsRequests);
     
     const tbody = document.getElementById('hr-ops-table-body');
-    console.log("🎨 [R4] عنصر الجدول hr-ops-table-body:", tbody ? "✅ موجود" : "❌ غير موجود");
-    
     if (!tbody) {
         console.warn("⚠️ لم يتم العثور على عنصر الجدول hr-ops-table-body");
         return;
@@ -12074,17 +12071,12 @@ function renderHrOpsTable() {
     let filtered = [...hrOpsRequests];
     const empQ = document.getElementById('hrops-filter-emp')?.value.trim().toLowerCase() || '';
     const statusQ = document.getElementById('hrops-filter-status')?.value || 'all';
-    
-    console.log("🎨 [R5] الفلاتر - empQ:", empQ, "statusQ:", statusQ);
-    console.log("🎨 [R6] currentHrOpsTab:", currentHrOpsTab);
 
     if (currentHrOpsTab === 'mine') {
         filtered = filtered.filter(r => String(r.assignedHrEmp) === String(currentUsername));
-        console.log("🎨 [R7] بعد فلترة 'طلباتي':", filtered.length);
     }
     if (statusQ !== 'all') {
         filtered = filtered.filter(r => r.status === statusQ);
-        console.log("🎨 [R8] بعد فلترة الحالة:", filtered.length);
     }
     if (empQ) {
         filtered = filtered.filter(r => {
@@ -12092,12 +12084,9 @@ function renderHrOpsTable() {
             const searchName = String(r.empName || '').toLowerCase();
             return searchUsername.includes(empQ) || searchName.includes(empQ);
         });
-        console.log("🎨 [R9] بعد فلترة الموظف:", filtered.length);
     }
 
-    // عرض رسالة إذا كانت القائمة فارغة
     if (filtered.length === 0) {
-        console.warn("🎨 [R10] القائمة فارغة - عرض رسالة 'لا توجد طلبات'");
         tbody.innerHTML = `<tr><td colspan="8" style="text-align:center; padding: 40px; font-weight: bold; color: #777;">
             <i class="fas fa-folder-open fa-3x" style="color:#ddd; margin-bottom:15px; display:block;"></i>
             لا توجد طلبات لعرضها
@@ -12105,16 +12094,68 @@ function renderHrOpsTable() {
         return;
     }
 
-    console.log("🎨 [R11] بدء رسم", filtered.length, "طلب");
+    // ✅ كود رسم الصفوف الكامل والصحيح
+    let rowsHtml = '';
     
-    // رسم الجدول
-    tbody.innerHTML = filtered.map(r => {
-        // ... كود رسم الصفوف
-    }).join('');
+    for (let i = 0; i < filtered.length; i++) {
+        const r = filtered[i];
+        const trueId = r.id || r.ticketId || `REQ-${i}`;
+        const safeDate = r.date ? r.date.split('T')[0] : (r.createdAt ? r.createdAt.split('T')[0] : '-');
+        const safeReason = r.reason || r.type || 'طلب عام';
+        const targetUsername = r.empUsername || r.username || '';
+        const empName = r.empName || 'غير متوفر';
+        
+        // شارة الحالة
+        let badge = '';
+        if (r.status === 'escalated') {
+            badge = '<span style="background:#e74c3c; color:white; padding:3px 8px; border-radius:4px; font-size:11px;">جديد 🔴</span>';
+        } else if (r.status === 'hr_assigned') {
+            badge = '<span style="background:#f39c12; color:white; padding:3px 8px; border-radius:4px; font-size:11px;">تحت الإجراء ⏳</span>';
+        } else if (r.status === 'resolved') {
+            badge = '<span style="background:#3498db; color:white; padding:3px 8px; border-radius:4px; font-size:11px;">للاعتماد 🔄</span>';
+        } else if (r.status === 'completed') {
+            badge = '<span style="background:#27ae60; color:white; padding:3px 8px; border-radius:4px; font-size:11px;">مغلق ✅</span>';
+        } else {
+            badge = `<span style="background:#95a5a6; color:white; padding:3px 8px; border-radius:4px; font-size:11px;">${r.status}</span>`;
+        }
+
+        // أزرار الإجراءات
+        let actions = `<button onclick="viewRequestDetails('${trueId}')" style="background:#3498db; color:white; border:none; padding:4px 8px; border-radius:4px; cursor:pointer; font-size:11px; margin:2px;"><i class="fas fa-eye"></i></button>`;
+        
+        if (r.status === 'escalated') {
+            actions += `<button onclick="openHrAssignModal('${trueId}')" style="background:#27ae60; color:white; border:none; padding:4px 8px; border-radius:4px; cursor:pointer; font-size:11px; margin:2px;"><i class="fas fa-user-check"></i></button>
+                        <button onclick="openHrRejectModal('${trueId}')" style="background:#e74c3c; color:white; border:none; padding:4px 8px; border-radius:4px; cursor:pointer; font-size:11px; margin:2px;"><i class="fas fa-times"></i></button>`;
+        } else if (r.status === 'hr_assigned' && String(r.assignedHrEmp) === String(currentUsername)) {
+            actions += `<button onclick="window.openHrResolveModal('${trueId}')" style="background:#27ae60; color:white; border:none; padding:4px 8px; border-radius:4px; cursor:pointer; font-size:11px; margin:2px;"><i class="fas fa-check-double"></i> إنجاز</button>`;
+        }
+
+        const assignedName = r.assignedHrEmp || '<span style="color:#e74c3c;">لم يُعين</span>';
+        
+        // المرفق
+        let attachmentHtml = '<span style="color:#ccc;">لا يوجد</span>';
+        if (r.attachment && r.attachment.trim() !== '') {
+            attachmentHtml = `<a href="${r.attachment}" target="_blank" style="color:#2980b9;"><i class="fas fa-paperclip"></i></a>`;
+        }
+
+        rowsHtml += `
+            <tr>
+                <td style="font-weight:bold; color:#2980b9;">${String(trueId).replace('REQ-', '')}</td>
+                <td style="font-size:12px;">${safeDate}</td>
+                <td>
+                    <strong>${empName}</strong><br>
+                    <span style="font-size:10px; color:#888;">${targetUsername}</span>
+                </td>
+                <td style="font-weight:bold; color:#8e44ad;">${safeReason}</td>
+                <td style="text-align:center;">${attachmentHtml}</td>
+                <td>${badge}</td>
+                <td style="font-size:12px;">${assignedName}</td>
+                <td style="text-align:center; white-space:nowrap;">${actions}</td>
+            </tr>
+        `;
+    }
     
-    console.log("🎨 [R12] تم رسم الجدول بنجاح");
-    // في نهاية الدالة، بعد رسم الجدول، أضف:
-console.log("🎨 [R13] عدد الصفوف المرسومة:", tbody.querySelectorAll('tr').length);
+    tbody.innerHTML = rowsHtml;
+    console.log("🎨 [R13] عدد الصفوف المرسومة:", filtered.length);
 }
 
 // 3. تبديل التبويبات
