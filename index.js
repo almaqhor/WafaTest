@@ -4747,6 +4747,7 @@ app.post('/api/bulk-sync-users', async (req, res) => {
         res.status(500).json({ success: false, message: "حدث خطأ في السيرفر أثناء معالجة الإكسيل." });
     }
 });
+
 // =========================================================
 // 🚀 مسار العمليات السريع لمشرفي وموظفي الموارد البشرية
 // =========================================================
@@ -4760,16 +4761,14 @@ app.post('/api/hr-operations', async (req, res) => {
             return res.json({ success: false, requests: [] });
         }
 
-        // 1. الاستعلام الذكي من Prisma مباشرة (أسرع بـ 10 مرات من الفلترة القديمة)
+        // 1. الاستعلام الذكي
         let queryCondition = {};
 
         if (isAdmin || role === 'موظف ادارة') {
-            // الإدارة وموظفو الإدارة المركزية يرون كل تذاكر الـ HR
             queryCondition = {
                 status: { in: ['escalated', 'hr_assigned', 'resolved', 'completed'] }
             };
         } else {
-            // مشرف الفرع يرى فقط التذاكر الموجهة له كمشرف، أو المحولة له كموظف معالج
             queryCondition = {
                 OR: [
                     { hrSupervisor: username },
@@ -4781,41 +4780,57 @@ app.post('/api/hr-operations', async (req, res) => {
 
         const hrTickets = await prisma.requestTicket.findMany({
             where: queryCondition,
-            orderBy: { id: 'desc' } // الأحدث أولاً
+            orderBy: { id: 'desc' }
         });
 
-        // 2. درع التطهير (التنسيق)
-        const formattedRequests = hrTickets.map(r => ({
-            id: r.ticketId,                   
-            employeeId: r.employeeId,
-            empUsername: r.empUsername || '',
-            empName: r.empName || '',
-            senderId: r.senderId || '',
-            empPhone: r.empPhone || '',
-            managerName: r.managerName || '',
-            hrSupervisor: r.hrSupervisor || '',
-            assignedHrEmp: r.assignedHrEmp || '',
-            reason: r.type || '',             
-            type: r.type || '',               
-            details: r.details || '',
-            attachment: r.attachment || '',
-            status: r.status || 'pending',
-            date: r.createdAt || '',          
-            createdAt: r.createdAt || '',     
-            resolveDate: r.resolveDate || '',
-            duration: r.duration || '',
-            managerComment: r.managerComment || '',
-            hrComment: r.hrComment || '',
-            supervisorAssignComment: r.supervisorAssignComment || '',
-            supervisorRejectComment: r.supervisorRejectComment || '',
-            escalationComment: r.escalationComment || '',
-            empComment: r.empComment || '',
-            rating: r.rating || '',
-            resolvedBy: r.resolvedBy || '',
-            history: r.history ? JSON.parse(r.history) : []
-        }));
+        // 2. درع التطهير (التنسيق) مع حماية JSON.parse
+        const formattedRequests = hrTickets.map(r => {
+            
+            // 🛡️ الدرع الذكي لحقل التاريخ (History)
+            let safeHistory = [];
+            if (r.history) {
+                if (typeof r.history === 'string' && r.history.trim() !== '') {
+                    try { 
+                        safeHistory = JSON.parse(r.history); 
+                    } catch(e) { 
+                        console.warn(`⚠️ تجاوز خطأ فك تشفير History للتذكرة: ${r.ticketId}`); 
+                    }
+                } else if (Array.isArray(r.history) || typeof r.history === 'object') {
+                    safeHistory = r.history; // إذا قام Prisma بفك تشفيره مسبقاً
+                }
+            }
 
-        // إرجاعها مغلفة بصندوق (success: true) لتطابق مسار الميجا!
+            return {
+                id: r.ticketId,                   
+                employeeId: r.employeeId,
+                empUsername: r.empUsername || '',
+                empName: r.empName || '',
+                senderId: r.senderId || '',
+                empPhone: r.empPhone || '',
+                managerName: r.managerName || '',
+                hrSupervisor: r.hrSupervisor || '',
+                assignedHrEmp: r.assignedHrEmp || '',
+                reason: r.type || '',             
+                type: r.type || '',               
+                details: r.details || '',
+                attachment: r.attachment || '',
+                status: r.status || 'pending',
+                date: r.createdAt || '',          
+                createdAt: r.createdAt || '',     
+                resolveDate: r.resolveDate || '',
+                duration: r.duration || '',
+                managerComment: r.managerComment || '',
+                hrComment: r.hrComment || '',
+                supervisorAssignComment: r.supervisorAssignComment || '',
+                supervisorRejectComment: r.supervisorRejectComment || '',
+                escalationComment: r.escalationComment || '',
+                empComment: r.empComment || '',
+                rating: r.rating || '',
+                resolvedBy: r.resolvedBy || '',
+                history: safeHistory // 👈 تم استخدام السجل الآمن هنا
+            };
+        });
+
         res.json({ success: true, requests: formattedRequests });
 
     } catch (error) {
