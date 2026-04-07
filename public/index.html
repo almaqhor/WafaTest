@@ -2797,7 +2797,7 @@ const res = await fetch('https://wafatest-production.up.railway.app/auth/v1/logi
                 document.body.appendChild(banner);
                 document.body.style.paddingTop = '45px'; // إزاحة الشاشة للأسفل لتسع الشريط
             }
-            const hideIds = ['smart-welcome-card', 'employee-info-grid', 'employee-requests-panel', 'manager-panel', 'manager-announcements-panel', 'admin-announcements-panel', 'admin-policies-panel', 'admin-forms-panel', 'nav-team', 'quick-access-grid', 'admin-quick-access-grid', 'card-nav-forms', 'card-nav-team', 'card-nav-hr-users', 'card-nav-hr-leaves', 'card-nav-hr-attendance', 'card-nav-interviews'];
+            const hideIds = ['smart-welcome-card', 'employee-info-grid', 'employee-requests-panel', 'manager-panel', 'manager-announcements-panel', 'admin-announcements-panel', 'admin-policies-panel', 'admin-forms-panel', 'nav-team', 'quick-access-grid', 'admin-quick-access-grid', 'card-nav-forms', 'card-nav-team', 'card-nav-hr-users', 'card-nav-hr-leaves', 'card-nav-hr-attendance', 'card-nav-interviews','card-nav-hrops'];
             hideIds.forEach(id => { const el = document.getElementById(id); if(el) el.style.display = 'none'; });
             
             globalEmpBranch = data.branch || "";
