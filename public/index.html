@@ -5089,7 +5089,6 @@ function searchHistoryManual() {
             if(!dateVal) return;
 
             if(attendanceCodes.length === 0) attendanceCodes = await (await fetch('/api/attendance-codes')).json();
-
             if (allUsersData.length === 0) allUsersData = await (await fetch('/api/users')).json();
             
             // 🔥 تم إزالة شرط استبعاد المدير لكي يظهر مع فريقه
@@ -5143,6 +5142,10 @@ function searchHistoryManual() {
                 const currentCode = existingRecord ? existingRecord.code : 'D'; 
                 const loggedBy = existingRecord ? existingRecord.managerName : '-';
                 
+                // 🛡️ الدرع الذكي للاسم: نأخذ الاسم من السيرفر (لأنه موثوق كما رأيت في البايلود)، 
+                // وإذا لم يكن موجوداً نأخذه من بيانات الموظف المحلية.
+                const safeName = (existingRecord && existingRecord.name) ? existingRecord.name : (emp.name || 'موظف غير مسجل');
+                
                 const isRowLocked = isPastDate && existingRecord;
                 const disabledAttr = isRowLocked ? 'disabled style="background:#eee; cursor:not-allowed;" title="تم التحضير مسبقاً"' : '';
 
@@ -5150,7 +5153,7 @@ function searchHistoryManual() {
 
                 return `<tr>
                     <td class="att-username" style="font-weight:bold; color:#2980b9;">${emp.username}</td>
-                    <td class="att-name" style="font-weight:bold; ${isRowLocked ? 'color:#888;' : ''}">${emp.name} ${isRowLocked ? '<i class="fas fa-lock" style="font-size:10px; color:#e74c3c;"></i>' : ''}
+                    <td class="att-name" style="font-weight:bold; ${isRowLocked ? 'color:#888;' : ''}">${safeName} ${isRowLocked ? '<i class="fas fa-lock" style="font-size:10px; color:#e74c3c;"></i>' : ''}
                         <br><span style="font-size:10px; color:#aaa; font-weight:normal;">بواسطة: ${loggedBy}</span>
                     </td>
                     <td><select class="att-select" style="width:100%; padding:8px; border-radius:5px; font-family:inherit; border:1px solid #ccc;" ${disabledAttr}>${optionsHtml}</select></td>
