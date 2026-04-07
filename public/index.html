@@ -6332,6 +6332,7 @@ window.validateHrResolve = function() {
     } 
 };
 
+        window.globalRealActor = window.globalRealActor || null;
 // دالة إرسال الإنجاز
 window.submitHrResolve = async function() {
     console.log('🔍 currentUsername:', currentUsername);
@@ -6372,7 +6373,7 @@ window.submitHrResolve = async function() {
             if (typeof loadHrOperations === 'function') {
                 loadHrOperations();
             } else if (typeof  === 'function') {
-                ();
+                loadHrRequests();
             }
         } else {
             alert('❌ فشل الإنجاز: ' + (result.message || 'خطأ غير معروف'));
