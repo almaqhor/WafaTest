@@ -424,12 +424,7 @@
                                 <label style="font-weight:bold; color:#555;">تاريخ التحضير:</label>
                                 <input type="date" id="attendance-date" style="padding:10px; border:1px solid #ccc; border-radius:5px; font-family:inherit; flex:1; min-width: 200px;" onchange="loadTeamAttendance()">
                             </div>
-                            <div style="overflow-x:auto;">
-    <table style="margin-top:0; width: 100%;">
-        <thead><tr><th>الطلب</th><th>التاريخ</th><th>الموظف</th><th>الفرع</th><th>نوع الطلب</th><th>المرفق</th><th>الحالة</th><th>المُعين له</th><th>الإجراءات</th></tr></thead>
-        <tbody id="hr-ops-table-body"></tbody> 
-    </table>
-</div>
+                           
                             <div style="margin-top:20px; display:flex; gap:10px; flex-wrap:wrap;">
                                 <button onclick="saveTeamAttendance()" style="flex:1; background:#27ae60; color:white; border:none; padding:12px; border-radius:5px; font-weight:bold; cursor:pointer;"><i class="fas fa-save"></i> حفظ واعتماد التحضير</button>
                                 <button onclick="copyAttendanceReport()" style="flex:1; background:#25D366; color:white; border:none; padding:12px; border-radius:5px; font-weight:bold; cursor:pointer;"><i class="fab fa-whatsapp"></i> نسخ تقرير الواتساب</button>
@@ -2761,8 +2756,9 @@ const res = await fetch('https://wafatest-production.up.railway.app/auth/v1/logi
     
     // 🚀 التوجيه الذكي للإمدادات (نطلب البيانات فقط عند فتح شاشتها!)
     if(view === 'hr-dashboard') {
-        loadHrOperations(); // 👈 استدعاء البوابة الجديدة للموارد
-    }
+    document.getElementById('hr-dashboard-view').style.display = 'block';
+    loadHrOperations();
+}
     if(view === 'admin-requests' || view === 'mega-dashboard') {
         loadHrRequests(); // 👈 استدعاء المسار القديم للادارة العليا (إذا كنت لا تزال تحتاجه)
     }
@@ -12117,6 +12113,8 @@ function renderHrOpsTable() {
     }).join('');
     
     console.log("🎨 [R12] تم رسم الجدول بنجاح");
+    // في نهاية الدالة، بعد رسم الجدول، أضف:
+console.log("🎨 [R13] عدد الصفوف المرسومة:", tbody.querySelectorAll('tr').length);
 }
 
 // 3. تبديل التبويبات
