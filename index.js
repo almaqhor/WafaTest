@@ -4408,29 +4408,53 @@ app.post('/api/admin-mega-requests', async (req, res) => {
             orderBy: { id: 'desc' }
         });
 
-        // 🔄 المترجم الذكي للواجهة الأمامية
-        const formattedRequests = allRequests.map(r => ({
-            id: r.ticketId,
-            employeeId: r.employeeId,
-            empUsername: r.empUsername || '',
-            empName: r.empName || '',
-            senderId: r.senderId || '',
-            empPhone: r.empPhone || '',
-            managerName: r.managerName || '',
-            hrSupervisor: r.hrSupervisor || '',
-            assignedHrEmp: r.assignedHrEmp || '',
-            reason: r.type || '',
-            type: r.type || '',
-            details: r.details || '',
-            attachment: r.attachment || '',
-            status: r.status || 'pending',
-            date: r.createdAt || '',
-            createdAt: r.createdAt || '',
-            resolveDate: r.resolveDate || '',
-            managerComment: r.managerComment || '',
-            hrComment: r.hrComment || '',
-            history: r.history ? JSON.parse(r.history) : []
-        }));
+        // 🔄 المترجم الذكي للواجهة الأمامية (مع درع الحماية الشامل)
+        const formattedRequests = allRequests.map(r => {
+            
+            // 🛡️ 1. درع الحماية الخاص بحقل التاريخ (History)
+            let safeHistory = [];
+            if (r.history) {
+                if (typeof r.history === 'string' && r.history.trim() !== '') {
+                    try { 
+                        safeHistory = JSON.parse(r.history); 
+                    } catch(e) { 
+                        console.warn(`⚠️ تجاوز خطأ فك تشفير History للتذكرة: ${r.ticketId || r.id}`); 
+                    }
+                } else if (Array.isArray(r.history) || typeof r.history === 'object') {
+                    safeHistory = r.history; // إذا قام Prisma بفك تشفيره مسبقاً
+                }
+            }
+
+            // 🛡️ 2. درع الحماية الخاص بالمرفقات (Attachment)
+            let safeAttachment = r.attachment || '';
+            // إذا كان المرفق كائناً (Object) من قاعدة البيانات، نحوله لنص لكي لا ينهار المتصفح
+            if (typeof safeAttachment === 'object') {
+                safeAttachment = JSON.stringify(safeAttachment);
+            }
+
+            return {
+                id: r.ticketId || r.id,
+                employeeId: r.employeeId,
+                empUsername: r.empUsername || '',
+                empName: r.empName || '',
+                senderId: r.senderId || '',
+                empPhone: r.empPhone || '',
+                managerName: r.managerName || '',
+                hrSupervisor: r.hrSupervisor || '',
+                assignedHrEmp: r.assignedHrEmp || '',
+                reason: r.type || '',
+                type: r.type || '',
+                details: r.details || '',
+                attachment: safeAttachment, // 👈 تم تركيب درع المرفقات
+                status: r.status || 'pending',
+                date: r.createdAt || '',
+                createdAt: r.createdAt || '',
+                resolveDate: r.resolveDate || '',
+                managerComment: r.managerComment || '',
+                hrComment: r.hrComment || '',
+                history: safeHistory // 👈 تم إزالة اللغم وتركيب درع الـ History
+            };
+        });
 
         res.json(formattedRequests);
     } catch (error) {
