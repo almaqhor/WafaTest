@@ -1376,21 +1376,7 @@
                                 </tbody>
                             </table>
                         </div>
-            const isAdminView = globalIsAdmin || 
-                                data.role === 'admin' || 
-                                data.roleArabic === 'ادمن' ||
-                                data.role === 'موظف ادارة' ||
-                                data.roleArabic === 'موظف ادارة';
-                                
-            const hrOpsCard = document.getElementById('card-nav-hrops');
-            if (hrOpsCard) {
-                hrOpsCard.style.display = isAdminView ? 'flex' : 'none';
-            }
-            // ===============================================
-            
-            // احذف هذه الأسطر القديمة إن وجدتها لمنع التعارض:
-            // if (globalRoleArabic === 'موظف ادارة') { const hrBtn = document.getElementById('card-nav-hr'); if(hrBtn) hrBtn.style.display = 'flex'; }
-                    </div>
+                             </div>
                 </div>
                 <div class="modal-overlay" id="balance-penalty-modal" style="z-index: 1060;">
         <div class="modal-content" style="text-align: right; width: 95%; max-width: 500px; border-top: 5px solid #8e44ad; padding: 20px;">
