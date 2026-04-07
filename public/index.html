@@ -11975,7 +11975,6 @@ document.addEventListener('DOMContentLoaded', updateEosReasons);
 let hrOpsRequests = [];
 let currentHrOpsTab = 'all'; // 'all' للكل، 'mine' لطلباتي
 
-// 1. فتح البوابة وتجهيز الشاشة
 function openHrOpsPortal() {
     // أخفِ الشاشات الأخرى وأظهر شاشة الموارد (عدل الـ IDs حسب تصميمك)
     document.querySelectorAll('.dashboard-section').forEach(sec => sec.style.display = 'none');
@@ -11985,46 +11984,6 @@ function openHrOpsPortal() {
     loadHrOperations();
 }
 
-
-// 4. دالة الرسم المدرعة (بدون فلاتر معقدة، نثق بالسيرفر)
-
-    
-    // تطبيق الفلاتر
-    let filtered = [...hrOpsRequests];
-    const empQ = document.getElementById('hrops-filter-emp')?.value.trim().toLowerCase() || '';
-    const statusQ = document.getElementById('hrops-filter-status')?.value || 'all';
-
-    // فلترة حسب التبويب (طلباتي)
-    if (currentHrOpsTab === 'mine') {
-        filtered = filtered.filter(r => String(r.assignedHrEmp) === String(currentUsername));
-    }
-
-    // فلترة حسب الحالة
-    if (statusQ !== 'all') {
-        filtered = filtered.filter(r => r.status === statusQ);
-    }
-
-    // فلترة حسب اسم/رقم الموظف
-    if (empQ) {
-        filtered = filtered.filter(r => {
-            const searchUsername = String(r.empUsername || r.username || '').toLowerCase();
-            const searchName = String(r.empName || '').toLowerCase();
-            return searchUsername.includes(empQ) || searchName.includes(empQ);
-        });
-    }
-
-    // عرض رسالة إذا كانت القائمة فارغة
-    if (filtered.length === 0) {
-        tbody.innerHTML = `
-            <tr>
-                <td colspan="8" style="text-align:center; padding: 40px; font-weight: bold; color: #777;">
-                    <i class="fas fa-folder-open fa-3x" style="color:#ddd; margin-bottom:15px; display:block;"></i>
-                    لا توجد طلبات لعرضها
-                </td>
-            </tr>
-        `;
-        return;
-    }
 
     // رسم الجدول
     tbody.innerHTML = filtered.map(r => {
