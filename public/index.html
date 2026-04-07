@@ -12137,11 +12137,8 @@ async function loadHrOperations() {
     }
 }
 
-// 2. دالة رسم الجدول
-function renderHrOpsTable() {
-    console.log("🎨 [R1] بدء رسم الجدول");
-    console.log("🎨 [R2] hrOpsRequests.length:", hrOpsRequests.length);
-    
+// 4. رسم الجدول المدرع (النسخة المصححة)
+window.renderHrOpsTable = function() {
     const tbody = document.getElementById('hr-ops-table-body');
     if (!tbody) {
         console.warn("⚠️ لم يتم العثور على عنصر الجدول hr-ops-table-body");
@@ -12168,84 +12165,82 @@ function renderHrOpsTable() {
     }
 
     if (filtered.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="8" style="text-align:center; padding: 40px; font-weight: bold; color: #777;">
-            <i class="fas fa-folder-open fa-3x" style="color:#ddd; margin-bottom:15px; display:block;"></i>
-            لا توجد طلبات لعرضها
-        <\/td><\/tr>`;
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="8" style="text-align:center; padding: 40px; font-weight: bold; color: #777;">
+                    <i class="fas fa-folder-open fa-3x" style="color:#ddd; margin-bottom:15px; display:block;"></i>
+                    لا توجد طلبات لعرضها
+                </td>
+            </tr>
+        `;
         return;
     }
 
-    // ✅ كود رسم الصفوف الكامل والصحيح
-    let rowsHtml = '';
-    
-    for (let i = 0; i < filtered.length; i++) {
-        const r = filtered[i];
-        const trueId = r.id || r.ticketId || `REQ-${i}`;
-        const safeDate = r.date ? r.date.split('T')[0] : (r.createdAt ? r.createdAt.split('T')[0] : '-');
+    // رسم الصفوف
+    tbody.innerHTML = filtered.map(r => {
+        const trueId = r.ticketId || r.id;
+        const safeDate = (r.date || r.createdAt || new Date().toISOString()).split(',')[0];
         const safeReason = r.reason || r.type || 'طلب عام';
-        const targetUsername = r.empUsername || r.username || '';
-        const empName = r.empName || 'غير متوفر';
+        const targetUsername = String(r.empUsername || r.username || '');
         
-        // شارة الحالة
+        // 🏷️ شارات الحالة
         let badge = '';
-        if (r.status === 'escalated') {
-            badge = '<span style="background:#e74c3c; color:white; padding:3px 8px; border-radius:4px; font-size:11px;">جديد 🔴</span>';
-        } else if (r.status === 'hr_assigned') {
-            badge = '<span style="background:#f39c12; color:white; padding:3px 8px; border-radius:4px; font-size:11px;">تحت الإجراء ⏳</span>';
-        } else if (r.status === 'resolved') {
-            badge = '<span style="background:#3498db; color:white; padding:3px 8px; border-radius:4px; font-size:11px;">للاعتماد 🔄</span>';
-        } else if (r.status === 'completed') {
-            badge = '<span style="background:#27ae60; color:white; padding:3px 8px; border-radius:4px; font-size:11px;">مغلق ✅</span>';
-        } else {
-            badge = `<span style="background:#95a5a6; color:white; padding:3px 8px; border-radius:4px; font-size:11px;">${r.status}</span>`;
-        }
+        if (r.status === 'escalated') badge = '<span class="status-badge" style="background:#e74c3c;">جديد 🔴</span>';
+        else if (r.status === 'hr_assigned') badge = '<span class="status-badge" style="background:#f39c12;">تحت الإجراء ⏳</span>';
+        else if (r.status === 'resolved') badge = '<span class="status-badge" style="background:#3498db;">للاعتماد 🔄</span>';
+        else if (r.status === 'completed') badge = '<span class="status-badge" style="background:#27ae60;">مغلق ✅</span>';
+        else if (r.status === 'pending') badge = '<span class="status-badge" style="background:#95a5a6;">عند المدير ⏳</span>';
+        else badge = `<span class="status-badge" style="background:#9b59b6;">${r.status}</span>`;
 
-        // أزرار الإجراءات
-        let actions = `<button onclick="viewRequestDetails('${trueId}')" style="background:#3498db; color:white; border:none; padding:4px 8px; border-radius:4px; cursor:pointer; font-size:11px; margin:2px;"><i class="fas fa-eye"></i></button>`;
-        
-        if (r.status === 'escalated') {
-            actions += `<button onclick="openHrAssignModal('${trueId}')" style="background:#27ae60; color:white; border:none; padding:4px 8px; border-radius:4px; cursor:pointer; font-size:11px; margin:2px;"><i class="fas fa-user-check"></i></button>
-                        <button onclick="openHrRejectModal('${trueId}')" style="background:#e74c3c; color:white; border:none; padding:4px 8px; border-radius:4px; cursor:pointer; font-size:11px; margin:2px;"><i class="fas fa-times"></i></button>`;
-        } else if (r.status === 'hr_assigned' && String(r.assignedHrEmp) === String(currentUsername)) {
-            actions += `<button onclick="window.openHrResolveModal('${trueId}')" style="background:#27ae60; color:white; border:none; padding:4px 8px; border-radius:4px; cursor:pointer; font-size:11px; margin:2px;"><i class="fas fa-check-double"></i> إنجاز</button>`;
-        }
-
-        const assignedName = r.assignedHrEmp || '<span style="color:#e74c3c;">لم يُعين</span>';
-        
-        // المرفق
-        // 📎 المرفق (الرادار الذكي المحدث)
+        // 📎 المرفق (هنا تم إصلاح اللغم - نستخدم اسم المتغير الصحيح attachmentLink)
         let attachmentLink = '<span style="color:#ccc; font-size:11px;">لا يوجد</span>';
         if (r.attachment && r.attachment.trim() !== '') {
             const attachStr = typeof r.attachment === 'string' ? r.attachment : JSON.stringify(r.attachment);
             if (attachStr.trim().startsWith('{')) {
-                // 🚀 مسار الإكسيل (بيانات التصفية)
-                attachmentLink = `<button onclick="window.downloadVirtualAttachment('${trueId}')" style="background:#27ae60; color:white; border:none; padding:4px 8px; border-radius:4px; font-size:11px; font-weight:bold; cursor:pointer;"><i class="fas fa-file-excel"></i> إكسيل</button>`;
+                const safePayload = encodeURIComponent(attachStr).replace(/'/g, "%27");
+                attachmentLink = `<button onclick="window.downloadVirtualAttachment(decodeURIComponent('${safePayload}'))" style="background:#27ae60; color:white; border:none; padding:4px 8px; border-radius:4px; font-size:11px; font-weight:bold; cursor:pointer;"><i class="fas fa-file-excel"></i> إكسيل التصفية</button>`;
             } else {
-                // 🖼️ مسار الصور والـ PDF
-                attachmentLink = `<button onclick="window.viewGeneralAttachment('${trueId}')" style="background:#2980b9; color:white; border:none; padding:4px 8px; border-radius:4px; font-size:11px; font-weight:bold; cursor:pointer;"><i class="fas fa-paperclip"></i> عرض</button>`;
+                attachmentLink = `<a href="${attachStr}" target="_blank" style="color:#2980b9; font-weight:bold; font-size:12px;"><i class="fas fa-paperclip"></i> المرفق</a>`;
             }
         }
 
-        rowsHtml += `
-            <tr>
-                <td style="font-weight:bold; color:#2980b9;">${String(trueId).replace('REQ-', '')}</td>
-                <td style="font-size:12px;">${safeDate}</td>
-                <td>
-                    <strong>${empName}</strong><br>
-                    <span style="font-size:10px; color:#888;">${targetUsername}</span>
-                </td>
-                <td style="font-weight:bold; color:#8e44ad;">${safeReason}</td>
-                <td style="text-align:center;">${attachmentHtml}</td>
-                <td>${badge}</td>
-                <td style="font-size:12px;">${assignedName}</td>
-                <td style="text-align:center; white-space:nowrap;">${actions}</td>
-            </tr>
+        // ⚙️ أزرار الإجراءات
+        let actions = `
+            <button onclick="viewRequestDetails('${trueId}')" class="action-btn view-btn" title="عرض التفاصيل">
+                <i class="fas fa-eye"></i>
+            </button>
         `;
-    }
-    
-    tbody.innerHTML = rowsHtml;
-    console.log("🎨 [R13] عدد الصفوف المرسومة:", filtered.length);
-}
+        
+        if (r.status === 'escalated') {
+            actions += `
+                <button onclick="openHrAssignModal('${trueId}')" class="action-btn" style="color:#27ae60;" title="تعيين لموظف موارد">
+                    <i class="fas fa-user-check"></i>
+                </button>
+                <button onclick="openHrRejectModal('${trueId}')" class="action-btn" style="color:#e74c3c;" title="رفض الطلب">
+                    <i class="fas fa-times-circle"></i>
+                </button>
+            `;
+        } else if (r.status === 'hr_assigned' && String(r.assignedHrEmp) === String(currentUsername)) {
+            actions += `
+                <button onclick="window.openHrResolveModal('${trueId}')" class="action-btn" style="color:#27ae60;" title="إنجاز الطلب">
+                    <i class="fas fa-check-double"></i>
+                </button>
+            `;
+        }
+
+        let assignedName = r.assignedHrEmp || '<span style="color:#e74c3c; font-size:11px;">لم يُعين</span>';
+
+        return `<tr>
+            <td style="font-size:11px; font-weight:bold; color:#555;">${String(trueId).replace('REQ-', '')}</td>
+            <td style="font-size:12px;">${safeDate}</td>
+            <td><strong>${r.empName || 'غير متوفر'}</strong><br><span style="font-size:10px; color:#888;">${targetUsername}</span></td>
+            <td style="font-weight:bold; color:#8e44ad;">${safeReason}</td>
+            <td>${attachmentLink}</td> <td>${badge}</td>
+            <td style="font-size:12px;">${assignedName}</td>
+            <td style="text-align:center; white-space:nowrap;">${actions}</td>
+        </tr>`;
+    }).join('');
+};
 
 // 3. تبديل التبويبات
 function switchHrOpsTab(tab) {
