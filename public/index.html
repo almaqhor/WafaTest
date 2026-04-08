@@ -2907,13 +2907,7 @@ const res = await fetch('https://wafatest-production.up.railway.app/auth/v1/logi
                 }
             } // نهاية شرط (!globalIsAdmin)
 
-             const hasHrAccess = globalIsAdmin === true || 
-                    data.role === 'admin' || 
-                    data.roleArabic === 'ادمن' ||
-                    data.role === 'موظف ادارة' ||
-                    data.roleArabic === 'موظف ادارة' ||
-                    (data.roleArabic && data.roleArabic.includes('ادارة')) ||
-                    (data.role && data.role.includes('ادارة'));
+             const hasHrAccess = (data.roleArabic === 'موظف ادارة' || data.roleArabic === 'موظف إدارة');
     
     // إظهار البطاقة إذا كان المستخدم يملك الصلاحية
     const hrOpsCard = document.getElementById('card-nav-hrops');
