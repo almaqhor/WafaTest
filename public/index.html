@@ -2937,40 +2937,7 @@ const res = await fetch('https://wafatest-production.up.railway.app/auth/v1/logi
             switchView('home');
             setupWebNotifications();
 
-        // ========== كود تصحيح مؤقت للتحقق من البطاقة ==========
-console.log("🔍 [DEBUG] بدء فحص بطاقة عمليات الموارد");
-
-// 1. هل العنصر موجود في الصفحة؟
-const testCard = document.getElementById('card-nav-hrops');
-console.log("🔍 1. وجود العنصر card-nav-hrops:", testCard ? "✅ موجود" : "❌ غير موجود");
-
-if (testCard) {
-    console.log("🔍 2. النمط الحالي للعنصر:", testCard.style.display);
-}
-
-// 2. ما هي صلاحيات المستخدم الحالي؟
-console.log("🔍 3. globalIsAdmin:", globalIsAdmin);
-console.log("🔍 4. data.role:", data.role);
-console.log("🔍 5. data.roleArabic:", data.roleArabic);
-console.log("🔍 6. isHrSpecialist:", isHrSpecialist);
-
-// 3. هل الشرط يمر؟
-const hasAccess = globalIsAdmin || 
-                  data.role === 'admin' || 
-                  data.roleArabic === 'ادمن' ||
-                  data.role === 'موظف ادارة' ||
-                  data.roleArabic === 'موظف ادارة';
-console.log("🔍 7. نتيجة شرط hasAccess:", hasAccess ? "✅ يمر" : "❌ لا يمر");
-
-// 4. محاولة إظهار البطاقة بالقوة
-if (testCard) {
-    testCard.style.display = 'flex';
-    testCard.style.visibility = 'visible';
-    console.log("🔍 8. تم محاولة إظهار البطاقة بالقوة، النمط الآن:", testCard.style.display);
-} else {
-    console.error("🔴 الخطر: العنصر card-nav-hrops غير موجود في الصفحة!");
-}
-// =============================================
+        
         }
 
 
