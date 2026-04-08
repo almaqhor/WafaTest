@@ -353,8 +353,8 @@
                     <div id="quick-access-grid" style="display:none; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 15px; margin-bottom: 20px;">
                         <div class="quick-card" id="card-nav-hrops" onclick="switchView('hr-dashboard')" style="display:none; border-color:#8e44ad; cursor: pointer;"><div class="quick-icon-wrapper" style="color:#8e44ad; background:#f4ecf7;"><i class="fas fa-user-shield"></i></div><h4 style="margin:0; font-size:13px; color:#333; font-weight:bold;">عمليات الموارد البشرية</h4></div>
                         <div class="quick-card" id="card-nav-hr" onclick="switchView('hr-dashboard')" style="display:none; border-color:#8e44ad;"><div class="quick-icon-wrapper" style="color:#8e44ad; background:#f4ecf7;"><i class="fas fa-user-shield"></i></div><h4 style="margin:0; font-size:13px; color:#333;">عمليات الموارد البشرية</h4></div>
-                        <div class="quick-card" onclick="switchView('announcements')"><span id="unread-badge" class="pulse-badge" style="display:none; position:absolute; top:-5px; right:-5px; background:#e74c3c; color:white; border-radius:50%; width:22px; height:22px; line-height:22px; font-size:12px; font-weight:bold; box-shadow:0 2px 5px rgba(0,0,0,0.2);"></span><div class="quick-icon-wrapper" style="color:#d35400; background:#fdf2e9;"><i class="fas fa-bullhorn"></i></div><h4 style="margin:0; font-size:13px; color:#333;">التعميمات</h4></div>
-                        <div class="quick-card" onclick="switchView('policies')"><div class="quick-icon-wrapper" style="color:#27ae60; background:#e8f8f5;"><i class="fas fa-book"></i></div><h4 style="margin:0; font-size:13px; color:#333;">السياسات</h4></div>
+                        <div class="quick-card" id="card-announcements" onclick="switchView('announcements')"><span id="unread-badge" class="pulse-badge" style="display:none; position:absolute; top:-5px; right:-5px; background:#e74c3c; color:white; border-radius:50%; width:22px; height:22px; line-height:22px; font-size:12px; font-weight:bold; box-shadow:0 2px 5px rgba(0,0,0,0.2);"></span><div class="quick-icon-wrapper" style="color:#d35400; background:#fdf2e9;"><i class="fas fa-bullhorn"></i></div><h4 style="margin:0; font-size:13px; color:#333;">التعميمات</h4></div>
+                        <div class="quick-card" id="card-policy" onclick="switchView('policies')"><div class="quick-icon-wrapper" style="color:#27ae60; background:#e8f8f5;"><i class="fas fa-book"></i></div><h4 style="margin:0; font-size:13px; color:#333;">السياسات</h4></div>
                         <div class="quick-card" id="card-nav-forms" onclick="switchView('forms')" style="display:none;"><div class="quick-icon-wrapper" style="color:#3498db; background:#ebf5fb;"><i class="fas fa-file-alt"></i></div><h4 style="margin:0; font-size:13px; color:#333;">النماذج</h4></div>
                         <div class="quick-card" id="card-nav-team" onclick="switchView('team')" style="display:none;"><div class="quick-icon-wrapper" style="color:#9b59b6; background:#f4ecf7;"><i class="fas fa-users"></i></div><h4 style="margin:0; font-size:13px; color:#333;">فريق العمل</h4></div>
                         <div class="quick-card" id="card-nav-hr-users" onclick="switchView('admin-users')" style="display:none; border-color:#8e44ad;"><div class="quick-icon-wrapper" style="color:#8e44ad; background:#f4ebf9;"><i class="fas fa-users-cog"></i></div><h4 style="margin:0; font-size:13px; color:#333;">إدارة المستخدمين</h4></div>
@@ -2945,6 +2945,12 @@ const res = await fetch('https://wafatest-production.up.railway.app/auth/v1/logi
             renderUserPolicies(); 
             switchView('home');
             setupWebNotifications();
+            // 🚀 سحب زناد الجولة التعريفية
+    setTimeout(() => {
+        if (typeof window.launchSmartTour === 'function') {
+            window.launchSmartTour(data.roleArabic);
+        }
+    }, 1500);
 
         
         }
@@ -12351,6 +12357,60 @@ window.fireExcelMissile = function(reportData) {
     } catch (error) {
         console.error("❌ فشل إطلاق صاروخ الإكسيل:", error);
         alert("حدث خطأ تقني أثناء محاولة إنشاء الإكسيل.");
+    }
+};
+</script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/driver.js@1.0.1/dist/driver.css"/>
+<script src="https://cdn.jsdelivr.net/npm/driver.js@1.0.1/dist/driver.js.iife.js"></script>
+
+<script>
+const masterTourSteps = [
+    { id: '#theme-icon', roles: ['all'], popover: { title: '🌙 الوضع الداكن', description: 'بإمكانك التغيير إلى الوضع الداكن عبر النقر هنا لتجربة مريحة للعين.' } },
+    { id: '#prayer-times-card', roles: ['all'], popover: { title: '🕌 وقت الصلاة', description: 'موعد الصلاة القادمة حسب مدينة العمل الخاصة بك مع عداد تنازلي.' } },
+    { id: '#floating-chat-btn', roles: ['all'], popover: { title: '🤖 مساعد وفاء الذكي', description: 'أداة وفاء المدعومة بالذكاء الاصطناعي تسهل عليك بحثك وإنجاز مهامك.' } },
+    { id: '#tour-my-tickets', roles: ['all'], popover: { title: '🎫 طلباتي', description: 'هنا تتابع حالة الطلبات التي قمت برفعها للإدارة.' } },
+    { id: '#tour-request-btn', roles: ['all'], popover: { title: '📨 متابعة الطلبات', description: 'منطقة متابعة الطلبات المرفوعة منك والتي يرد عليها رئيسك المباشر.' } },
+    { id: '#card-announcement', roles: ['all'], popover: { title: '📢 التعميمات', description: 'هنا يمكنك الاطلاع على كافة التعميمات وتأكيد قراءتها.' } },
+    { id: '#card-policy', roles: ['all'], popover: { title: '📜 السياسات', description: 'هنا يمكنك الاطلاع على سياسات الشركة والإجراءات المتبعة.' } },
+    { id: '#card-nav-forms', roles: ['all'], popover: { title: '📁 النماذج', description: 'للاطلاع على النماذج التي تساعدك في مهامك اليومية.' } },
+    { id: '#shift-info-card', roles: ['all'], popover: { title: '⏱️ فترة العمل', description: 'اعرف وقت الدوام، الفترة، ويوم الراحة الخاص بك.' } },
+    { id: '#tour-manager-btn', roles: ['all'], popover: { title: '👤 التواصل مع المدير', description: 'بيانات مديرك المباشر وطريقة التواصل ورفع الطلبات.' } },
+    { id: '#hiring-card', roles: ['all'], popover: { title: '🔗 رابط التوظيف', description: 'هنا يمكنك مشاركة رابط التوظيف مع أحبائك عبر السوشال ميديا.' } },
+    { id: '#card-nav-team', roles: ['مدير فرع', 'ادمن', 'موظف ادارة'], popover: { title: '👥 فريق العمل', description: 'الاطلاع على فريق العمل المسؤول منك، التواصل معهم، ووضع فترات عملهم.' } },
+    { id: '#tour-attend-btn', roles: ['مدير فرع', 'ادمن'], popover: { title: '✅ التحضير اليومي', description: 'منطقة رفع التحضير اليومي والتبريرات الخاصة بفريقك.' } },
+    { id: '#tour-att-tab', roles: ['مدير فرع', 'ادمن'], popover: { title: '📅 تبويب التحضير', description: 'من هنا يمكنك إدارة تحضير فريقك اليومي بكل سهولة.' } },
+    { id: '#tour-staffrequest-btn', roles: ['مدير فرع', 'ادمن', 'موظف ادارة'], popover: { title: '📋 طلبات الموظفين', description: 'منطقة متابعة طلبات الموظفين والبحث عنهم.' } },
+    { id: '#tour-storehelth-btn', roles: ['مدير فرع', 'ادمن', 'موظف ادارة'], popover: { title: '🏥 البطاقة الصحية للفرع', description: 'معرفة البطاقة الصحية للفرع والاطلاع على الموظفين المتغيبين خلال الشهر السابق لمتابعتهم.' } },
+    { id: '#tour-excel-btn', roles: ['موارد بشرية', 'ادمن', 'موظف ادارة'], popover: { title: '📊 زر الإكسيل', description: 'قم بتصدير بيانات التصفية إلى ملف إكسيل بضغطة زر.' } }
+];
+
+window.launchSmartTour = function(userRole) {
+    const role = String(userRole || '').trim();
+    if (role === 'ادمن' || role === 'موارد بشرية' || role === 'موظف ادارة' || role === 'موظف إدارة' || window.globalIsAdmin) {
+        console.log("🛑 تم إيقاف الجولة: المستخدم خبير.");
+        return;
+    }
+    if (localStorage.getItem('wafaTourCompleted')) {
+        console.log("✅ الجولة مكتملة مسبقاً لهذا المستخدم.");
+        return;
+    }
+
+    const activeSteps = [];
+    masterTourSteps.forEach(step => {
+        const el = document.querySelector(step.id);
+        const hasPermission = step.roles.includes('all') || step.roles.includes(role);
+        if (el && hasPermission && el.offsetParent !== null) {
+            activeSteps.push({ element: step.id, popover: step.popover });
+        }
+    });
+
+    if (activeSteps.length > 0) {
+        const driverObj = window.driver.js.driver({
+            showProgress: true, doneBtnText: 'إنهاء الجولة', nextBtnText: 'التالي ❯', prevBtnText: '❮ السابق', allowClose: false,
+            onDestroyed: () => { localStorage.setItem('wafaTourCompleted', 'true'); },
+            steps: activeSteps
+        });
+        setTimeout(() => { driverObj.drive(); }, 500);
     }
 };
 </script>
