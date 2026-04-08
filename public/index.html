@@ -4851,7 +4851,7 @@ window.extendSession = function() {
     window.sessionWarningActive = false;
 };
 
-// 2. دالة رسالة الطرد وإعادة التحميل
+// 2. دالة رسالة الطرد وإعادة التحميل (مع بروتوكول المسح الشامل)
 window.executeLogoutProtocol = function() {
     // إغلاق نافذة الإنذار إن كانت مفتوحة
     const modal = document.getElementById('session-warning-modal');
@@ -4865,13 +4865,16 @@ window.executeLogoutProtocol = function() {
     </div>`;
     document.body.insertAdjacentHTML('beforeend', logoutHtml);
 
-    // مسح ختم الدخول
-    localStorage.removeItem('wafaLoginTimestamp');
-    // localStorage.removeItem('userData'); // فعل هذا السطر إذا أردت مسح بيانات الموظف بالكامل
+    // 💣 بروتوكول مسح الذاكرة (Wipe Protocol)
+    localStorage.removeItem('wafaLoginTimestamp'); // مسح ختم الوقت
+    localStorage.removeItem('wafaAdminGhostToken'); // إنهاء وضع الشبح 
+    
+    // 👇 هذا هو المفتاح الصحيح الخاص بنظامك الذي اكتشفته!
+    localStorage.removeItem('wafaUser'); 
 
-    // رمي الموظف خارج النظام بعد 3 ثواني
+    // رمي الموظف خارج النظام بعد 3 ثواني وتفريغ الكاش
     setTimeout(() => {
-        window.location.reload();
+        window.location.href = window.location.pathname; 
     }, 3000);
 };
 
@@ -4901,26 +4904,25 @@ async function silentWatcher() {
     // 🚨 الرادار الذكي (فحص الجلسة 24 ساعة)
     const loginTime = localStorage.getItem('wafaLoginTimestamp');
     if (loginTime) {
-        const maxSessionMs = 2 * 60 * 1000; // 24 ساعة
-        const warningMs = 1 * 60 * 1000; // الإنذار يظهر قبل 10 دقائق من النهاية
-
+        const maxSessionMs = 24 * 60 * 60 * 1000; // 24 ساعة بالمللي ثانية
+        const warningMs = 10 * 60 * 1000; // الإنذار يظهر قبل 10 دقائق
+        
         const timePassed = Date.now() - parseInt(loginTime);
         const timeLeft = maxSessionMs - timePassed;
 
         if (timeLeft <= 0) {
             // 💥 انتهى الوقت بالكامل!
-            if (!document.getElementById('session-warning-modal')) { // تجنب التكرار إذا النافذة مفتوحة
+            if (!document.getElementById('session-warning-modal')) {
                 executeLogoutProtocol();
             }
             return; 
         } else if (timeLeft <= warningMs) {
-            // ⚠️ دخلنا في منطقة الإنذار (آخر 10 دقائق)
+            // ⚠️ منطقة الإنذار المبكر
             const minsLeft = Math.ceil(timeLeft / 60000);
             
             if (!window.sessionWarningActive) {
-                showWarningModal(minsLeft); // إظهار النافذة لأول مرة
+                showWarningModal(minsLeft);
             } else {
-                // تحديث العداد التنازلي في النافذة وهي مفتوحة (يتحدث كل 30 ثانية)
                 const minSpan = document.getElementById('session-mins-left');
                 if (minSpan) minSpan.innerText = minsLeft;
             }
@@ -4957,6 +4959,8 @@ async function silentWatcher() {
 
 // تشغيل المراقب كل 30 ثانية
 setInterval(silentWatcher, 30000);
+// =========================================================================
+
 // =========================================================================
 
         // ==================== متابعة استخدام النظام (سجلات الدخول) ====================
