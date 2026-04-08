@@ -11,7 +11,6 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/driver.js@1.0.1/dist/driver.css"/>
     <style>
 
         /* أزرار الإجراءات في الجداول */
@@ -2939,18 +2938,6 @@ const res = await fetch('https://wafatest-production.up.railway.app/auth/v1/logi
                 }
             }, 100);
         };
-        // ... بقية كود تسجيل الدخول وتوزيع الأزرار ...
-    renderUserPolicies(); 
-    switchView('home');
-    setupWebNotifications();
-
-    // 🚀 سحب زناد الجولة التعريفية
-    setTimeout(() => {
-        if (typeof window.launchSmartTour === 'function') {
-            window.launchSmartTour(data.roleArabic);
-        }
-    }, 1000); // ننتظر ثانية واحدة حتى تترتب الشاشة وتظهر الأزرار
-}
     }
             // ========================================================
 
@@ -6733,7 +6720,6 @@ window.submitHrResolve = async function() {
 
     </div>
 </div>
-<script src="https://cdn.jsdelivr.net/npm/driver.js@1.0.1/dist/driver.js.iife.js"></script>
             </body>
             </html>
             `);
@@ -12365,149 +12351,6 @@ window.fireExcelMissile = function(reportData) {
     } catch (error) {
         console.error("❌ فشل إطلاق صاروخ الإكسيل:", error);
         alert("حدث خطأ تقني أثناء محاولة إنشاء الإكسيل.");
-    }
-};
-                // 📦 مستودع الجولة التعريفية (الذخيرة الذكية - تم تحديث الصلاحيات)
-const masterTourSteps = [
-    {
-        id: '#tour-night-btn',
-        roles: ['all'],
-        popover: { title: '🌙 الوضع الداكن', description: 'بإمكانك التغيير إلى الوضع الداكن عبر النقر هنا لتجربة مريحة للعين.' }
-    },
-    {
-        id: '#tour-prayer-btn',
-        roles: ['all'],
-        popover: { title: '🕌 وقت الصلاة', description: 'موعد الصلاة القادمة حسب مدينة العمل الخاصة بك مع عداد تنازلي.' }
-    },
-    {
-        id: '#tour-wafaai-btn',
-        roles: ['all'],
-        popover: { title: '🤖 مساعد وفاء الذكي', description: 'أداة وفاء المدعومة بالذكاء الاصطناعي تسهل عليك بحثك وإنجاز مهامك.' }
-    },
-    {
-        id: '#tour-my-tickets',
-        roles: ['all'],
-        popover: { title: '🎫 طلباتي', description: 'هنا تتابع حالة الطلبات التي قمت برفعها للإدارة.' }
-    },
-    {
-        id: '#tour-request-btn',
-        roles: ['all'],
-        popover: { title: '📨 متابعة الطلبات', description: 'منطقة متابعة الطلبات المرفوعة منك والتي يرد عليها رئيسك المباشر.' }
-    },
-    {
-        id: '#tour-announc-btn',
-        roles: ['all'],
-        popover: { title: '📢 التعميمات', description: 'هنا يمكنك الاطلاع على كافة التعميمات وتأكيد قراءتها.' }
-    },
-    {
-        id: '#tour-policy-btn',
-        roles: ['all'],
-        popover: { title: '📜 السياسات', description: 'هنا يمكنك الاطلاع على سياسات الشركة والإجراءات المتبعة.' }
-    },
-    {
-        id: '#tour-form-btn',
-        roles: ['all'],
-        popover: { title: '📁 النماذج', description: 'للاطلاع على النماذج التي تساعدك في مهامك اليومية.' }
-    },
-    {
-        id: '#tour-shift-btn',
-        roles: ['all'],
-        popover: { title: '⏱️ فترة العمل', description: 'اعرف وقت الدوام، الفترة، ويوم الراحة الخاص بك.' }
-    },
-    {
-        id: '#tour-manager-btn',
-        roles: ['all'],
-        popover: { title: '👤 التواصل مع المدير', description: 'بيانات مديرك المباشر وطريقة التواصل ورفع الطلبات.' }
-    },
-    {
-        id: '#tour-joblink-btn',
-        roles: ['all'],
-        popover: { title: '🔗 رابط التوظيف', description: 'هنا يمكنك مشاركة رابط التوظيف مع أحبائك عبر السوشال ميديا.' }
-    },
-    {
-        id: '#tour-team-btn',
-        roles: ['مدير فرع', 'ادمن', 'موظف ادارة'],
-        popover: { title: '👥 فريق العمل', description: 'الاطلاع على فريق العمل المسؤول منك، التواصل معهم، ووضع فترات عملهم.' }
-    },
-    {
-        id: '#tour-attend-btn',
-        roles: ['مدير فرع', 'ادمن'],
-        popover: { title: '✅ التحضير اليومي', description: 'منطقة رفع التحضير اليومي والتبريرات الخاصة بفريقك.' }
-    },
-    {
-        id: '#tour-att-tab',
-        roles: ['مدير فرع', 'ادمن'],
-        popover: { title: '📅 تبويب التحضير', description: 'من هنا يمكنك إدارة تحضير فريقك اليومي بكل سهولة.' }
-    },
-    {
-        id: '#tour-staffrequest-btn',
-        roles: ['مدير فرع', 'ادمن', 'موظف ادارة'],
-        popover: { title: '📋 طلبات الموظفين', description: 'منطقة متابعة طلبات الموظفين والبحث عنهم.' }
-    },
-    {
-        id: '#tour-storehelth-btn',
-        roles: ['مدير فرع', 'ادمن', 'موظف ادارة'],
-        popover: { title: '🏥 البطاقة الصحية للفرع', description: 'معرفة البطاقة الصحية للفرع والاطلاع على الموظفين المتغيبين خلال الشهر السابق لمتابعتهم.' }
-    },
-    {
-        id: '#tour-excel-btn',
-        roles: ['موارد بشرية', 'ادمن', 'موظف ادارة'],
-        popover: { title: '📊 زر الإكسيل', description: 'قم بتصدير بيانات التصفية إلى ملف إكسيل بضغطة زر.' }
-    }
-];
-                // 🚀 محرك الإطلاق الذكي (الجولة التعريفية)
-window.launchSmartTour = function(userRole) {
-    const role = String(userRole || '').trim();
-
-    // 1. 🛡️ حاجز الصد: منع الجولة عن الخبراء (الإدارة والموارد)
-    if (role === 'ادمن' || role === 'موارد بشرية' || role === 'موظف ادارة' || role === 'موظف إدارة' || window.globalIsAdmin) {
-        console.log("🛑 تم إيقاف الجولة: المستخدم خبير (إدارة/موارد).");
-        return;
-    }
-
-    // 2. 🧠 فحص الذاكرة: هل شاهد الموظف الجولة من قبل؟
-    if (localStorage.getItem('wafaTourCompleted')) {
-        console.log("✅ الجولة مكتملة مسبقاً لهذا المستخدم.");
-        return;
-    }
-
-    // 3. 🎯 تجهيز الذخيرة (رصد الأزرار الظاهرة في الشاشة فقط)
-    const activeSteps = [];
-    masterTourSteps.forEach(step => {
-        const el = document.querySelector(step.id);
-        const hasPermission = step.roles.includes('all') || step.roles.includes(role);
-
-        // الشرط: العنصر موجود + لديه صلاحية + غير مخفي في الشاشة (offsetParent !== null)
-        if (el && hasPermission && el.offsetParent !== null) {
-            activeSteps.push({
-                element: step.id,
-                popover: step.popover
-            });
-        }
-    });
-
-    // 4. 🚀 إطلاق الجولة!
-    if (activeSteps.length > 0) {
-        // تجهيز المدفع (باستخدام الإصدار الحديث من Driver.js)
-        const driverObj = window.driver.js.driver({
-            showProgress: true,
-            doneBtnText: 'إنهاء الجولة',
-            nextBtnText: 'التالي ❯',
-            prevBtnText: '❮ السابق',
-            allowClose: false, // نمنع الإغلاق العشوائي لضمان التركيز
-            onDestroyed: () => {
-                // 💾 تسجيل انتهاء الجولة في ذاكرة المتصفح كي لا تظهر مجدداً
-                localStorage.setItem('wafaTourCompleted', 'true');
-            },
-            steps: activeSteps
-        });
-        
-        // إطلاق بعد نصف ثانية لضمان تحميل الواجهة بالكامل
-        setTimeout(() => {
-            driverObj.drive();
-        }, 500);
-    } else {
-        console.log("⚠️ لا توجد أيقونات متاحة لشرحها لهذا الموظف.");
     }
 };
 </script>
