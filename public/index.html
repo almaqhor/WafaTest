@@ -2740,7 +2740,35 @@ const res = await fetch('https://wafatest-production.up.railway.app/auth/v1/logi
             }
         }
         
+// =========================================================
+// ⏱️ رادار أمن الجلسات (تسجيل خروج تلقائي بعد 48 ساعة)
+// =========================================================
+function checkLoginExpiry() {
+    const loginTime = localStorage.getItem('wafaLoginTimestamp');
+    
+    if (loginTime) {
+        // حساب مدة يومين بالمللي ثانية (2 أيام × 24 ساعة × 60 دقيقة × 60 ثانية × 1000)
+        const twoDaysInMs = 60 * 1000; 
+        const timePassed = Date.now() - parseInt(loginTime);
 
+        if (timePassed > twoDaysInMs) {
+            console.log("🛑 انتهت صلاحية الجلسة (مر يومان). جاري تسجيل الخروج...");
+            
+            // 1. مسح ختم الدخول
+            localStorage.removeItem('wafaLoginTimestamp');
+            
+            // (ملاحظة تكتيكية: إذا كنت تحفظ بيانات الموظف باسم معين في localStorage مثل userData، أضف سطر مسحه هنا)
+            // localStorage.removeItem('اسم_بيانات_الموظف_لديك'); 
+            
+            // 2. إعادة تحميل الصفحة لرمي الموظف خارج النظام وإظهار شاشة الدخول
+            window.location.reload(); 
+        }
+    }
+}
+// تشغيل الرادار فوراً قبل أي شيء آخر
+checkLoginExpiry();
+
+// =========================================================
      function switchView(view) { 
     const views = ['home', 'forms', 'policies', 'team', 'announcements', 'admin-usage', 'admin-requests', 'admin-settings', 'admin-users', 'manager-attendance', 'admin-attendance', 'hr-dashboard', 'admin-leaves', 'admin-audit','mega-dashboard', 'penalties', 'interviews'];
     
@@ -2788,6 +2816,8 @@ const res = await fetch('https://wafatest-production.up.railway.app/auth/v1/logi
             document.getElementById('login-container').style.display = 'none'; 
             document.getElementById('dashboard-container').style.display = 'flex'; 
             document.getElementById('user-welcome').innerText = data.name;
+            // ⏱️ ختم وقت الدخول الحالي لبدء حساب الـ 48 ساعة
+            localStorage.setItem('wafaLoginTimestamp', Date.now());
             // 👻 التحقق إذا كان الآدمن يتصفح بوضعية الشبح
             if(localStorage.getItem('wafaAdminGhostToken')) {
                 const banner = document.createElement('div');
