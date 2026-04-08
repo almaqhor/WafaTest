@@ -359,12 +359,7 @@
                         <div class="quick-card" id="card-nav-team" onclick="switchView('team')" style="display:none;"><div class="quick-icon-wrapper" style="color:#9b59b6; background:#f4ecf7;"><i class="fas fa-users"></i></div><h4 style="margin:0; font-size:13px; color:#333;">فريق العمل</h4></div>
                         <div class="quick-card" id="card-nav-hr-users" onclick="switchView('admin-users')" style="display:none; border-color:#8e44ad;"><div class="quick-icon-wrapper" style="color:#8e44ad; background:#f4ebf9;"><i class="fas fa-users-cog"></i></div><h4 style="margin:0; font-size:13px; color:#333;">إدارة المستخدمين</h4></div>
                         <div class="quick-card" id="card-nav-interviews" onclick="switchView('interviews'); loadCandidates('pending');" style="display:none; border-color:#8e44ad;"><div class="quick-icon-wrapper" style="color:#8e44ad; background:#f4ebf9;"><i class="fas fa-handshake"></i></div><h4 style="margin:0; font-size:13px; color:#333;">بوابة المقابلات</h4></div>
-                        <div class="quick-card" id="card-nav-penalties" onclick="switchView('penalties'); loadManagerPenaltiesHistory();"><span id="badge-penalties" style="display:none; background:#e74c3c; color:white; border-radius:50%; padding:2px 6px; font-size:11px; margin-right:5px; font-weight:bold;"></span>
-    <div class="quick-icon-wrapper" style="color:#c0392b; background:#fadbd8;">
-        <i class="fas fa-gavel"></i>
-    </div>
-    <h4 style="margin:0; font-size:13px; color:#333;">الجزاءات والمخالفات</h4>
-</div>
+                        <div class="quick-card" id="card-nav-penalties" onclick="switchView('penalties'); loadManagerPenaltiesHistory();"><span id="badge-penalties" style="display:none; background:#e74c3c; color:white; border-radius:50%; padding:2px 6px; font-size:11px; margin-right:5px; font-weight:bold;"></span><div class="quick-icon-wrapper" style="color:#c0392b; background:#fadbd8;"><i class="fas fa-gavel"></i></div><h4 style="margin:0; font-size:13px; color:#333;">الجزاءات والمخالفات</h4></div>
                         <div class="quick-card" id="card-nav-hr-leaves" onclick="switchView('admin-leaves')" style="display:none; border-color:#e67e22;"><div class="quick-icon-wrapper" style="color:#e67e22; background:#fdf2e9;"><i class="fas fa-plane-departure"></i></div><h4 style="margin:0; font-size:13px; color:#333;">بوابة الإجازات</h4></div>
                         <div class="quick-card" id="card-nav-hr-attendance" onclick="openAdminAttendance()" style="display:none; border-color:#16a085;"><div class="quick-icon-wrapper" style="color:#16a085; background:#e8f8f5;"><i class="fas fa-user-clock"></i></div><h4 style="margin:0; font-size:13px; color:#333;">تقارير التحضير</h4></div>
                         <div class="quick-card" id="card-nav-hr-mega" onclick="switchView('mega-dashboard')" style="display:none; border-color:#2980b9;"><div class="quick-icon-wrapper" style="color:#2980b9; background:#ebf5fb;"><i class="fas fa-chart-line"></i></div><h4 style="margin:0; font-size:13px; color:#333;">غرفة العمليات (شاملة)</h4></div>
@@ -2804,7 +2799,7 @@ const res = await fetch('https://wafatest-production.up.railway.app/auth/v1/logi
                 document.body.appendChild(banner);
                 document.body.style.paddingTop = '45px'; // إزاحة الشاشة للأسفل لتسع الشريط
             }
-            const hideIds = ['smart-welcome-card', 'employee-info-grid', 'employee-requests-panel', 'manager-panel', 'manager-announcements-panel', 'admin-announcements-panel', 'admin-policies-panel', 'admin-forms-panel', 'nav-team', 'quick-access-grid', 'admin-quick-access-grid', 'card-nav-forms', 'card-nav-team', 'card-nav-hr-users', 'card-nav-hr-leaves', 'card-nav-hr-attendance', 'card-nav-interviews','card-nav-hrops'];
+            const hideIds = ['smart-welcome-card', 'employee-info-grid', 'employee-requests-panel', 'manager-panel', 'manager-announcements-panel', 'admin-announcements-panel', 'admin-policies-panel', 'admin-forms-panel', 'nav-team', 'quick-access-grid', 'admin-quick-access-grid', 'card-nav-forms', 'card-nav-team', 'card-nav-hr-users', 'card-nav-hr-leaves', 'card-nav-hr-attendance', 'card-nav-interviews','card-nav-hrops','card-nav-penalties'];
             hideIds.forEach(id => { const el = document.getElementById(id); if(el) el.style.display = 'none'; });
             
             globalEmpBranch = data.branch || "";
@@ -2887,7 +2882,21 @@ const res = await fetch('https://wafatest-production.up.railway.app/auth/v1/logi
                     
                     // 🔥 أضف هذا السطر الجديد لإظهار بطاقة عمليات الموارد البشرية
                     const btnHrOps = document.getElementById('card-nav-hrops'); if(btnHrOps) btnHrOps.style.display = 'flex';
+                    const penaltiesCard = document.getElementById('card-nav-penalties');
+
+                    if (penaltiesCard) {
+                        // تحديد الهويات المصرح لها
+                        const isManager = data.roleArabic && data.roleArabic.includes('مدير');
+                        const isHr = (data.roleArabic === 'موظف ادارة' || data.roleArabic === 'موظف إدارة');
+                        const isAdminUser = globalIsAdmin === true || data.role === 'admin' || data.roleArabic === 'ادمن';
                     
+                        // إذا كان يملك إحدى هذه الرتب، افتح القفل!
+                        if (isManager || isHr || isAdminUser) {
+                            penaltiesCard.style.display = 'flex';
+                        } else {
+                            penaltiesCard.style.display = 'none'; // محظور على الموظف العادي
+                        }
+                    }
                     // 🔥 السطر الجديد: إظهار زر "إنهاء الخدمات" لموظف الإدارة في شريط الأزرار العلوي
                     const eosBtn = document.querySelector('button[onclick="openEosModal()"]');
                     if (eosBtn) eosBtn.parentElement.style.display = 'flex'; 
