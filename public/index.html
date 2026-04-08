@@ -4835,47 +4835,129 @@ function searchHistoryManual() {
             }
         }
 
+// =========================================================================
+// 🚀 نظام الطرد التكتيكي والإنذار المبكر (مدمج مع المراقب الصامت)
+// =========================================================================
 
-        // 3. المراقب الصامت (يشتغل بالخلفية بدون تحديث الصفحة)
-        async function silentWatcher() {
-            if (!currentUsername) return; // إذا مو مسجل دخول يوقف
+// 1. دالة تمديد الجلسة لساعة إضافية
+window.extendSession = function() {
+    // الحيلة التكتيكية: نضبط وقت الدخول كأنه دخل قبل 23 ساعة، ليعطيه ساعة واحدة فقط كمهلة!
+    const oneHourLeftMs = Date.now() - (23 * 60 * 60 * 1000);
+    localStorage.setItem('wafaLoginTimestamp', oneHourLeftMs);
 
+    // إغلاق نافذة الإنذار
+    const modal = document.getElementById('session-warning-modal');
+    if(modal) modal.remove();
+    window.sessionWarningActive = false;
+};
 
-            try {
-                // --- مراقبة طلبات المدير (إذا كان حسابه مدير) ---
-                if (document.getElementById('manager-panel').style.display === 'block') {
-                    const reqs = await (await fetch('/api/manager-requests', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({managerName: globalEmpName})})).json(); 
-                    const currentPending = reqs.filter(r => r.status === 'pending').length;
-                    
-                    if (lastPendingCount !== -1 && currentPending > lastPendingCount) {
-                        sendWebNotification("🔔 طلب جديد بانتظارك!", "أحد أفراد فريقك قام برفع طلب جديد، يرجى الدخول للاعتماد.");
-                        loadManagerRequests(globalEmpName); // تحديث القائمة بالشاشة بصمت
-                    }
-                    lastPendingCount = currentPending;
-                }
+// 2. دالة رسالة الطرد وإعادة التحميل
+window.executeLogoutProtocol = function() {
+    // إغلاق نافذة الإنذار إن كانت مفتوحة
+    const modal = document.getElementById('session-warning-modal');
+    if(modal) modal.remove();
 
+    // إظهار رسالة الطرد بملء الشاشة
+    const logoutHtml = `
+    <div style="position:fixed; top:0; left:0; width:100%; height:100%; background:#c0392b; z-index:9999999; display:flex; justify-content:center; align-items:center; flex-direction:column; color:white; font-family:inherit;">
+        <i class="fas fa-sign-out-alt" style="font-size:60px; margin-bottom:20px;"></i>
+        <h2 style="text-align:center; padding:20px; line-height:1.5;">لقد انتهت الجلسة الحالية.<br>جاري تسجيل خروجك وإعادتك لشاشة الدخول...</h2>
+    </div>`;
+    document.body.insertAdjacentHTML('beforeend', logoutHtml);
 
-                // --- مراقبة طلبات الموظف (ردود الإدارة) ---
-                const myReqs = await (await fetch('/api/my-requests', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({empUsername: currentUsername})})).json();
-                const currentResolved = myReqs.filter(r => r.status === 'resolved').length;
-                
-                if (lastResolvedCount !== -1 && currentResolved > lastResolvedCount) {
-                    sendWebNotification("✅ تحديث على طلبك", "تم الرد على طلبك من قبل مديرك، يرجى الدخول للتقييم والإغلاق.");
-                    loadEmployeeRequests(currentUsername); // تحديث القائمة بالشاشة بصمت
-                }
-                lastResolvedCount = currentResolved;
+    // مسح ختم الدخول
+    localStorage.removeItem('wafaLoginTimestamp');
+    // localStorage.removeItem('userData'); // فعل هذا السطر إذا أردت مسح بيانات الموظف بالكامل
 
+    // رمي الموظف خارج النظام بعد 3 ثواني
+    setTimeout(() => {
+        window.location.reload();
+    }, 3000);
+};
 
-            } catch (e) {
-                // نتجاهل الأخطاء عشان ما نزعج المستخدم لو فصل النت لحظة
+// 3. نافذة الإنذار المبكر
+function showWarningModal(mins) {
+    window.sessionWarningActive = true;
+    const modalHtml = `
+    <div id="session-warning-modal" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); z-index:999999; display:flex; justify-content:center; align-items:center; backdrop-filter:blur(5px); font-family:inherit;">
+        <div style="background:white; padding:30px; border-radius:15px; text-align:center; max-width:400px; width:90%; box-shadow: 0 10px 25px rgba(0,0,0,0.5);">
+            <div style="font-size:50px; color:#f39c12; margin-bottom:15px;"><i class="fas fa-exclamation-triangle"></i></div>
+            <h3 style="margin:0 0 15px 0; color:#333;">⚠️ تنبيه انتهاء الجلسة</h3>
+            <p style="color:#555; font-size:16px; margin-bottom:10px;">سيتم تسجيل خروجك بعد <strong id="session-mins-left" style="color:#e74c3c; font-size:22px;">${mins}</strong> دقيقة.</p>
+            <p style="color:#777; font-size:14px; margin-bottom:25px;">الرجاء الانتهاء أو تمديد جلستك لساعة إضافية.</p>
+            <div style="display:flex; gap:10px; justify-content:center; flex-wrap:wrap;">
+                <button onclick="extendSession()" style="background:#27ae60; color:white; border:none; padding:12px 15px; border-radius:8px; cursor:pointer; font-weight:bold; flex:1; min-width:140px;">نعم، تمديد الجلسة</button>
+                <button onclick="executeLogoutProtocol()" style="background:#c0392b; color:white; border:none; padding:12px 15px; border-radius:8px; cursor:pointer; font-weight:bold; flex:1; min-width:140px;">لا، تسجيل الخروج</button>
+            </div>
+        </div>
+    </div>`;
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+}
+
+// 4. المراقب الصامت (يعمل كل 30 ثانية)
+async function silentWatcher() {
+    if (!currentUsername) return; // يوقف العمل إذا لم يسجل الدخول
+
+    // 🚨 الرادار الذكي (فحص الجلسة 24 ساعة)
+    const loginTime = localStorage.getItem('wafaLoginTimestamp');
+    if (loginTime) {
+        const maxSessionMs = 2 * 60 * 1000; // 24 ساعة
+        const warningMs = 1 * 60 * 1000; // الإنذار يظهر قبل 10 دقائق من النهاية
+
+        const timePassed = Date.now() - parseInt(loginTime);
+        const timeLeft = maxSessionMs - timePassed;
+
+        if (timeLeft <= 0) {
+            // 💥 انتهى الوقت بالكامل!
+            if (!document.getElementById('session-warning-modal')) { // تجنب التكرار إذا النافذة مفتوحة
+                executeLogoutProtocol();
+            }
+            return; 
+        } else if (timeLeft <= warningMs) {
+            // ⚠️ دخلنا في منطقة الإنذار (آخر 10 دقائق)
+            const minsLeft = Math.ceil(timeLeft / 60000);
+            
+            if (!window.sessionWarningActive) {
+                showWarningModal(minsLeft); // إظهار النافذة لأول مرة
+            } else {
+                // تحديث العداد التنازلي في النافذة وهي مفتوحة (يتحدث كل 30 ثانية)
+                const minSpan = document.getElementById('session-mins-left');
+                if (minSpan) minSpan.innerText = minsLeft;
             }
         }
+    }
 
+    try {
+        // --- مراقبة طلبات المدير ---
+        if (document.getElementById('manager-panel').style.display === 'block') {
+            const reqs = await (await fetch('/api/manager-requests', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({managerName: globalEmpName})})).json(); 
+            const currentPending = reqs.filter(r => r.status === 'pending').length;
+            
+            if (lastPendingCount !== -1 && currentPending > lastPendingCount) {
+                sendWebNotification("🔔 طلب جديد بانتظارك!", "أحد أفراد فريقك قام برفع طلب جديد، يرجى الدخول للاعتماد.");
+                loadManagerRequests(globalEmpName); 
+            }
+            lastPendingCount = currentPending;
+        }
 
-        // تشغيل المراقب كل 30 ثانية (30000 ملي ثانية)
-        setInterval(silentWatcher, 30000);
-        // =========================================================================
+        // --- مراقبة طلبات الموظف ---
+        const myReqs = await (await fetch('/api/my-requests', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({empUsername: currentUsername})})).json();
+        const currentResolved = myReqs.filter(r => r.status === 'resolved').length;
+        
+        if (lastResolvedCount !== -1 && currentResolved > lastResolvedCount) {
+            sendWebNotification("✅ تحديث على طلبك", "تم الرد على طلبك من قبل مديرك، يرجى الدخول للتقييم والإغلاق.");
+            loadEmployeeRequests(currentUsername); 
+        }
+        lastResolvedCount = currentResolved;
 
+    } catch (e) {
+        // نتجاهل الأخطاء
+    }
+}
+
+// تشغيل المراقب كل 30 ثانية
+setInterval(silentWatcher, 30000);
+// =========================================================================
 
         // ==================== متابعة استخدام النظام (سجلات الدخول) ====================
         async function loadUsersLog() {
