@@ -2912,7 +2912,14 @@ checkLoginExpiry();
                     
                     // 🔥 أضف هذا السطر الجديد لإظهار بطاقة عمليات الموارد البشرية
                     const btnHrOps = document.getElementById('card-nav-hrops'); if(btnHrOps) btnHrOps.style.display = 'flex';
-                    const penaltiesCard = document.getElementById('card-nav-penalties');
+                    
+                    // 🔥 السطر الجديد: إظهار زر "إنهاء الخدمات" لموظف الإدارة في شريط الأزرار العلوي
+                    const eosBtn = document.querySelector('button[onclick="openEosModal()"]');
+                    if (eosBtn) eosBtn.parentElement.style.display = 'flex'; 
+                
+                    applyHrAdminRestrictions();
+                }
+                const penaltiesCard = document.getElementById('card-nav-penalties');
 
                     if (penaltiesCard) {
                         // تحديد الهويات المصرح لها
@@ -2927,12 +2934,6 @@ checkLoginExpiry();
                             penaltiesCard.style.display = 'none'; // محظور على الموظف العادي
                         }
                     }
-                    // 🔥 السطر الجديد: إظهار زر "إنهاء الخدمات" لموظف الإدارة في شريط الأزرار العلوي
-                    const eosBtn = document.querySelector('button[onclick="openEosModal()"]');
-                    if (eosBtn) eosBtn.parentElement.style.display = 'flex'; 
-                
-                    applyHrAdminRestrictions();
-                }
 
                 loadEmployeeRequests(currentUsername); 
                 loadEmployeeAnnouncements(currentUsername); 
