@@ -213,9 +213,8 @@ model Recruitment {
   phone            String   // إجباري
   email            String   // إجباري
   city             String   // إجباري
-  district         String   // 🎯 الحي (إجباري) تمت إضافته هنا
+  district         String @default("غير محدد")  
   jobTitle         String   // إجباري
-  
   status           String   @default("pending")
   hrComment        String?  // (هذا فقط اختياري لأنه يضاف لاحقاً من الموارد)
   hrName           String?  // (وهذا أيضاً)
