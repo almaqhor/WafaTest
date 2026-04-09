@@ -213,6 +213,7 @@ model Recruitment {
   phone            String   // إجباري
   email            String   // إجباري
   city             String   // إجباري
+  district         String   // 🎯 الحي (إجباري) تمت إضافته هنا
   jobTitle         String   // إجباري
   
   status           String   @default("pending")
