@@ -232,51 +232,57 @@
 </head>
 <body>
     
-<div id="public-careers-portal" style="display: none; width: 100%; min-height: 100vh; background: #f4f7f6; align-items: center; justify-content: center; flex-direction: column; padding: 20px; box-sizing: border-box;">
-        <div style="background: white; padding: 40px; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); width: 100%; max-width: 500px; text-align: center; border-top: 6px solid var(--primary-green);">
-            <img src="image_0.png" alt="Logo" style="width: 100px; margin-bottom: 20px;">
-            <h2 style="color: var(--primary-green); margin-top: 0;">بوابة المقابلات الشخصية</h2>
-            <p style="color: #777; font-size: 14px; margin-bottom: 30px;">أهلاً بك في هايبر الوفاء. يرجى تعبئة بياناتك بدقة لتسهيل إجراءات المقابلة والعرض الوظيفي.</p>
-            
-            <div style="text-align: right;">
-                <label class="form-label">الاسم الرباعي (كما في الهوية) <span style="color:red">*</span></label>
-                <input type="text" id="cand-name" class="comment-input" placeholder="أدخل اسمك الكامل...">
+<d<div id="public-careers-portal" style="display: none; width: 100%; min-height: 100vh; background: #f4f7f6; align-items: center; justify-content: center; flex-direction: column; padding: 20px; box-sizing: border-box;">
+    <div style="background: white; padding: 40px; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); width: 100%; max-width: 500px; text-align: center; border-top: 6px solid var(--primary-green);">
+        <img src="image_0.png" alt="Logo" style="width: 100px; margin-bottom: 20px;">
+        <h2 style="color: var(--primary-green); margin-top: 0;">بوابة المقابلات الشخصية</h2>
+        <p style="color: #777; font-size: 14px; margin-bottom: 30px;">أهلاً بك في هايبر الوفاء. يرجى تعبئة بياناتك بدقة لتسهيل إجراءات المقابلة والعرض الوظيفي.</p>
+        
+        <div style="text-align: right;">
+            <label class="form-label">الاسم الرباعي (كما في الهوية) <span style="color:red">*</span></label>
+            <input type="text" id="cand-name" class="comment-input" placeholder="أدخل اسمك الكامل...">
 
-                <label class="form-label">رقم الهوية / الإقامة <span style="color:red">*</span></label>
-                <input type="number" id="cand-id" class="comment-input" placeholder="أدخل رقم الهوية...">
+            <label class="form-label">رقم الهوية / الإقامة <span style="color:red">*</span></label>
+            <input type="number" id="cand-id" class="comment-input" placeholder="أدخل رقم الهوية...">
 
-                <label class="form-label">رقم الجوال (واتساب) <span style="color:red">*</span></label>
-                <input type="number" id="cand-phone" class="comment-input" placeholder="05XXXXXXXX">
+            <label class="form-label">رقم الجوال (واتساب) <span style="color:red">*</span></label>
+            <input type="number" id="cand-phone" class="comment-input" placeholder="05XXXXXXXX">
 
-                <label class="form-label">البريد الإلكتروني</label>
-                <input type="email" id="cand-email" class="comment-input" placeholder="example@email.com">
+            <label class="form-label">البريد الإلكتروني <span style="color:red">*</span></label>
+            <input type="email" id="cand-email" class="comment-input" placeholder="example@email.com">
 
-                <div style="display: flex; gap: 10px;">
-                    <div style="flex: 1;">
-                        <label class="form-label">الوظيفة المتقدم لها <span style="color:red">*</span></label>
-                        <select id="cand-job" class="comment-input"></select>
-                    </div>
-                    <div style="flex: 1;">
-                        <label class="form-label">مدينة السكن <span style="color:red">*</span></label>
-                        <select id="cand-city" class="comment-input"></select>
-                    </div>
+            <label class="form-label">الوظيفة المتقدم لها <span style="color:red">*</span></label>
+            <select id="cand-job" class="comment-input"></select>
+
+            <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+                <div style="flex: 1;">
+                    <label class="form-label">مدينة السكن <span style="color:red">*</span></label>
+                    <select id="cand-city" class="comment-input"></select>
                 </div>
-            </div>
-                <label class="form-label">إرفاق السيرة الذاتية (صورة أو PDF) <span style="color:red">*</span></label>
-                <div style="position: relative; margin-bottom: 20px;">
-                    <input type="file" id="cand-cv" accept="image/*,.pdf" style="display: none;" onchange="updateFileName(this)">
-                    <button type="button" onclick="document.getElementById('cand-cv').click()" style="width: 100%; padding: 12px; background: #f8f9fa; border: 2px dashed #3498db; border-radius: 8px; color: #3498db; cursor: pointer; font-weight: bold;">
-                        <i class="fas fa-cloud-upload-alt"></i> <span id="cv-status">اضغط لرفع الملف (CV)</span>
-                    </button>
+                <div style="flex: 1;">
+                    <label class="form-label">الحي السكني <span style="color:red">*</span></label>
+                    <input type="text" id="cand-district" class="comment-input" placeholder="أدخل الحي...">
                 </div>
-            <button onclick="submitCandidateData()" style="background: var(--primary-green); color: white; border: none; padding: 15px; width: 100%; border-radius: 8px; font-weight: bold; cursor: pointer; margin-top: 25px; font-size: 16px; box-shadow: 0 4px 10px rgba(0,127,61,0.3);">
-                <i class="fas fa-paper-plane"></i> تسجيل البيانات
-            </button>
-            <div id="cand-success-msg" style="display: none; color: #27ae60; font-weight: bold; margin-top: 20px; padding: 15px; background: #e8f8f5; border-radius: 8px;">
-                🎉 تم تسجيل بياناتك بنجاح! نتمنى لك التوفيق في المقابلة.
             </div>
         </div>
+
+        <label class="form-label" style="display:block; text-align:right;">إرفاق السيرة الذاتية (صورة أو PDF) <span style="color:red">*</span></label>
+        <div style="position: relative; margin-bottom: 20px;">
+            <input type="file" id="cand-cv" accept="image/*,.pdf" style="display: none;" onchange="updateFileName(this)">
+            <button type="button" onclick="document.getElementById('cand-cv').click()" style="width: 100%; padding: 12px; background: #f8f9fa; border: 2px dashed #3498db; border-radius: 8px; color: #3498db; cursor: pointer; font-weight: bold;">
+                <i class="fas fa-cloud-upload-alt"></i> <span id="cv-status">اضغط لرفع الملف (CV)</span>
+            </button>
+        </div>
+
+        <button onclick="submitCandidateData()" style="background: var(--primary-green); color: white; border: none; padding: 15px; width: 100%; border-radius: 8px; font-weight: bold; cursor: pointer; margin-top: 10px; font-size: 16px; box-shadow: 0 4px 10px rgba(0,127,61,0.3);">
+            <i class="fas fa-paper-plane"></i> تسجيل البيانات
+        </button>
+
+        <div id="cand-success-msg" style="display: none; color: #27ae60; font-weight: bold; margin-top: 20px; padding: 15px; background: #e8f8f5; border-radius: 8px;">
+            🎉 تم تسجيل بياناتك بنجاح! نتمنى لك التوفيق في المقابلة.
+        </div>
     </div>
+</div>
 
     <div id="login-container">
         <div class="login-left"></div>
@@ -336,9 +342,9 @@
                         <div class="quick-card" onclick="switchView('admin-requests')"><div class="quick-icon-wrapper" style="color:#f39c12; background:#fef5e7;"><i class="fas fa-tasks"></i></div><h4 style="margin:0; font-size:13px; color:#333;">متابعة الطلبات</h4></div>
                         <div class="quick-card" onclick="switchView('admin-settings')"><div class="quick-icon-wrapper" style="color:#7f8c8d; background:#f2f4f4;"><i class="fas fa-cogs"></i></div><h4 style="margin:0; font-size:13px; color:#333;">إعدادات النظام</h4></div>
                         <div class="quick-card" onclick="switchView('admin-users')"><div class="quick-icon-wrapper" style="color:#8e44ad; background:#f4ebf9;"><i class="fas fa-users-cog"></i></div><h4 style="margin:0; font-size:13px; color:#333;">إدارة المستخدمين</h4></div>
-                        <div class="quick-card" onclick="switchView('admin-leaves')"><div class="quick-icon-wrapper" style="color:#e67e22; background:#fdf2e9;"><i class="fas fa-plane-departure"></i></div><h4 style="margin:0; font-size:13px; color:#333;">إدارة الإجازات</h4></div>                        <div class="quick-card" onclick="openAdminAttendance()"><div class="quick-icon-wrapper" style="color:#16a085; background:#e8f8f5;"><i class="fas fa-user-clock"></i></div><h4 style="margin:0; font-size:13px; color:#333;">تقارير التحضير</h4></div>
+                        <div class="quick-card" onclick="switchView('admin-leaves')"><div class="quick-icon-wrapper" style="color:#e67e22; background:#fdf2e9;"><i class="fas fa-plane-departure"></i></div><h4 style="margin:0; font-size:13px; color:#333;">إدارة الإجازات</h4></div><div class="quick-card" onclick="openAdminAttendance()"><div class="quick-icon-wrapper" style="color:#16a085; background:#e8f8f5;"><i class="fas fa-user-clock"></i></div><h4 style="margin:0; font-size:13px; color:#333;">تقارير التحضير</h4></div>
                         <div class="quick-card" onclick="openAuditLog()"><div class="quick-icon-wrapper" style="color:#c0392b; background:#fdedec;"><i class="fas fa-user-secret"></i></div><h4 style="margin:0; font-size:13px; color:#333;">سجل الرقابة (سري)</h4></div>
-                        <div class="quick-card" onclick="switchView('mega-dashboard')"><div class="quick-icon-wrapper" style="color:#2980b9; background:#ebf5fb;"><i class="fas fa-chart-line"></i></div><h4 style="margin:0; font-size:13px; color:#333;">لوحة القيادة</h4></div>                  <div class="quick-card" onclick="switchView('interviews'); loadCandidates('pending');"><div class="quick-icon-wrapper" style="color:#8e44ad; background:#f4ebf9;"><i class="fas fa-handshake"></i></div><h4 style="margin:0; font-size:13px; color:#333;">بوابة المقابلات</h4></div>
+                        <div class="quick-card" onclick="switchView('mega-dashboard')"><div class="quick-icon-wrapper" style="color:#2980b9; background:#ebf5fb;"><i class="fas fa-chart-line"></i></div><h4 style="margin:0; font-size:13px; color:#333;">لوحة القيادة</h4></div><div class="quick-card" onclick="switchView('interviews'); loadCandidates('pending');"><div class="quick-icon-wrapper" style="color:#8e44ad; background:#f4ebf9;"><i class="fas fa-handshake"></i></div><h4 style="margin:0; font-size:13px; color:#333;">بوابة المقابلات</h4></div>
                         <div class="quick-card" onclick="switchView('penalties'); loadManagerPenaltiesHistory();">
     <span id="admin-badge-penalties" style="display:none; position:absolute; top:-5px; right:-5px; background:#e74c3c; color:white; border-radius:50%; width:22px; height:22px; line-height:22px; font-size:12px; font-weight:bold; box-shadow:0 2px 5px rgba(0,0,0,0.2);"></span>
     <div class="quick-icon-wrapper" style="color:#c0392b; background:#fadbd8;">
@@ -9421,20 +9427,21 @@ async function openBalancePenaltyModal(ticketId) {
     const btn = document.querySelector('button[onclick="submitCandidateData()"]');
     const successMsg = document.getElementById('cand-success-msg');
 
-    // 1. التحقق من إرفاق السيرة الذاتية
-    if(!fileInput || !fileInput.files[0]) {
-        return alert("🛑 يرجى إرفاق السيرة الذاتية (صورة أو PDF) لإكمال التقديم.");
-    }
-
-    // 2. التحقق من الحقول الأساسية
+    // 1. جلب القيم من جميع الحقول
     const name = document.getElementById('cand-name').value.trim();
-    const idNumber = document.getElementById('cand-id').value.trim();
+    const idNum = document.getElementById('cand-id').value.trim();
     const phone = document.getElementById('cand-phone').value.trim();
-    const jobTitle = document.getElementById('cand-job').value;
+    const email = document.getElementById('cand-email').value.trim();
+    const job = document.getElementById('cand-job').value;
     const city = document.getElementById('cand-city').value;
+    const district = document.getElementById('cand-district').value.trim(); // حقل الحي الجديد
+    const cvFile = document.getElementById('cand-cv').files[0];
 
-    if(!name || !idNumber || !phone || !jobTitle || !city) {
-        return alert("🛑 يرجى تعبئة جميع الحقول الإجبارية (*)");
+    // 2. حاجز التفتيش: التأكد من أن جميع الحقول ممتلئة
+    if (!name || !idNum || !phone || !email || !job || !city || !district || !cvFile) {
+        // إظهار رسالة تنبيه للمرشح
+        alert("⚠️ الرجاء تعبئة جميع الحقول الإلزامية وإرفاق السيرة الذاتية قبل التسجيل.");
+        return; // إيقاف العملية وعدم الإرسال للسيرفر
     }
 
     // 3. تحويل الزر إلى وضع "التحميل" لمنع الإرسال المتكرر
@@ -9778,6 +9785,7 @@ function renderCandidatesGrid(filtered) {
                     <strong><i class="fas fa-id-card"></i> الهوية:</strong> ${c.idNumber}<br>
                     <strong><i class="fas fa-briefcase"></i> الوظيفة:</strong> ${c.jobTitle}<br>
                     <strong><i class="fas fa-map-marker-alt"></i> المدينة:</strong> ${c.city}<br>
+                    <strong><i class="fas fa-map-signs"></i> الحي:</strong> ${c.district || 'غير محدد'}<br>
                     <strong><i class="fas fa-phone"></i> الجوال:</strong> <span style="direction:ltr; display:inline-block;">${c.phone}</span><br>
                     <span style="font-size:11px; color:#888;">تاريخ التقديم: ${dateStr}</span>
                 </div>
