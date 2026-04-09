@@ -2916,7 +2916,7 @@ checkLoginExpiry();
 
                     if (penaltiesCard) {
                         // تحديد الهويات المصرح لها
-                        const isManager = data.roleArabic && data.roleArabic.includes('مدير فرع');
+                        const isManager = (data.roleArabic === 'مدير فرع'  || data.roleArabic === 'مدير');
                         const isHr = (data.roleArabic === 'موظف ادارة' || data.roleArabic === 'موظف إدارة');
                         const isAdminUser = globalIsAdmin === true || data.role === 'admin' || data.roleArabic === 'ادمن';
                     
