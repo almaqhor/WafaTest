@@ -3882,6 +3882,7 @@ app.post('/api/submit-candidate', async (req, res) => {
                 phone: String(payload.phone || ''),
                 email: String(payload.email || ''),
                 city: String(payload.city || ''),
+                district: req.body.district, // 🎯 تأكد من إضافة هذا السطر ليتم الحفظ فعلياً
                 jobTitle: String(payload.jobTitle || ''),
                 
                 // 🔥 إصلاح الثغرة: تمرير التواريخ لقاعدة البيانات
