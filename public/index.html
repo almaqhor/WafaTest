@@ -9423,7 +9423,6 @@ async function openBalancePenaltyModal(ticketId) {
 
         async function submitCandidateData() {
     const fileInput = document.getElementById('cand-cv');
-    // التعديل هنا 👇
     const btn = document.querySelector('button[onclick="submitCandidateData()"]');
     const successMsg = document.getElementById('cand-success-msg');
 
@@ -9432,15 +9431,17 @@ async function openBalancePenaltyModal(ticketId) {
         return alert("🛑 يرجى إرفاق السيرة الذاتية (صورة أو PDF) لإكمال التقديم.");
     }
 
-    // 2. التحقق من الحقول الأساسية
+    // 2. التحقق من الحقول الأساسية (بما فيها الحي 🎯)
     const name = document.getElementById('cand-name').value.trim();
     const idNumber = document.getElementById('cand-id').value.trim();
     const phone = document.getElementById('cand-phone').value.trim();
     const jobTitle = document.getElementById('cand-job').value;
     const city = document.getElementById('cand-city').value;
+    const district = document.getElementById('cand-district').value.trim(); // 👈 جلب الحي
 
-    if(!name || !idNumber || !phone || !jobTitle || !city) {
-        return alert("🛑 يرجى تعبئة جميع الحقول الإجبارية (*)");
+    // التأكد من عدم ترك أي حقل فارغ
+    if(!name || !idNumber || !phone || !jobTitle || !city || !district) {
+        return alert("🛑 يرجى تعبئة جميع الحقول الإجبارية بما فيها الحي السكني (*)");
     }
 
     // 3. تحويل الزر إلى وضع "التحميل" لمنع الإرسال المتكرر
@@ -9454,6 +9455,7 @@ async function openBalancePenaltyModal(ticketId) {
     reader.onload = async function () {
         const cvBase64 = reader.result;
 
+        // 📦 صندوق الشحن المرسل لقاعدة البيانات
         const payload = {
             name: name,
             idNumber: idNumber,
@@ -9461,6 +9463,7 @@ async function openBalancePenaltyModal(ticketId) {
             email: document.getElementById('cand-email').value.trim() || 'لا يوجد',
             jobTitle: jobTitle,
             city: city,
+            district: district, // 👈 🎯 تمت إضافة الحي هنا ليطير إلى السيرفر!
             dobG: 'غير مسجل',
             dobHijri: 'غير مسجل',
             cvFile: cvBase64
