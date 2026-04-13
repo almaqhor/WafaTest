@@ -3692,16 +3692,52 @@ app.post('/api/delete-penalty', async (req, res) => {
 
 
 
-// ==================== (HR) محرك تحليل الغيابات المطور (V3) حسب المادة 80 ====================
-app.get('/api/analyze-absences', (req, res) => {
+// ======================================================================
+// 📊 محرك تحليل الغيابات المطور (المادة 80) - نسخة Prisma SQL 🚀
+// ======================================================================
+app.get('/api/analyze-absences', async (req, res) => {
     try {
+        console.log("🚀 بدء تشغيل محرك تحليل المادة 80 (SQL Version)...");
         const today = new Date();
         const report = [];
 
-        usersDB.forEach(user => {
-            if (!user.joinDate || user.status === 'Resign' || user.status === 'Terminated' || user.isActive === false) return;
+        // 1. جلب الموظفين النشطين فقط من قاعدة البيانات
+        const employees = await prisma.employee.findMany({
+            where: {
+                isActive: true,
+                status: { notIn: ['Resign', 'Terminated', 'مستقيل', 'منهى خدماته'] }
+            }
+        });
+
+        // 2. لتخفيف الضغط على السيرفر، نجلب بيانات آخر سنتين فقط (لضمان تغطية السنة العقدية)
+        const minDate = new Date();
+        minDate.setFullYear(today.getFullYear() - 2);
+
+        // 3. جلب التحضيرات المؤثرة فقط
+        const allAtt = await prisma.attendance.findMany({
+            where: { 
+                date: { gte: minDate },
+                code: { in: ['A', 'LOP', 'D', 'SL', 'V', 'E', 'CP'] } 
+            }
+        });
+
+        // 4. جلب مخالفات الغياب السابقة (لمعرفة هل تم إنذاره مسبقاً)
+        const allPenalties = await prisma.penalty.findMany({
+            where: {
+                category: 'الغياب والتأخير (المادة 80)',
+                violationDate: { gte: minDate }
+            }
+        });
+
+        // 5. بدء الفحص الدقيق لكل موظف
+        for (const user of employees) {
+            // تخطي من ليس لديه تاريخ التحاق صالح
+            if (!user.joinDate || user.joinDate.trim() === '' || user.joinDate === 'غير مسجل') continue;
 
             const joinDate = new Date(user.joinDate);
+            if (isNaN(joinDate.getTime())) continue; 
+
+            // حساب السنة العقدية (تبدأ من تاريخ تعيينه وتتجدد كل سنة)
             let cycleStart = new Date(joinDate);
             cycleStart.setFullYear(today.getFullYear());
             if (today < cycleStart) cycleStart.setFullYear(today.getFullYear() - 1);
@@ -3709,11 +3745,12 @@ app.get('/api/analyze-absences', (req, res) => {
             let cycleEnd = new Date(cycleStart);
             cycleEnd.setFullYear(cycleStart.getFullYear() + 1);
 
-            const startStr = cycleStart.toISOString().split('T')[0];
-            const endStr = cycleEnd.toISOString().split('T')[0];
-
-            const userAtt = attendanceDB.filter(a => a.username === user.username && a.date >= startStr && a.date < endStr);
-            userAtt.sort((a, b) => new Date(a.date) - new Date(b.date));
+            // استخراج تحضيرات الموظف في سنته العقدية الحالية وترتيبها زمنياً
+            const userAtt = allAtt.filter(a => 
+                a.employeeId === user.id && 
+                new Date(a.date) >= cycleStart && 
+                new Date(a.date) < cycleEnd
+            ).sort((a, b) => new Date(a.date) - new Date(b.date));
 
             const absentCodes = ['A', 'LOP']; 
             const breakers = ['D', 'SL', 'V', 'E', 'CP'];
@@ -3726,63 +3763,81 @@ app.get('/api/analyze-absences', (req, res) => {
             let maxStreakStart = null;
 
             userAtt.forEach(a => {
+                const dateStr = new Date(a.date).toISOString().split('T')[0];
                 if (absentCodes.includes(a.code)) {
                     totalAbsent++;
-                    if (currentConsecutive === 0) currentStreakStart = a.date; // التقاط تاريخ أول يوم في السلسلة
+                    if (currentConsecutive === 0) currentStreakStart = dateStr;
                     currentConsecutive++;
                     if (currentConsecutive > maxConsecutive) {
                         maxConsecutive = currentConsecutive;
-                        maxStreakStart = currentStreakStart; // حفظ تاريخ بداية أطول سلسلة
+                        maxStreakStart = currentStreakStart;
                     }
                 } 
                 else if (breakers.includes(a.code)) {
-                    currentConsecutive = 0; 
+                    currentConsecutive = 0; // تصفير العداد إذا حضر أو أخذ إجازة
                 }
             });
 
-            // 🌟 السحر الجديد: جلب المخالفات الآلية السابقة لهذا الموظف في نفس السنة العقدية
-            const pastPenalties = penaltiesHistoryDB.filter(p => p.empUsername === user.username && p.violationDate >= startStr && p.category === 'الغياب والتأخير (المادة 80)');
+            // فلترة مخالفاته السابقة في هذه السنة العقدية
+            const pastPenalties = allPenalties.filter(p => 
+                p.employeeId === user.id && 
+                new Date(p.violationDate) >= cycleStart
+            );
             
             const has10c = pastPenalties.find(p => p.violationName === 'غياب متصل (10 أيام)');
             const has15c = pastPenalties.find(p => p.violationName === 'غياب متصل (15 يوم)');
             const has20i = pastPenalties.find(p => p.violationName === 'غياب متفرق (20 يوم)');
             const has30i = pastPenalties.find(p => p.violationName === 'غياب متفرق (30 يوم)');
 
-            // 1. تقييم الغياب المتصل (منفصل في سطر خاص)
+            const startStr = cycleStart.toISOString().split('T')[0];
+
+            // 🎯 تقييم الغياب المتصل
             if (maxConsecutive >= 10) {
                 let type = maxConsecutive >= 15 ? '15c' : '10c';
                 let alreadyIssued = maxConsecutive >= 15 ? !!has15c : !!has10c;
-                let prevWarningDate = has10c ? has10c.timestamp.split('T')[0] : 'غير محدد'; // تاريخ الإنذار الأول (نحتاجه في الـ 15)
+                // جلب تاريخ الإنذار السابق إن وجد
+                let prevWarningDate = has10c ? new Date(has10c.timestamp || has10c.violationDate).toISOString().split('T')[0] : 'غير محدد';
 
                 report.push({
-                    username: user.username, name: user.name, branch: user.branch,
-                    cycleStart: startStr, streakStart: maxStreakStart, prevWarningDate: prevWarningDate,
-                    value: maxConsecutive, type: type,
+                    username: user.username, 
+                    name: user.name, 
+                    branch: user.branch || 'غير محدد',
+                    cycleStart: startStr, 
+                    streakStart: maxStreakStart, 
+                    prevWarningDate: prevWarningDate,
+                    value: maxConsecutive, 
+                    type: type,
                     title: `غياب متصل (${maxConsecutive} أيام)`,
                     alreadyIssued: alreadyIssued
                 });
             }
 
-            // 2. تقييم الغياب المنفصل (منفصل في سطر خاص)
+            // 🎯 تقييم الغياب المتفرق (المنفصل)
             if (totalAbsent >= 20) {
                 let type = totalAbsent >= 30 ? '30i' : '20i';
                 let alreadyIssued = totalAbsent >= 30 ? !!has30i : !!has20i;
-                let prevWarningDate = has20i ? has20i.timestamp.split('T')[0] : 'غير محدد'; // تاريخ الإنذار الأول (نحتاجه في الـ 30)
+                let prevWarningDate = has20i ? new Date(has20i.timestamp || has20i.violationDate).toISOString().split('T')[0] : 'غير محدد';
 
                 report.push({
-                    username: user.username, name: user.name, branch: user.branch,
-                    cycleStart: startStr, prevWarningDate: prevWarningDate,
-                    value: totalAbsent, type: type,
+                    username: user.username, 
+                    name: user.name, 
+                    branch: user.branch || 'غير محدد',
+                    cycleStart: startStr, 
+                    prevWarningDate: prevWarningDate,
+                    value: totalAbsent, 
+                    type: type,
                     title: `غياب متفرق (${totalAbsent} يوماً)`,
                     alreadyIssued: alreadyIssued
                 });
             }
-        });
+        }
 
+        console.log(`✅ اكتمل مسح الرادار! تم رصد ${report.length} تجاوزات للمادة 80.`);
         res.json({ success: true, report });
+
     } catch (error) {
-        console.error("Absence Analysis Error:", error);
-        res.json({ success: false, message: "حدث خطأ أثناء تحليل الغيابات." });
+        console.error("❌ خطأ فادح في محرك تحليل الغيابات:", error);
+        res.json({ success: false, message: "حدث خطأ داخلي في السيرفر: " + error.message });
     }
 });
 
