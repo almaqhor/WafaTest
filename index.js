@@ -615,21 +615,39 @@ app.post('/api/user-add', async (req, res) => {
 
         // 4. الضربة الثانية: تسكين الموظف الجديد على الشاغر (إذا تم إدخال رمز شاغر)
         if (positionCodeToAssign && positionCodeToAssign.trim() !== '') {
-            await prisma.sapPosition.upsert({
-                where: { employeeId: newUser.id }, // 👈 التكتيك الجديد: نبحث عن الموظف وليس الرمز
-                update: { 
-                    positionCode: positionCodeToAssign.trim(), // 👈 نُحدّث الرمز هنا
-                    jobTitle: newUser.jobTitle || 'غير محدد',
-                    branch: newUser.branch || 'غير محدد'
-                },
-                create: {
-                    employeeId: newUser.id,
-                    positionCode: positionCodeToAssign.trim(),
-                    jobTitle: newUser.jobTitle || 'غير محدد',
-                    branch: newUser.branch || 'غير محدد'
-                }
-            });
-        }
+    const cleanCode = positionCodeToAssign.trim();
+    // تحويل الـ ID إلى رقم (في حال كانت قاعدة البيانات تطلبه كرقم Integer) لتجنب الخداع البصري
+    const empId = Number(newUser.id) || newUser.id; 
+
+    // 1. الاستطلاع: هل يمتلك الموظف شاغراً مسبقاً في قاعدة البيانات؟
+    const existingPosition = await prisma.sapPosition.findUnique({
+        where: { employeeId: empId }
+    });
+
+    if (existingPosition) {
+        // 2. الهجوم الأول (التحديث): إذا كان لديه سجل، نُحدث رمزه فقط
+        await prisma.sapPosition.update({
+            where: { employeeId: empId },
+            data: { 
+                positionCode: cleanCode,
+                jobTitle: newUser.jobTitle || 'غير محدد',
+                branch: newUser.branch || 'غير محدد'
+            }
+        });
+        console.log("✅ تم تحديث رمز الشاغر بنجاح.");
+    } else {
+        // 3. الهجوم الثاني (الإنشاء): إذا لم يكن لديه أي سجل، ننشئ له سجلاً جديداً
+        await prisma.sapPosition.create({
+            data: {
+                employeeId: empId,
+                positionCode: cleanCode,
+                jobTitle: newUser.jobTitle || 'غير محدد',
+                branch: newUser.branch || 'غير محدد'
+            }
+        });
+        console.log("✅ تم إنشاء رمز شاغر جديد بنجاح.");
+    }
+}
 
         console.log(`✅ تم إضافة الموظف الجديد: ${username}`);
         res.json({ success: true, message: 'تم الإضافة بنجاح' });
