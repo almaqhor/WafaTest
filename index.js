@@ -616,15 +616,15 @@ app.post('/api/user-add', async (req, res) => {
         // 4. الضربة الثانية: تسكين الموظف الجديد على الشاغر (إذا تم إدخال رمز شاغر)
         if (positionCodeToAssign && positionCodeToAssign.trim() !== '') {
             await prisma.sapPosition.upsert({
-                where: { positionCode: positionCodeToAssign.trim() },
+                where: { employeeId: newUser.id }, // 👈 التكتيك الجديد: نبحث عن الموظف وليس الرمز
                 update: { 
-                    employeeId: newUser.id,
+                    positionCode: positionCodeToAssign.trim(), // 👈 نُحدّث الرمز هنا
                     jobTitle: newUser.jobTitle || 'غير محدد',
                     branch: newUser.branch || 'غير محدد'
                 },
                 create: {
-                    positionCode: positionCodeToAssign.trim(),
                     employeeId: newUser.id,
+                    positionCode: positionCodeToAssign.trim(),
                     jobTitle: newUser.jobTitle || 'غير محدد',
                     branch: newUser.branch || 'غير محدد'
                 }
