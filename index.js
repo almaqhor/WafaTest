@@ -4968,5 +4968,48 @@ app.post('/api/hr-operations', async (req, res) => {
         res.json({ success: false, requests: [] }); 
     }
 });
+// ======================================================================
+// 🗑️ مسار إعدام رمز الشاغر الوظيفي (SAP Position) الخاطئ
+// ======================================================================
+app.post('/api/delete-sap-position', async (req, res) => {
+    try {
+        const { positionCode, byUser } = req.body;
 
+        if (!positionCode) {
+            return res.json({ success: false, message: "لم يتم تحديد الرمز المطلوب إعدامه." });
+        }
+
+        const cleanCode = positionCode.trim();
+
+        // 1. الاستطلاع: هل الرمز موجود فعلاً في قاعدة البيانات؟
+        const existingPos = await prisma.sapPosition.findUnique({
+            where: { positionCode: cleanCode }
+        });
+
+        if (!existingPos) {
+            return res.json({ success: false, message: "الرمز غير موجود في الرادار أصلاً." });
+        }
+
+        // 2. الجدار الأمني: نمنع حذف الرمز إذا كان بعهدة موظف (للحماية)
+        if (existingPos.employeeId !== null) {
+             return res.json({ success: false, message: "🛑 لا يمكن إعدام هذا الرمز لأنه عهدة لدى موظف حالي! قم بتجريد الموظف منه أولاً من شاشة التعديل." });
+        }
+
+        // 3. الضربة الجراحية: الإعدام النهائي من قاعدة البيانات
+        await prisma.sapPosition.delete({
+            where: { positionCode: cleanCode }
+        });
+
+        // 4. توثيق العملية الاستخباراتية
+        if (typeof safeLogAudit === 'function') {
+            safeLogAudit(byUser || 'النظام', 'إعدام شاغر', `حذف الرمز الخاطئ [${cleanCode}]`, 'بوابة المقابلات/الشواغر');
+        }
+
+        res.json({ success: true, message: `تم تدمير الرمز (${cleanCode}) ومسحه من الرادار بنجاح.` });
+
+    } catch (error) {
+        console.error("❌ خطأ في حذف الشاغر:", error);
+        res.json({ success: false, message: "حدث خطأ داخلي أثناء محاولة التدمير." });
+    }
+});
 app.listen(process.env.PORT || 3000, '0.0.0.0', () => console.log(`🚀 السيرفر يعمل بنظام الرقابة الذكي والآمن!`));
