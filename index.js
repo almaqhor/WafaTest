@@ -776,7 +776,7 @@ app.post('/api/user-update', async (req, res) => {
             where: { id: user.id },
             data: updateData
         });
-        // 🎯🎯🎯 [إدارة عهدة SAP (الشاغر الوظيفي)] 🎯🎯🎯
+       // 🎯🎯🎯 [إدارة عهدة SAP (الشاغر الوظيفي)] 🎯🎯🎯
 
         if (!newIsActive) {
             // 1. فك الارتباط من أي شاغر مسجل باسم الموظف
@@ -785,37 +785,70 @@ app.post('/api/user-update', async (req, res) => {
                 data: { employeeId: null }      
             });
 
-            // 2. 🛡️ تكتيك الاسترداد الذكي (للموظفين القدامى): 
-            // إذا كان الموظف لديه كود SAP في الواجهة ولم يُسجل في الجدول الجديد مسبقاً، 
-            // نقوم بإنشائه فوراً كشاغر "متاح" (null) لكي يظهر في الرادار!
+            // 2. 🛡️ تكتيك الاسترداد الآمن (بدون Upsert المتمردة): 
             if (currentPositionCode && currentPositionCode.trim() !== '') {
-                await prisma.sapPosition.upsert({
-                    where: { positionCode: currentPositionCode.trim() },
-                    update: { employeeId: null }, // نتأكد من سحب العهدة
-                    create: {
-                        positionCode: currentPositionCode.trim(),
-                        employeeId: null, // 👈 السر هنا: ننشئه بدون مالك ليظهر في الاحتياج
+                const cleanCode = currentPositionCode.trim();
+                const existingPos = await prisma.sapPosition.findFirst({
+                    where: { positionCode: cleanCode }
+                });
+
+                if (existingPos) {
+                    await prisma.sapPosition.update({
+                        where: { id: existingPos.id },
+                        data: { employeeId: null }
+                    });
+                } else {
+                    await prisma.sapPosition.create({
+                        data: {
+                            positionCode: cleanCode,
+                            employeeId: null, // ننشئه بدون مالك ليظهر في الاحتياج
+                            jobTitle: updateData.jobTitle || user.jobTitle || 'غير محدد',
+                            branch: updateData.branch || user.branch || 'غير محدد'
+                        }
+                    });
+                }
+            }
+        } else if (currentPositionCode && currentPositionCode.trim() !== '') {
+            const cleanCode = currentPositionCode.trim();
+
+            // 3. 🛡️ [تكتيك التجريد المزدوج قبل الهجوم] 🛡️
+            
+            // أ) تحرير الموظف من أي شاغر قديم
+            await prisma.sapPosition.updateMany({
+                where: { employeeId: user.id },
+                data: { employeeId: null }
+            });
+
+            // ب) تحرير الشاغر الجديد من أي موظف آخر يملكه (لضمان عدم الاصطدام)
+            await prisma.sapPosition.updateMany({
+                where: { positionCode: cleanCode },
+                data: { employeeId: null }
+            });
+
+            // 4. الهجوم المباشر (تحديث أو إنشاء)
+            const existingPos = await prisma.sapPosition.findFirst({
+                where: { positionCode: cleanCode }
+            });
+
+            if (existingPos) {
+                await prisma.sapPosition.update({
+                    where: { id: existingPos.id },
+                    data: { 
+                        employeeId: user.id, 
+                        jobTitle: updateData.jobTitle || user.jobTitle,
+                        branch: updateData.branch || user.branch
+                    }
+                });
+            } else {
+                await prisma.sapPosition.create({
+                    data: {
+                        positionCode: cleanCode,
+                        employeeId: user.id,
                         jobTitle: updateData.jobTitle || user.jobTitle || 'غير محدد',
                         branch: updateData.branch || user.branch || 'غير محدد'
                     }
                 });
             }
-        } else if (currentPositionCode && currentPositionCode.trim() !== '') {
-            // 3. (نفس الكود السابق للموظف النشط)
-            await prisma.sapPosition.upsert({
-                where: { positionCode: currentPositionCode.trim() },
-                update: { 
-                    employeeId: user.id, 
-                    jobTitle: updateData.jobTitle || user.jobTitle,
-                    branch: updateData.branch || user.branch
-                },
-                create: {
-                    positionCode: currentPositionCode.trim(),
-                    employeeId: user.id,
-                    jobTitle: updateData.jobTitle || user.jobTitle || 'غير محدد',
-                    branch: updateData.branch || user.branch || 'غير محدد'
-                }
-            });
         }
 
         // 🎯 توثيق استرداد العهدة
@@ -825,7 +858,6 @@ app.post('/api/user-update', async (req, res) => {
                 safeLogAudit('النظام', 'استرداد شاغر SAP', `تم سحب الكود [${releasedPositionCode}] من ${req.body.name} بسبب طي القيد`, 'نظام الشواغر');
             }
         }
-
         res.json({ success: true, message: 'تم التحديث بنجاح' });
 
     } catch (error) {
