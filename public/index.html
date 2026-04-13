@@ -9601,10 +9601,13 @@ async function openBalancePenaltyModal(ticketId) {
                 const branchVacancies = vacantPositionsArray.filter(v => v.branch === branch);
                 let vacanciesHtml = '';
                 if (branchVacancies.length > 0) {
-                    // تحويل كل شاغر إلى "بادج" أنيق يظهر الكود، وعند تمرير الماوس يظهر المسمى الوظيفي
+                    // 🎯 تم زرع صاعق التفجير (زر الحذف) داخل البادج نفسه
                     vacanciesHtml = branchVacancies.map(v => 
-                        `<span style="background:#f39c12; color:white; padding:4px 8px; border-radius:12px; font-size:11px; margin:2px; display:inline-block; cursor:help; box-shadow:0 2px 4px rgba(0,0,0,0.1);" title="المسمى: ${v.jobTitle}">
-                            <i class="fas fa-briefcase"></i> ${v.positionCode}
+                        `<span style="background:#f39c12; color:white; padding:4px 8px; border-radius:12px; font-size:11px; margin:2px; display:inline-flex; align-items:center; gap:6px; box-shadow:0 2px 4px rgba(0,0,0,0.1);" title="المسمى: ${v.jobTitle}">
+                            <span style="cursor:help;"><i class="fas fa-briefcase"></i> ${v.positionCode}</span>
+                            <button onclick="deleteInvalidPosition('${v.positionCode}', this)" style="background:white; color:#e74c3c; border:none; border-radius:50%; width:16px; height:16px; display:flex; justify-content:center; align-items:center; cursor:pointer; padding:0;" title="إعدام هذا الرمز">
+                                <i class="fas fa-times"></i>
+                            </button>
                         </span>`
                     ).join(' ');
                 } else {
@@ -12540,6 +12543,52 @@ window.launchSmartTour = function(userRole) {
         setTimeout(() => { driverObj.drive(); }, 500);
     }
 };
+    // 🧨 دالة إعدام الكود الخاطئ
+async function deleteInvalidPosition(positionCode, btnElement) {
+    const isConfirmed = confirm(`⚠️ تحذير أمني!\nهل أنت متأكد من تدمير رمز الشاغر (${positionCode}) نهائياً؟\nاستخدم هذا الزر فقط للأكواد الخاطئة أو الوهمية.`);
+    
+    if (!isConfirmed) return;
+
+    // تعطيل الزر مؤقتاً لتجنب الضغط المزدوج
+    const originalHtml = btnElement.innerHTML;
+    btnElement.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+    btnElement.disabled = true;
+
+    try {
+        const response = await fetch('/api/delete-sap-position', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+                positionCode: positionCode,
+                byUser: window.globalRealActor || window.globalEmpName || 'مدير النظام'
+            })
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+            // ✅ التكتيك الجديد: تأثير بصري جميل لإخفاء البادج فقط
+            const badge = btnElement.closest('span'); 
+            if (badge) {
+                badge.style.transform = 'scale(0)';
+                badge.style.transition = 'all 0.3s ease';
+                setTimeout(() => badge.remove(), 300);
+            } else {
+                alert("✅ " + result.message);
+            }
+        } else {
+            // ❌ حالة الرفض (مثلاً إذا كان الكود مربوطاً بموظف)
+            alert(result.message); 
+            btnElement.innerHTML = originalHtml;
+            btnElement.disabled = false;
+        }
+    } catch (error) {
+        alert("❌ حدث خطأ في الاتصال بغرفة العمليات (السيرفر).");
+        btnElement.innerHTML = originalHtml;
+        btnElement.disabled = false;
+    }
+}
+    
 </script>
 </body>
 </html>
