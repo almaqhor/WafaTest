@@ -10586,57 +10586,67 @@ function exportUsersToExcela() {
             }
         }
 
-        // المحرك الأساسي
-       // المحرك الأساسي (النسخة المدرعة)
-function runLeaveRadar() {
+// المحرك الأساسي (النسخة المدرعة ذاتية الانتظار)
+function runLeaveRadar(retryCount = 0) {
     const baseDateStr = document.getElementById('radar-base-date').value;
     const windowDays = parseInt(document.getElementById('radar-window').value);
     const filterBranch = document.getElementById('radar-branch').value;
     const filterJob = document.getElementById('radar-job').value;
+    const tbody = document.getElementById('radar-table-body'); // للتحكم في رسائل الشاشة
 
     if(!baseDateStr) return;
     
-    // حماية إضافية: عدم الصمت إذا لم تكن البيانات محملة
+    // 🛡️ نظام الاستشعار الذكي (لحل مشكلة التوقيت السريع)
     if (typeof allUsersData === 'undefined' || allUsersData.length === 0) {
-        console.warn("⚠️ بيانات الموظفين غير محملة بعد، الرادار ينتظر الإمدادات.");
-        return;
+        if (retryCount < 15) { // المحاولة 15 مرة (بمعدل نصف ثانية = 7.5 ثوانٍ انتظار كحد أقصى)
+            if (tbody) {
+                tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding:40px; font-weight:bold; color:#2980b9;">
+                    <i class="fas fa-satellite-dish fa-spin fa-2x" style="margin-bottom:15px; color:#3498db;"></i><br>
+                    الرادار يعمل... ننتظر اكتمال وصول إمدادات البيانات من الخادم (${retryCount + 1})
+                </td></tr>`;
+            }
+            // إعادة استدعاء الرادار تلقائياً بعد 500 جزء من الثانية
+            setTimeout(() => runLeaveRadar(retryCount + 1), 500); 
+            return;
+        } else {
+            // إذا طال الانتظار ولم تصل البيانات
+            if (tbody) {
+                tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding:40px; font-weight:bold; color:#c0392b;">
+                    <i class="fas fa-exclamation-triangle fa-2x" style="margin-bottom:15px;"></i><br>
+                    تأخر وصول الإمدادات! يرجى تحديث الصفحة أو التأكد من جودة الاتصال بالإنترنت.
+                </td></tr>`;
+            }
+            console.warn("⚠️ تم إيقاف الرادار: استنفاد محاولات جلب البيانات.");
+            return;
+        }
     }
     
+    // ======== إذا وصلت البيانات بنجاح، يبدأ الطحن ========
     const baseDate = new Date(baseDateStr);
     let upcomingLeaves = [];
 
     // 1. حساب الاستحقاق لكل موظف على رأس العمل
     allUsersData.forEach(emp => {
-        // 🎯 تفكيك اللغم الأول: فحص الحالة بمرونة (عربي + إنجليزي)
         const isActive = emp.status === 'نشط' || emp.status === 'in Duty' || emp.status === 'Active';
-        
-        // 🎯 تفكيك اللغم الثاني: حماية تواريخ المباشرة الفاسدة
         if(!isActive || !emp.joinDate || emp.joinDate.trim() === '' || emp.joinDate === 'غير مسجل') return;
 
         const joinDate = new Date(emp.joinDate);
-        if(isNaN(joinDate.getTime())) return; // تخطي التواريخ غير المنطقية
+        if(isNaN(joinDate.getTime())) return;
 
-        // تحديد تاريخ الاستحقاق القادم (Anniversary)
         let nextAnniversary = new Date(joinDate);
         nextAnniversary.setFullYear(baseDate.getFullYear());
         
-        // إذا مر تاريخ الاستحقاق هذا العام قبل تاريخ البحث، نرى الاستحقاق للعام القادم
         if(nextAnniversary < baseDate) {
             nextAnniversary.setFullYear(baseDate.getFullYear() + 1);
         }
 
-        // حساب الفرق بالأيام بين تاريخ البحث وتاريخ الاستحقاق
         const diffTime = nextAnniversary - baseDate;
         const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
-        // هل يقع الاستحقاق ضمن النافذة المطلوبة (30، 60، 90 يوم)؟
         if(diffDays <= windowDays && diffDays >= 0) {
-            
-            // كم سنة سيكون قد أكمل في تاريخ الاستحقاق؟
             const yearsCompleted = nextAnniversary.getFullYear() - joinDate.getFullYear();
-            if(yearsCompleted < 1) return; // لم يكمل سنة
+            if(yearsCompleted < 1) return;
 
-            // حساب الرصيد الإجمالي المستحق حسب نظام العمل السعودي
             let totalAccrued = 0;
             if(yearsCompleted <= 5) {
                 totalAccrued = yearsCompleted * 21;
@@ -10644,14 +10654,13 @@ function runLeaveRadar() {
                 totalAccrued = (5 * 21) + ((yearsCompleted - 5) * 30);
             }
 
-            // حساب الرصيد المستخدم (مجموع الإجازات السنوية السابقة) وتاريخ آخر إجازة
             let usedLeaves = 0;
             let lastLeaveDate = null;
             let lastLeaveDuration = 0;
             
             if(typeof allLeavesData !== 'undefined') {
                 const empLeaves = allLeavesData.filter(l => l.username === emp.username && l.type === 'سنوية');
-                empLeaves.sort((a,b) => new Date(b.startDate) - new Date(a.startDate)); // ترتيب للأحدث
+                empLeaves.sort((a,b) => new Date(b.startDate) - new Date(a.startDate));
                 
                 if(empLeaves.length > 0) {
                     lastLeaveDate = empLeaves[0].startDate;
