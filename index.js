@@ -4055,62 +4055,64 @@ app.post('/api/submit-candidate', async (req, res) => {
 });
 
 // ==========================================
-// 1. مسار جلب كل المرشحين (النسخة السريعة والخفيفة)
+// 1. مسار جلب قائمة المرشحين (خفيف وسريع جداً)
 // ==========================================
 app.get('/api/candidates', async (req, res) => {
     try {
-        console.log("📡 جاري جلب قائمة المرشحين (النسخة الخفيفة)...");
+        console.log("📡 جاري المسح الراداري لجدول التوظيف...");
         
-        // 🚀 تم توجيه الرادار للجدول الصحيح: recruitment
         const candidates = await prisma.recruitment.findMany({
+            // نختار فقط الحقول الموجودة في الشيمة الخاصة بك
             select: {
                 id: true,
                 candidateId: true,
                 name: true,
                 idNumber: true,
                 phone: true,
-                jobTitle: true,
                 city: true,
-                branch: true,
                 district: true,
+                jobTitle: true,
                 status: true,
-                createdAt: true,
+                hrComment: true,
                 isFormerEmployee: true,
-                hrComment: true
+                createdAt: true
+                // تم استبعاد cvFile و branch (لأن الأخير غير موجود في الشيمة)
             },
             orderBy: { createdAt: 'asc' }
         });
 
-        const lightweightCandidates = candidates.map(c => ({
+        // معالجة البيانات لتناسب الواجهة وتجنب الأخطاء
+        const optimizedData = candidates.map(c => ({
             ...c,
-            hasCv: true 
+            // بما أن الفرع غير موجود في الشيمة، سنضعه "غير محدد" مؤقتاً
+            branch: "غير محدد", 
+            hasCv: true // إشارة للواجهة بوجود ملف سيرة ذاتية
         }));
 
-        res.json(lightweightCandidates);
+        res.json(optimizedData);
     } catch (error) {
-        console.error("❌ خطأ في جلب المرشحين:", error);
-        res.status(500).json({ success: false, message: "حدث خطأ في الخادم" });
+        console.error("❌ فشل في جلب المرشحين:", error);
+        res.status(500).json({ success: false, message: "خطأ في خادم البيانات" });
     }
 });
 
 // ==========================================
-// 2. مسار القناص: جلب السيرة الذاتية لمرشح واحد فقط
+// 2. مسار جلب السيرة الذاتية (عند الطلب فقط)
 // ==========================================
 app.get('/api/candidate-cv/:id', async (req, res) => {
     try {
-        // 🚀 تم توجيه الرادار للجدول الصحيح: recruitment
-        const cand = await prisma.recruitment.findUnique({
+        const record = await prisma.recruitment.findUnique({
             where: { candidateId: req.params.id },
             select: { cvFile: true } 
         });
 
-        if (cand && cand.cvFile) {
-            res.json({ success: true, cvFile: cand.cvFile });
+        if (record && record.cvFile) {
+            res.json({ success: true, cvFile: record.cvFile });
         } else {
-            res.json({ success: false, message: "لا يوجد ملف" });
+            res.json({ success: false, message: "الملف غير موجود" });
         }
     } catch (error) {
-        console.error("❌ خطأ في جلب السيرة الذاتية:", error);
+        console.error("❌ خطأ في جلب ملف السيرة:", error);
         res.status(500).json({ success: false });
     }
 });
