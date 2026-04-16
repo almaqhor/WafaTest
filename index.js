@@ -4057,12 +4057,59 @@ app.post('/api/submit-candidate', async (req, res) => {
 // 2. جلب المرشحين لغرفة عمليات الموارد البشرية
 app.get('/api/candidates', async (req, res) => {
     try {
-        const candidates = await prisma.recruitment.findMany({
-            orderBy: { createdAt: 'desc' } // الأحدث أولاً (مثل unshift القديمة)
+        console.log("📡 جاري جلب قائمة المرشحين (النسخة الخفيفة)...");
+        
+        const candidates = await prisma.candidate.findMany({
+            // 🚀 السر هنا: نختار الحقول الخفيفة فقط ونتجاهل حقل cvFile الثقيل
+            select: {
+                id: true,
+                candidateId: true,
+                name: true,
+                idNumber: true,
+                phone: true,
+                jobTitle: true,
+                city: true,
+                branch: true,
+                district: true,
+                status: true,
+                createdAt: true,
+                isFormerEmployee: true,
+                hrComment: true,
+                // بدلاً من جلب الملف الكامل، نطلب فقط معرفة ما إذا كان الحقل فارغاً أم لا
+                cvFile: false 
+            },
+            orderBy: { createdAt: 'asc' }
         });
-        res.json(candidates);
-    } catch (e) {
-        res.json([]);
+
+        // بما أننا لم نجلب الملف، سنضيف متغيراً وهمياً للواجهة الأمامية لكي ترسم الزر
+        const lightweightCandidates = candidates.map(c => ({
+            ...c,
+            // نفترض أن لديه سيرة ذاتية إذا لم نقم بجلبه (سنعالجه في خطوة لاحقة)
+            // أو إذا كنت تستخدم Prisma بشكل متقدم يمكنك التحقق من طول الحقل
+            hasCv: true 
+        }));
+
+        res.json(lightweightCandidates);
+    } catch (error) {
+        console.error("❌ خطأ في جلب المرشحين:", error);
+        res.status(500).json({ success: false, message: "حدث خطأ في الخادم" });
+    }
+});
+// مسار قناص لجلب ملف سيرة ذاتية واحد عند الطلب
+app.get('/api/candidate-cv/:id', async (req, res) => {
+    try {
+        const cand = await prisma.candidate.findUnique({
+            where: { candidateId: req.params.id },
+            select: { cvFile: true } // نجلب الملف الثقيل لهذا الشخص فقط
+        });
+
+        if (cand && cand.cvFile) {
+            res.json({ success: true, cvFile: cand.cvFile });
+        } else {
+            res.json({ success: false, message: "لا يوجد ملف" });
+        }
+    } catch (error) {
+        res.status(500).json({ success: false });
     }
 });
 
@@ -4089,7 +4136,7 @@ app.post('/api/update-candidate', async (req, res) => {
 });
 
 // 2. جلب المرشحين لشاشة الموارد البشرية
-app.get('/api/candidates', (req, res) => res.json(candidatesDB));
+//app.get('/api/candidates', (req, res) => res.json(candidatesDB));
 
 // 3. تحديث حالة المرشح (قبول / رفض)
 app.post('/api/update-candidate', (req, res) => {
