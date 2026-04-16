@@ -10059,16 +10059,34 @@ async function openBalancePenaltyModal(ticketId) {
 }
 
         // ======================================================================
-// 📄 دالة فتح السيرة الذاتية (CV)
-// ======================================================================
-function viewCandidateCV(base64Data) {
-    if (!base64Data || base64Data === 'null') {
-        alert("لا يوجد سيرة ذاتية مرفقة لهذا المرشح.");
-        return;
+// دالة القناص: جلب السيرة الذاتية لمرشح واحد فقط عند الطلب
+async function viewCandidateCV(candidateId, btnElement) {
+    const originalText = btnElement.innerHTML;
+    
+    // تغيير شكل الزر لإعلام المستخدم أننا نجلب الملف
+    btnElement.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري تحميل الملف...';
+    btnElement.disabled = true;
+
+    try {
+        // الاتصال بالمسار الجديد في السيرفر (تأكد من إضافته في السيرفر كما شرحت لك سابقاً)
+        const response = await fetch(`/api/candidate-cv/${candidateId}`);
+        const data = await response.json();
+        
+        if (data.success && data.cvFile) {
+            // فتح نافذة جديدة لعرض الـ PDF أو الصورة
+            const newWindow = window.open();
+            newWindow.document.write(`<iframe src="${data.cvFile}" width="100%" height="100%" style="border:none; margin:0; padding:0;"></iframe>`);
+        } else {
+            alert("⚠️ عذراً، لا توجد سيرة ذاتية مرفقة لهذا المرشح في قاعدة البيانات.");
+        }
+    } catch (e) {
+        console.error(e);
+        alert("❌ حدث خطأ أثناء الاتصال بالسيرفر لجلب الملف.");
+    } finally {
+        // إعادة الزر لشكله الطبيعي
+        btnElement.innerHTML = originalText;
+        btnElement.disabled = false;
     }
-    const win = window.open();
-    // استخدام iframe لعرض الـ Base64 (يدعم الصور والـ PDF)
-    win.document.write('<iframe src="' + base64Data + '" frameborder="0" style="border:0; top:0px; left:0px; bottom:0px; right:0px; width:100%; height:100%;" allowfullscreen></iframe>');
 }
 
 // ======================================================================
@@ -10087,19 +10105,18 @@ function renderCandidatesGrid(filtered) {
     const sortedCandidates = filtered.sort((a, b) => {
         const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
         const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-        return dateA - dateB; // ترتيب تصاعدي (الأقدم أولاً)
+        return dateA - dateB; 
     });
 
-    // 2. 🧮 رسم البطاقات مع الترقيم (استخدام index)
+    // 2. 🧮 رسم البطاقات مع الترقيم
     container.innerHTML = sortedCandidates.map((c, index) => {
         
-        // 🕒 استخراج التاريخ والوقت بشكل أنيق
+        // 🕒 استخراج التاريخ والوقت
         let dateTimeStr = 'غير محدد';
         if (c.createdAt) {
             const dateObj = new Date(c.createdAt);
             const dateStr = dateObj.toLocaleDateString('ar-SA');
             const timeStr = dateObj.toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' });
-            // دمج التاريخ مع الوقت بلون مختلف لإبرازه
             dateTimeStr = `${dateStr} <span style="color:#e67e22; font-weight:bold; margin-right:8px; border-right:1px solid #ddd; padding-right:8px;"><i class="far fa-clock"></i> ${timeStr}</span>`;
         }
         
@@ -10108,15 +10125,15 @@ function renderCandidatesGrid(filtered) {
             ? `<span style="background:#fdedec; color:#c0392b; padding:3px 8px; border-radius:4px; font-size:11px; font-weight:bold; border:1px solid #e74c3c;"><i class="fas fa-exclamation-triangle"></i> موظف سابق</span>` 
             : `<span style="background:#e8f8f5; color:#27ae60; padding:3px 8px; border-radius:4px; font-size:11px; font-weight:bold; border:1px solid #27ae60;"><i class="fas fa-seedling"></i> دماء جديدة</span>`;
 
-        // 📎 زر عرض السيرة الذاتية
-        const cvBtn = c.cvFile && c.cvFile.length > 50 ? `
-            <button onclick="viewCandidateCV('${c.cvFile}')" style="background:#2980b9; color:white; border:none; padding:6px 10px; border-radius:5px; cursor:pointer; font-size:12px; font-weight:bold; margin-bottom: 10px; width: 100%; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-                <i class="fas fa-paperclip"></i> عرض السيرة الذاتية
-            </button>` : `<div style="font-size:11px; color:#999; margin-bottom:10px; text-align:center; font-style:italic;">لا توجد سيرة ذاتية مرفقة</div>`;
+        // 🚀 🚀 🚀 التعديل الجوهري هنا 🚀 🚀 🚀
+        // الزر الآن يحمل المعرف (candidateId) بدلاً من الملف نفسه لكي لا يثقل المتصفح
+        const cvBtn = `
+            <button onclick="viewCandidateCV('${c.candidateId}', this)" style="background:#2980b9; color:white; border:none; padding:6px 10px; border-radius:5px; cursor:pointer; font-size:12px; font-weight:bold; margin-bottom: 10px; width: 100%; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                <i class="fas fa-cloud-download-alt"></i> جلب وعرض السيرة الذاتية
+            </button>`;
 
         let actionsHtml = '';
         
-        // أزرار التحكم بناءً على الحالة
         if (statusFilter === 'pending') {
             actionsHtml = `
                 <textarea id="hr-comment-${c.candidateId}" class="comment-input" placeholder="أضف تقييم المقابلة هنا..." rows="2" style="font-size:12px; margin-bottom:10px;"></textarea>
@@ -10139,7 +10156,6 @@ function renderCandidatesGrid(filtered) {
             `;
         }
 
-        // 🔢 شارة الترقيم الدائرية (تزيد بمقدار 1 مع كل مرشح)
         const orderNumber = index + 1;
 
         return `
