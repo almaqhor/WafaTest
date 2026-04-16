@@ -10587,119 +10587,123 @@ function exportUsersToExcela() {
         }
 
         // المحرك الأساسي
-        function runLeaveRadar() {
-            const baseDateStr = document.getElementById('radar-base-date').value;
-            const windowDays = parseInt(document.getElementById('radar-window').value);
-            const filterBranch = document.getElementById('radar-branch').value;
-            const filterJob = document.getElementById('radar-job').value;
+       // المحرك الأساسي (النسخة المدرعة)
+function runLeaveRadar() {
+    const baseDateStr = document.getElementById('radar-base-date').value;
+    const windowDays = parseInt(document.getElementById('radar-window').value);
+    const filterBranch = document.getElementById('radar-branch').value;
+    const filterJob = document.getElementById('radar-job').value;
 
-            if(!baseDateStr || allUsersData.length === 0) return;
-            const baseDate = new Date(baseDateStr);
-            let upcomingLeaves = [];
+    if(!baseDateStr) return;
+    
+    // حماية إضافية: عدم الصمت إذا لم تكن البيانات محملة
+    if (typeof allUsersData === 'undefined' || allUsersData.length === 0) {
+        console.warn("⚠️ بيانات الموظفين غير محملة بعد، الرادار ينتظر الإمدادات.");
+        return;
+    }
+    
+    const baseDate = new Date(baseDateStr);
+    let upcomingLeaves = [];
 
-            // 1. حساب الاستحقاق لكل موظف على رأس العمل
-            allUsersData.forEach(emp => {
-                if(emp.status !== 'in Duty' || !emp.joinDate) return;
+    // 1. حساب الاستحقاق لكل موظف على رأس العمل
+    allUsersData.forEach(emp => {
+        // 🎯 تفكيك اللغم الأول: فحص الحالة بمرونة (عربي + إنجليزي)
+        const isActive = emp.status === 'نشط' || emp.status === 'in Duty' || emp.status === 'Active';
+        
+        // 🎯 تفكيك اللغم الثاني: حماية تواريخ المباشرة الفاسدة
+        if(!isActive || !emp.joinDate || emp.joinDate.trim() === '' || emp.joinDate === 'غير مسجل') return;
 
-                const joinDate = new Date(emp.joinDate);
-                // تجاهل إذا كان الموظف لم يكمل سنة حتى الآن ولم يقترب منها
-                if(isNaN(joinDate)) return;
+        const joinDate = new Date(emp.joinDate);
+        if(isNaN(joinDate.getTime())) return; // تخطي التواريخ غير المنطقية
 
-                // تحديد تاريخ الاستحقاق القادم (Anniversary)
-                let nextAnniversary = new Date(joinDate);
-                nextAnniversary.setFullYear(baseDate.getFullYear());
-                
-                // إذا مر تاريخ الاستحقاق هذا العام قبل تاريخ البحث، نرى الاستحقاق للعام القادم
-                if(nextAnniversary < baseDate) {
-                    nextAnniversary.setFullYear(baseDate.getFullYear() + 1);
-                }
-
-                // حساب الفرق بالأيام بين تاريخ البحث وتاريخ الاستحقاق
-                const diffTime = nextAnniversary - baseDate;
-                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
-                // هل يقع الاستحقاق ضمن النافذة المطلوبة (30، 60، 90 يوم)؟
-                if(diffDays <= windowDays && diffDays >= 0) {
-                    
-                    // كم سنة سيكون قد أكمل في تاريخ الاستحقاق؟
-                    const yearsCompleted = nextAnniversary.getFullYear() - joinDate.getFullYear();
-                    if(yearsCompleted < 1) return; // لم يكمل سنة
-
-                    // حساب الرصيد الإجمالي المستحق حسب نظام العمل السعودي
-                    let totalAccrued = 0;
-                    if(yearsCompleted <= 5) {
-                        totalAccrued = yearsCompleted * 21;
-                    } else {
-                        totalAccrued = (5 * 21) + ((yearsCompleted - 5) * 30);
-                    }
-
-                    // حساب الرصيد المستخدم (مجموع الإجازات السنوية السابقة) وتاريخ آخر إجازة
-                    let usedLeaves = 0;
-                    let lastLeaveDate = null;
-                    let lastLeaveDuration = 0;
-                    
-                    if(typeof allLeavesData !== 'undefined') {
-                        const empLeaves = allLeavesData.filter(l => l.username === emp.username && l.type === 'سنوية');
-                        empLeaves.sort((a,b) => new Date(b.startDate) - new Date(a.startDate)); // ترتيب للأحدث
-                        
-                        if(empLeaves.length > 0) {
-                            lastLeaveDate = empLeaves[0].startDate;
-                            lastLeaveDuration = empLeaves[0].duration;
-                        }
-                        
-                        empLeaves.forEach(l => {
-                            usedLeaves += parseInt(l.duration || 0);
-                        });
-                    }
-
-                    const projectedBalance = totalAccrued - usedLeaves;
-
-                    upcomingLeaves.push({
-                        username: emp.username,
-                        name: emp.name,
-                        branch: emp.branch || 'غير محدد',
-                        jobTitle: emp.jobTitle || 'غير محدد',
-                        joinDate: emp.joinDate,
-                        yearsCompleted: yearsCompleted,
-                        nextAnniversaryStr: nextAnniversary.toISOString().split('T')[0],
-                        daysRemaining: diffDays,
-                        lastLeaveDate: lastLeaveDate,
-                        lastLeaveDuration: lastLeaveDuration,
-                        projectedBalance: projectedBalance
-                    });
-                }
-            });
-
-            // 2. تطبيق فلاتر الفرع والوظيفة
-            if(filterBranch) upcomingLeaves = upcomingLeaves.filter(u => u.branch === filterBranch);
-            if(filterJob) upcomingLeaves = upcomingLeaves.filter(u => u.jobTitle === filterJob);
-
-            // 3. الفرز والترتيب المعقد حسب طلبك الدقيق:
-            // الفرع > الوظيفة > الأقدمية > أقدمية آخر إجازة > الرصيد الأعلى
-            upcomingLeaves.sort((a, b) => {
-                // 1. فرز حسب الفرع
-                if (a.branch !== b.branch) return a.branch.localeCompare(b.branch, 'ar');
-                
-                // 2. فرز حسب الوظيفة
-                if (a.jobTitle !== b.jobTitle) return a.jobTitle.localeCompare(b.jobTitle, 'ar');
-                
-                // 3. فرز حسب الأقدمية (تاريخ الالتحاق الأقدم أولاً)
-                const joinA = new Date(a.joinDate).getTime();
-                const joinB = new Date(b.joinDate).getTime();
-                if (joinA !== joinB) return joinA - joinB;
-
-                // 4. فرز حسب آخر إجازة (الذي لم يأخذ أو أخذ قديماً يكون أولاً)
-                const leaveA = a.lastLeaveDate ? new Date(a.lastLeaveDate).getTime() : 0;
-                const leaveB = b.lastLeaveDate ? new Date(b.lastLeaveDate).getTime() : 0;
-                if (leaveA !== leaveB) return leaveA - leaveB;
-
-                // 5. فرز حسب الرصيد (الأعلى أولاً)
-                return b.projectedBalance - a.projectedBalance;
-            });
-
-            // 4. رسم الجدول
-            renderRadarTable(upcomingLeaves);
+        // تحديد تاريخ الاستحقاق القادم (Anniversary)
+        let nextAnniversary = new Date(joinDate);
+        nextAnniversary.setFullYear(baseDate.getFullYear());
+        
+        // إذا مر تاريخ الاستحقاق هذا العام قبل تاريخ البحث، نرى الاستحقاق للعام القادم
+        if(nextAnniversary < baseDate) {
+            nextAnniversary.setFullYear(baseDate.getFullYear() + 1);
         }
+
+        // حساب الفرق بالأيام بين تاريخ البحث وتاريخ الاستحقاق
+        const diffTime = nextAnniversary - baseDate;
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+        // هل يقع الاستحقاق ضمن النافذة المطلوبة (30، 60، 90 يوم)؟
+        if(diffDays <= windowDays && diffDays >= 0) {
+            
+            // كم سنة سيكون قد أكمل في تاريخ الاستحقاق؟
+            const yearsCompleted = nextAnniversary.getFullYear() - joinDate.getFullYear();
+            if(yearsCompleted < 1) return; // لم يكمل سنة
+
+            // حساب الرصيد الإجمالي المستحق حسب نظام العمل السعودي
+            let totalAccrued = 0;
+            if(yearsCompleted <= 5) {
+                totalAccrued = yearsCompleted * 21;
+            } else {
+                totalAccrued = (5 * 21) + ((yearsCompleted - 5) * 30);
+            }
+
+            // حساب الرصيد المستخدم (مجموع الإجازات السنوية السابقة) وتاريخ آخر إجازة
+            let usedLeaves = 0;
+            let lastLeaveDate = null;
+            let lastLeaveDuration = 0;
+            
+            if(typeof allLeavesData !== 'undefined') {
+                const empLeaves = allLeavesData.filter(l => l.username === emp.username && l.type === 'سنوية');
+                empLeaves.sort((a,b) => new Date(b.startDate) - new Date(a.startDate)); // ترتيب للأحدث
+                
+                if(empLeaves.length > 0) {
+                    lastLeaveDate = empLeaves[0].startDate;
+                    lastLeaveDuration = empLeaves[0].duration;
+                }
+                
+                empLeaves.forEach(l => {
+                    usedLeaves += parseInt(l.duration || 0);
+                });
+            }
+
+            const projectedBalance = totalAccrued - usedLeaves;
+
+            upcomingLeaves.push({
+                username: emp.username,
+                name: emp.name,
+                branch: emp.branch || 'غير محدد',
+                jobTitle: emp.jobTitle || 'غير محدد',
+                joinDate: emp.joinDate,
+                yearsCompleted: yearsCompleted,
+                nextAnniversaryStr: nextAnniversary.toISOString().split('T')[0],
+                daysRemaining: diffDays,
+                lastLeaveDate: lastLeaveDate,
+                lastLeaveDuration: lastLeaveDuration,
+                projectedBalance: projectedBalance
+            });
+        }
+    });
+
+    // 2. تطبيق فلاتر الفرع والوظيفة
+    if(filterBranch) upcomingLeaves = upcomingLeaves.filter(u => u.branch === filterBranch);
+    if(filterJob) upcomingLeaves = upcomingLeaves.filter(u => u.jobTitle === filterJob);
+
+    // 3. الفرز والترتيب المعقد
+    upcomingLeaves.sort((a, b) => {
+        if (a.branch !== b.branch) return a.branch.localeCompare(b.branch, 'ar');
+        if (a.jobTitle !== b.jobTitle) return a.jobTitle.localeCompare(b.jobTitle, 'ar');
+        
+        const joinA = new Date(a.joinDate).getTime();
+        const joinB = new Date(b.joinDate).getTime();
+        if (joinA !== joinB) return joinA - joinB;
+
+        const leaveA = a.lastLeaveDate ? new Date(a.lastLeaveDate).getTime() : 0;
+        const leaveB = b.lastLeaveDate ? new Date(b.lastLeaveDate).getTime() : 0;
+        if (leaveA !== leaveB) return leaveA - leaveB;
+
+        return b.projectedBalance - a.projectedBalance;
+    });
+
+    // 4. رسم الجدول
+    renderRadarTable(upcomingLeaves);
+}
 
         function renderRadarTable(data) {
             const tbody = document.getElementById('radar-table-body');
