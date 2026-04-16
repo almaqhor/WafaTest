@@ -357,7 +357,7 @@
 
 
                     <div id="quick-access-grid" style="display:none; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 15px; margin-bottom: 20px;">
-                        <div class="quick-card" id="card-nav-hrops" onclick="switchView('hr-dashboard')" style="display:none; border-color:#8e44ad; cursor: pointer;"><div class="quick-icon-wrapper" style="color:#8e44ad; background:#f4ecf7;"><i class="fas fa-user-shield"></i></div><h4 style="margin:0; font-size:13px; color:#333; font-weight:bold;">عمليات الموارد البشرية</h4></div>
+                        <div class="quick-card" id="card-nav-hrops" onclick="switchView('hr-dashboard')" style="display:none; border-color:#8e44ad; cursor: pointer;"><div class="quick-icon-wrapper" style="color:#8e44ad; background:#f4ecf7;"><i class="fas fa-user-shield"></i></div><h4 style="margin:0; font-size:13px; color:#333; font-weight:bold;">عمليات ادارة الموارد البشرية</h4></div>
                         <div class="quick-card" id="card-nav-hr" onclick="switchView('hr-dashboard')" style="display:none; border-color:#8e44ad;"><div class="quick-icon-wrapper" style="color:#8e44ad; background:#f4ecf7;"><i class="fas fa-user-shield"></i></div><h4 style="margin:0; font-size:13px; color:#333;">عمليات الموارد البشرية</h4></div>
                         <div class="quick-card" id="card-announcements" onclick="switchView('announcements')"><span id="unread-badge" class="pulse-badge" style="display:none; position:absolute; top:-5px; right:-5px; background:#e74c3c; color:white; border-radius:50%; width:22px; height:22px; line-height:22px; font-size:12px; font-weight:bold; box-shadow:0 2px 5px rgba(0,0,0,0.2);"></span><div class="quick-icon-wrapper" style="color:#d35400; background:#fdf2e9;"><i class="fas fa-bullhorn"></i></div><h4 style="margin:0; font-size:13px; color:#333;">التعميمات</h4></div>
                         <div class="quick-card" id="card-policy" onclick="switchView('policies')"><div class="quick-icon-wrapper" style="color:#27ae60; background:#e8f8f5;"><i class="fas fa-book"></i></div><h4 style="margin:0; font-size:13px; color:#333;">السياسات</h4></div>
@@ -379,9 +379,7 @@
                         <div class="info-card" id="manager-card"><div class="info-icon" style="color:#27ae60;background:#e8f8f5;"><i class="fas fa-user-tie"></i></div><div><h4 style="margin:0;color:#888;font-size:12px;">المدير</h4><p style="margin:0;font-weight:bold;font-size:14px;" id="card-manager"></p><button id="card-whatsapp-btn" style="background:#25D366;color:white;border:none;padding:6px 12px;border-radius:5px;margin-top:5px;cursor:pointer;font-size:12px; font-weight:bold;" onclick="openTicketModal()"><i class="fas fa-ticket-alt"></i> رفع طلب لمديرك</button></div></div>
                         <div class="info-card" id="hiring-card"><div class="info-icon" style="color:#9b59b6;background:#f4ecf7;"><i class="fas fa-bullhorn"></i></div><div><h4 style="margin:0;color:#888;font-size:12px;">مشاركة رابط التوظيف</h4><button style="background:#9b59b6;color:white;border:none;padding:6px 12px;border-radius:5px;margin-top:5px;cursor:pointer;font-size:12px; font-weight:bold;" onclick="shareHiringLink()"><i class="fas fa-share-nodes"></i> إرسال الرابط</button></div></div>
                         <div class="info-card" id="prayer-times-card" style="background: linear-gradient(135deg, #1abc9c, #16a085); color: white; border: none; position: relative; overflow: hidden;">
-    <div class="info-icon" style="background: rgba(255,255,255,0.2); color: white;">
-        <i class="fas fa-mosque"></i>
-    </div>
+                        <div class="info-icon" style="background: rgba(255,255,255,0.2); color: white;"><i class="fas fa-mosque"></i></div>
     <div style="z-index: 1; position: relative;">
         <h4 style="margin:0; color: #ecf0f1; font-size:12px;">الصلاة القادمة في <span id="prayer-city-name">مدينتك</span></h4>
         <p style="margin:5px 0 0 0; font-weight:bold; font-size:15px;" id="next-prayer-name">جاري الحساب...</p>
@@ -781,6 +779,7 @@
                             </div>
                         </div>
                         
+                        
                         <div style="display:flex; flex-wrap:wrap; gap:10px; margin-bottom:15px; background:#f4fbf9; padding:15px; border-radius:8px; border:1px solid #d1f2eb; align-items:flex-end;">
                             <div style="flex:1; min-width:130px;">
                                 <label style="font-size:12px; font-weight:bold; color:#555;">من تاريخ:</label>
@@ -951,16 +950,38 @@
             <button onclick="bulkResetPolicies()" style="flex:1; background:#34495e; color:white; border:none; padding:10px; border-radius:5px; font-weight:bold; cursor:pointer;"><i class="fas fa-file-contract"></i> إعادة طلب الإقرارات</button>
         </div>
     </div>
-                    <div id="upload-status-users" style="text-align:center; margin-bottom:10px; font-size:13px; font-weight:bold;"></div>
-                    <div class="panel-box" style="border-top: 4px solid #8e44ad;">
-                        <div style="overflow-x:auto;">
-                            <table style="margin-top:0;">
-                                <thead><tr><th>الرقم</th><th>الاسم</th><th>الصلاحية</th><th>المدير</th><th>الجوال</th><th>الحالة</th><th>إجراءات</th></tr></thead>
-                                <tbody id="admin-users-table"></tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
+    
+    <div id="upload-status-users" style="text-align:center; margin-bottom:10px; font-size:13px; font-weight:bold;"></div>
+    
+    <div class="panel-box" style="border-top: 4px solid #8e44ad;">
+        <div style="overflow-x:auto;">
+            <table style="margin-top:0;">
+                <thead><tr><th>الرقم</th><th>الاسم</th><th>الصلاحية</th><th>المدير</th><th>الجوال</th><th>الحالة</th><th>إجراءات</th></tr></thead>
+                <tbody id="admin-users-table"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="mega-profile-modal" style="z-index: 99999; display: none;">
+    <div class="modal-content" style="text-align: right; max-width: 1000px; width: 95%; max-height: 90vh; overflow-y: auto; background: #f4f6f9; padding: 0;">
+        
+        <div style="background: linear-gradient(135deg, #2c3e50, #34495e); color: white; padding: 20px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 10; box-shadow: 0 2px 10px rgba(0,0,0,0.2);">
+            <div>
+                <h2 style="margin: 0; font-size: 22px;"><i class="fas fa-id-badge"></i> الملف الشامل للموظف</h2>
+                <p id="mega-header-name" style="margin: 5px 0 0 0; color: #bdc3c7; font-size: 14px;"></p>
+            </div>
+            <div style="display: flex; gap: 10px;">
+                <button onclick="printMegaProfile()" style="background: #27ae60; color: white; border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer; font-weight: bold; transition: 0.3s;"><i class="fas fa-print"></i> طباعة التقرير</button>
+                <button onclick="document.getElementById('mega-profile-modal').style.display='none'" style="background: #e74c3c; color: white; border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer; font-weight: bold;"><i class="fas fa-times"></i> إغلاق</button>
+            </div>
+        </div>
+
+        <div id="mega-profile-body" style="padding: 20px;">
+            </div>
+    </div>
+</div>
+
+</div>
                 <div id="admin-settings-view" style="display:none;">
                     <div class="settings-card" style="border-top: 5px solid #8e44ad; margin-top: 20px; padding: 15px; background: #fff; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">
         <h3 style="color: #8e44ad; margin-top: 0;"><i class="fas fa-balance-scale"></i> إدارة لائحة الجزاءات والمخالفات</h3>
@@ -1168,9 +1189,12 @@
                 </div>
                 
                 <div id="mega-dashboard-view" class="view-section" style="display: none;">
+
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
-        <h2 style="color:#2c3e50; margin:0;"><i class="fas fa-chart-line"></i> غرفة العمليات والتحليلات (Control Room)</h2>
-        <button onclick="runMegaDashboard()" style="background:#2980b9; color:white; border:none; padding:10px 20px; border-radius:5px; font-weight:bold; cursor:pointer; box-shadow: 0 4px 6px rgba(41, 128, 185, 0.2);"><i class="fas fa-sync-alt"></i> طحن وتحديث البيانات</button>
+        <h2 style="color:#2c3e50; margin:0;"><i class="fas fa-shield-alt"></i> غرفة العمليات والتحليلات السيادية</h2>
+        <button onclick="runMegaDashboard()" style="background:#2980b9; color:white; border:none; padding:10px 20px; border-radius:5px; font-weight:bold; cursor:pointer; box-shadow: 0 4px 6px rgba(41, 128, 185, 0.2);">
+            <i class="fas fa-sync-alt"></i> طحن وتحديث البيانات
+        </button>
     </div>
 
     <div style="background:white; padding:15px; border-radius:8px; box-shadow:0 2px 5px rgba(0,0,0,0.05); margin-bottom:20px; display:flex; gap:15px; flex-wrap:wrap; align-items:flex-end;">
@@ -1209,14 +1233,82 @@
         </div>
     </div>
 
-    <div id="mega-cards-container">
-        <div style="text-align:center; padding:50px; color:#7f8c8d; font-size:18px; border:2px dashed #ccc; border-radius:10px;">
-            <i class="fas fa-filter fa-2x" style="margin-bottom:10px; display:block; color:#bdc3c7;"></i>
-            حدد الفترة والمنطقة، ثم اضغط على "طحن وتحديث البيانات"
+    <div class="dashboard-reports-container" style="padding: 20px; background: #fff; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05);">
+        
+        <div class="report-tabs-bar" style="display: flex; gap: 10px; border-bottom: 2px solid #f0f0f0; margin-bottom: 20px; padding-bottom: 10px;">
+            <button class="report-tab-btn active" onclick="switchReportTab(event, 'general-stats-tab')" style="padding: 10px 20px; border: none; background: none; cursor: pointer; font-weight: bold; color: #2980b9; border-bottom: 3px solid #2980b9; transition: 0.3s;">
+                <i class="fas fa-chart-pie"></i> الإحصائيات العامة
+            </button>
+            <button class="report-tab-btn" onclick="switchReportTab(event, 'absence-article80-tab')" style="padding: 10px 20px; border: none; background: none; cursor: pointer; font-weight: bold; color: #777; transition: 0.3s;">
+                <i class="fas fa-satellite-dish"></i> الرقابة الآلية (المادة 80)
+            </button>
+            <button class="report-tab-btn" onclick="switchReportTab(event, 'attendance-patterns-report')" style="padding: 10px 20px; border: none; background: none; cursor: pointer; font-weight: bold; color: #777; transition: 0.3s;">
+                <i class="fas fa-user-secret"></i> رادار أنماط الغياب
+            </button>
+        </div>
+
+        <div id="report-tab-content">
+            
+            <div id="general-stats-tab" class="report-pane">
+                <div id="mega-cards-container">
+                    <div style="text-align:center; padding:50px; color:#7f8c8d; font-size:18px; border:2px dashed #ccc; border-radius:10px;">
+                        <i class="fas fa-filter fa-2x" style="margin-bottom:10px; display:block; color:#bdc3c7;"></i>
+                        حدد الفترة والمنطقة بالأعلى، ثم اضغط على "طحن وتحديث البيانات"
+                    </div>
+                </div>
+            </div>
+
+            <div id="absence-article80-tab" class="report-pane" style="display:none;">
+                <div style="background: linear-gradient(to left, #fdf2e9, #fff); border: 1px solid #e67e22; padding: 15px; border-radius: 8px; margin-bottom: 20px; border-right: 5px solid #d35400;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+                        <div>
+                            <h4 style="margin: 0; color: #d35400;"><i class="fas fa-satellite-dish"></i> مسح تجاوزات الغياب (المادة 80)</h4>
+                            <p style="font-size: 12px; color: #555; margin: 5px 0 0 0;">يقوم النظام بمسح سجلات التحضير (للسنة العقدية الحالية) لاكتشاف متجاوزي الغياب المتصل والمنفصل.</p>
+                        </div>
+                        <button id="btn-run-absence-scan" onclick="runAbsenceAnalysis()" style="background: #d35400; color: white; border: none; padding: 10px 20px; border-radius: 5px; font-weight: bold; cursor: pointer; box-shadow: 0 4px 6px rgba(211, 84, 0, 0.2);">
+                            <i class="fas fa-search"></i> تشغيل الفحص واستخراج التقرير
+                        </button>
+                    </div>
+                </div>
+
+                <div id="absence-scan-results" style="display: none; background: white; padding: 15px; border-radius: 8px; border: 1px solid #ccc;">
+                    <h4 style="margin-top: 0; color: #c0392b;"><i class="fas fa-exclamation-triangle"></i> قائمة المتجاوزين المكتشفين</h4>
+                    <div style="overflow-x: auto;">
+                        <table style="width: 100%; margin-top: 0;" class="styled-table">
+                            <thead style="background:#c0392b; color:white;">
+                                <tr>
+                                    <th>الموظف</th>
+                                    <th>نوع التجاوز</th>
+                                    <th>تاريخ المرجعية (بداية العقد)</th>
+                                    <th>الحالة</th>
+                                    <th>إجراء فوري</th>
+                                </tr>
+                            </thead>
+                            <tbody id="absence-scan-body"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div id="attendance-patterns-report" class="report-pane" style="display:none;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+                    <h3 style="margin:0; color:#2c3e50; font-size:16px;"><i class="fas fa-exclamation-triangle" style="color:#e74c3c;"></i> كاشف محاولات تمديد الإجازات (الجسور)</h3>
+                    <button onclick="analyzeAttendancePatterns()" style="background:#8e44ad; color:white; border:none; padding:8px 15px; border-radius:5px; cursor:pointer; font-weight:bold; box-shadow: 0 4px 6px rgba(142, 68, 173, 0.2);">
+                        <i class="fas fa-radar"></i> تشغيل الرادار
+                    </button>
+                </div>
+                
+                <div id="patterns-results-area" style="background: #fdfefe; border: 1px solid #e1e8ed; padding: 15px; border-radius: 8px;">
+                    <p style="text-align:center; color:#999; padding:40px;">
+                        <i class="fas fa-crosshairs fa-2x" style="color:#ddd; margin-bottom:10px; display:block;"></i>
+                        اضغط على "تشغيل الرادار" لبدء فحص سجلات الموظفين...
+                    </p>
+                </div>
+            </div>
+
         </div>
     </div>
 </div>
-                
                 
                 
                 <div id="team-view"><div id="team-list-user" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px;"></div></div>
@@ -1231,6 +1323,7 @@
             <i class="fas fa-plus-circle"></i> رفع إشعار مخالفة جديد
         </button>
     </div>
+                    
                     <div id="admin-penalties-dashboard" style="display:none; margin-bottom: 20px; width: 100%;"></div>
 
     <div style="background:#fff; padding:15px; border-radius:10px; box-shadow:0 2px 5px rgba(0,0,0,0.05); margin-bottom:20px; display:flex; flex-wrap:wrap; gap:15px; align-items:center;">
@@ -1318,35 +1411,7 @@
                 <div id="hr-dashboard-view" style="display:none; width: 100%;">
                     <div class="panel-box" style="border-top: 4px solid #8e44ad; width: 100%; overflow: hidden;">
                         <h3 style="margin-top:0; color:#8e44ad;"><i class="fas fa-user-shield"></i> مركز عمليات الموارد البشرية</h3>
-                        <div style="background: linear-gradient(to left, #fdf2e9, #fff); border: 1px solid #e67e22; padding: 15px; border-radius: 8px; margin-bottom: 20px; border-right: 5px solid #d35400;">
-                            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
-                                <div>
-                                    <h4 style="margin: 0; color: #d35400;"><i class="fas fa-satellite-dish"></i> الرقابة الآلية للغيابات (حسب المادة 80)</h4>
-                                    <p style="font-size: 12px; color: #555; margin: 5px 0 0 0;">يقوم النظام بمسح سجلات التحضير (للسنة العقدية الحالية) لاكتشاف متجاوزي الغياب المتصل والمنفصل.</p>
-                                </div>
-                                <button id="btn-run-absence-scan" onclick="runAbsenceAnalysis()" style="background: #d35400; color: white; border: none; padding: 10px 20px; border-radius: 5px; font-weight: bold; cursor: pointer; box-shadow: 0 4px 6px rgba(211, 84, 0, 0.2);">
-                                    <i class="fas fa-search"></i> تشغيل الفحص واستخراج التقرير
-                                </button>
-                            </div>
-                        </div>
-
-                        <div id="absence-scan-results" style="display: none; background: white; padding: 15px; border-radius: 8px; border: 1px solid #ccc; margin-bottom: 20px;">
-                            <h4 style="margin-top: 0; color: #c0392b;"><i class="fas fa-exclamation-triangle"></i> قائمة المتجاوزين المكتشفين</h4>
-                            <div style="overflow-x: auto;">
-                                <table style="width: 100%; margin-top: 0;">
-                                    <thead>
-                                        <tr>
-                                            <th>الموظف</th>
-                                            <th>نوع التجاوز</th>
-                                            <th>تاريخ المرجعية (بداية العقد)</th>
-                                            <th>الحالة</th>
-                                            <th>إجراء فوري</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody id="absence-scan-body"></tbody>
-                                </table>
-                            </div>
-                        </div>
+                        
                         
                         <div class="tabs-header" style="border-bottom: 2px solid #8e44ad; padding-bottom: 10px; margin-bottom: 15px;">
                             <button class="tab-btn active" id="btn-hrops-all" onclick="switchHrOpsTab('all')"><i class="fas fa-globe"></i> جميع الطلبات المُحالة</button>
@@ -1371,6 +1436,7 @@
                                         <th style="padding:10px;">الطلب</th>
                                         <th style="padding:10px;">التاريخ</th>
                                         <th style="padding:10px;">الموظف</th>
+                                        <th style="padding:10px;">المنطقة / الفرع</th> 
                                         <th style="padding:10px;">نوع الطلب</th>
                                         <th style="padding:10px;">المرفق</th>
                                         <th style="padding:10px;">الحالة</th>
@@ -1379,8 +1445,7 @@
                                     </tr>
                                 </thead>
                                 <tbody id="hr-ops-table-body">
-                                    <tr><td colspan="8" style="text-align:center;">جاري تحميل البيانات...</td></tr>
-                                </tbody>
+                                    <tr><td colspan="9" style="text-align:center;">جاري تحميل البيانات...</td></tr> </tbody>
                             </table>
                         </div>
                              </div>
@@ -1768,8 +1833,7 @@
                     <div><label class="form-label">تاريخ الالتحاق <span style="color:red;">*</span></label><input type="date" id="u-joinDate" style="width:100%; padding:8px; border-radius:5px; border:1px solid #ccc; font-family:inherit; box-sizing: border-box;"></div>
                     <div><label class="form-label">الحالة الوظيفية <span style="color:red;">*</span></label><select id="u-status" style="width:100%; padding:8px; border-radius:5px; border:1px solid #ccc; font-family:inherit; box-sizing: border-box;"><option value="Job Offer">عرض وظيفي (Job Offer)</option><option value="in Duty" selected>على رأس العمل (in Duty)</option><option value="Resign">مستقيل (Resign)</option><option value="Terminated">منهى خدماته (Terminated)</option></select></div>
                     <div><label class="form-label">الفرع <span style="color:red;">*</span></label><select id="u-branch" style="width:100%; padding:8px; border-radius:5px; border:1px solid #ccc; font-family:inherit; box-sizing: border-box;"></select></div>
-                    <div><label class="form-label">القسم الرئيسي</label><input type="text" id="u-primarySection" style="width:100%; padding:8px; border-radius:5px; border:1px solid #ccc; font-family:inherit; box-sizing: border-box;"></div>
-                    <div><label class="form-label">المسمى الوظيفي <span style="color:red;">*</span></label><select id="u-jobTitle" style="width:100%; padding:8px; border-radius:5px; border:1px solid #ccc; font-family:inherit; box-sizing: border-box;"></select></div>
+<div><label class="form-label">القسم الرئيسي</label><select id="u-primarySection" style="width:100%; padding:8px; border-radius:5px; border:1px solid #ccc; font-family:inherit; box-sizing: border-box;"><option value="">اختر القسم الرئيسي...</option><option value="خط المحاسبة">خط المحاسبة</option><option value="الالكترونيات">الالكترونيات</option><option value="المنتجات الطازجة">المنتجات الطازجة</option><option value="الملابس و الاكسسوار">الملابس و الاكسسوار</option><option value="ادارة الفرع">ادارة الفرع</option><option value="الادارة">الادارة</option><option value="الموارد البشرية">الموارد البشرية</option></select></div>                    <div><label class="form-label">المسمى الوظيفي <span style="color:red;">*</span></label><select id="u-jobTitle" style="width:100%; padding:8px; border-radius:5px; border:1px solid #ccc; font-family:inherit; box-sizing: border-box;"></select></div>
                     <div><label class="form-label">الصلاحية (المرتبة) <span style="color:red;">*</span></label><select id="u-role" style="width:100%; padding:8px; border-radius:5px; border:1px solid #ccc; font-family:inherit; box-sizing: border-box;"><option value="موظف">موظف</option><option value="موظف ادارة">موظف إدارة</option><option value="مدير فرع">مدير فرع</option><option value="ادمن">ادمن</option></select></div>
                     <div><label class="form-label">المدير المباشر <span style="color:red;">*</span></label><select id="u-manager" style="width:100%; padding:8px; border-radius:5px; border:1px solid #ccc; font-family:inherit; box-sizing: border-box;"></select></div>
                     <div><label class="form-label">أيام العمل <span style="color:red;">*</span></label><input type="number" id="u-workingDays" value="6" min="1" max="7" style="width:100%; padding:8px; border-radius:5px; border:1px solid #ccc; font-family:inherit; box-sizing: border-box;" oninput="calculateOffDays()"></div>
@@ -2072,6 +2136,11 @@
                     <label style="cursor:pointer; display:block;"><input type="radio" name="cert_export_type" value="text"> 📋 نسخ النص فقط (لإيميل الغرفة التجارية)</label>
                 </div>
             </div>
+            <div id="inputs-form-9" style="display:none;">
+                <label class="form-label" style="color:#e74c3c;">تاريخ آخر يوم عمل:</label>
+                <input type="date" id="print-term-date" class="comment-input">
+                <p style="font-size: 11px; color: #777; margin-top: 5px;">* سيتم تغيير حالة الموظف إلى (Terminated) وتحديث ملفه آلياً عند الإصدار.</p>
+            </div>
 
         </div>
 
@@ -2281,6 +2350,51 @@
             const savedUser = localStorage.getItem('wafaUser');
             if(savedUser) { const data = JSON.parse(savedUser); currentUsername = data.username; setupDashboard(data); }
         };
+        
+        async function deleteAttendanceRecord(username, date, btnElement) {
+    const isConfirmed = confirm(`⚠️ تحذير أمني!\nهل أنت متأكد من رغبتك في حذف تحضير الموظف (${username}) ليوم (${date}) نهائياً؟ لا يمكن ال عن هذا الإجراء!`);
+    
+    if (!isConfirmed) return;
+
+    // تعطيل الزر وتغيير شكله لتجنب الضغط المزدوج
+    const originalHtml = btnElement.innerHTML;
+    btnElement.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+    btnElement.disabled = true;
+
+    try {
+        const response = await fetch('/api/delete-attendance', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+                username: username, 
+                date: date,
+                byUser: globalEmpName // تسجيل من قام بالحذف
+            })
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+            // إخفاء الصف من الجدول مباشرة لتبدو الاستجابة سريعة
+            const row = btnElement.closest('tr');
+            row.style.backgroundColor = '#fdedec'; // تلوين باللون الأحمر لحظياً
+            setTimeout(() => row.remove(), 500); // حذفه بعد نصف ثانية
+
+            // (اختياري) إذا كنت تحتفظ بمصفوفة allAttendanceData، يجب إزالة السجل منها أيضاً
+            const index = allAttendanceData.findIndex(a => a.username === username && a.date === date);
+            if (index > -1) allAttendanceData.splice(index, 1);
+
+        } else {
+            alert("❌ فشل الحذف: " + result.message);
+            btnElement.innerHTML = originalHtml;
+            btnElement.disabled = false;
+        }
+    } catch (error) {
+        alert("❌ حدث خطأ في الاتصال بالسيرفر.");
+        btnElement.innerHTML = originalHtml;
+        btnElement.disabled = false;
+    }
+}
 
         function openUrgentEditAtt(username, name, date, currentCode) {
             document.getElementById('urg-att-username').value = username;
@@ -2326,7 +2440,7 @@
             const user = document.getElementById('username').value.trim(), pass = document.getElementById('password').value;
             if(!user || !pass) return; document.querySelector('.login-btn').innerText = "جاري التحقق..."; document.getElementById('login-error').style.display = 'none';
             try {
-const res = await fetch('https://wafatest-production.up.railway.app/auth/v1/login', { 
+const res = await fetch('https://wafatest-copy-production.up.railway.app/auth/v1/login', { 
     method: 'POST', 
     headers:{'Content-Type':'application/json'}, 
     body: JSON.stringify({username:user, password:pass}) 
@@ -2802,10 +2916,13 @@ checkLoginExpiry();
     if(view === 'hr-dashboard') {
     document.getElementById('hr-dashboard-view').style.display = 'block';
     loadHrOperations();
+    
 }
+         
     if(view === 'admin-requests' || view === 'mega-dashboard') {
         loadHrRequests(); // 👈 استدعاء المسار القديم للادارة العليا (إذا كنت لا تزال تحتاجه)
     }
+         
     if(view === 'admin-usage' && globalIsAdmin) loadUsersLog();
     if(view === 'policies') { renderUserPolicies(); if(globalIsAdmin) renderAdminPolicies(); } 
     if(view === 'forms') { renderUserForms(); if(globalIsAdmin) renderAdminForms(); }
@@ -2862,8 +2979,21 @@ checkLoginExpiry();
             }
 
 
-            // 🔥 الشرط الذكي الخاص بك: موظف إدارة + قسم الموارد البشرية
-            const isHrSpecialist = (globalRoleArabic === 'موظف ادارة' && data.primarySection === 'الموارد البشرية');
+           const isHrSpecialist = (
+    // البوابة الأولى: الأدمن (مع حماية ضد الانهيار إذا كان المتغير غير موجود)
+    (typeof globalIsAdmin !== 'undefined' && globalIsAdmin === true) || 
+    (typeof globalRole !== 'undefined' && globalRole === 'admin') || 
+    (typeof globalRoleArabic !== 'undefined' && (globalRoleArabic === 'ادمن' || globalRoleArabic === 'أدمن')) || 
+    
+    // البوابة الثانية: موظف الإدارة ومدير الفرع (مع اشتراط قسم الموارد)
+    (
+        (
+            (typeof globalRoleArabic !== 'undefined' && (globalRoleArabic === 'موظف ادارة' || globalRoleArabic === 'مدير فرع')) || 
+            (typeof globalRole !== 'undefined' && globalRole === 'Manager')
+        ) 
+        && data.primarySection === 'الموارد البشرية'
+    )
+);
 
 
             if (globalIsAdmin) {
@@ -3244,19 +3374,25 @@ function renderAdminUsers(users) {
         // 👻 زر وضع الشبح
         const ghostBtn = `<button style="background:#34495e; color:white; border:none; padding:5px 10px; border-radius:3px; cursor:pointer; margin-left:2px;" onclick="impersonateUser('${u.username}')" title="الدخول كـ ( ${u.name} )"><i class="fas fa-user-secret"></i></button>`;
 
+        // 👁️‍🗨️ زر الملف الشامل (X-Ray Dashboard) - تم التجهيز هنا 🎯
+        const megaProfileBtn = `<button style="background:#8e44ad; color:white; border:none; padding:5px 10px; border-radius:3px; cursor:pointer; margin-left:2px;" onclick="openMegaProfile('${u.username}')" title="الملف الشامل"><i class="fas fa-id-badge"></i></button>`;
+
         let actionBtns = '';
 
         if (amIHR && isTargetProtected) {
+            // أزرار الحسابات المحمية (لا يمكن تعديلها، لكن يمكن استعراضها وطباعتها)
             actionBtns = `
-                <button style="background:#7f8c8d; color:white; border:none; padding:5px 10px; border-radius:3px; cursor:pointer;" onclick="openPrintModal('${u.username}')" title="طباعة نماذج"><i class="fas fa-print"></i></button>
+                ${megaProfileBtn} <button style="background:#7f8c8d; color:white; border:none; padding:5px 10px; border-radius:3px; cursor:pointer;" onclick="openPrintModal('${u.username}')" title="طباعة نماذج"><i class="fas fa-print"></i></button>
                 <span style="font-size:11px; color:#e74c3c; margin-right:5px; font-weight:bold; background:#fdedec; padding:5px 8px; border-radius:4px;"><i class="fas fa-lock"></i> محمي</span>
             `;
         } else {
+            // أزرار التحكم الكاملة
             const deleteBtnHtml = globalIsAdmin ? `<button style="background:#e74c3c; color:white; border:none; padding:5px 10px; border-radius:3px; cursor:pointer;" onclick="deleteUser('${u.username}')" title="حذف"><i class="fas fa-trash"></i></button>` : '';
-const eosBtnHtml = `<button style="background:#c0392b; color:white; border:none; padding:5px 10px; border-radius:3px; cursor:pointer; margin-left:2px;" onclick="quickEosModal('${u.username}', '${u.name}')" title="إنهاء خدمات"><i class="fas fa-user-times"></i></button>`;
+            const eosBtnHtml = `<button style="background:#c0392b; color:white; border:none; padding:5px 10px; border-radius:3px; cursor:pointer; margin-left:2px;" onclick="quickEosModal('${u.username}', '${u.name}')" title="إنهاء خدمات"><i class="fas fa-user-times"></i></button>`;
+            
             actionBtns = `
                 ${waBtn}
-                ${ghostBtn}
+                ${megaProfileBtn} ${ghostBtn}
                 <button style="background:#3498db; color:white; border:none; padding:5px 10px; border-radius:3px; cursor:pointer;" onclick="openEditUser('${u.username}')" title="تعديل"><i class="fas fa-edit"></i></button>
                 <button style="background:#7f8c8d; color:white; border:none; padding:5px 10px; border-radius:3px; cursor:pointer; margin-left:2px;" onclick="openPrintModal('${u.username}')" title="طباعة نماذج"><i class="fas fa-print"></i></button>
                 ${eosBtnHtml}
@@ -3675,7 +3811,7 @@ async function confirmTransferAction() {
                     penalties: '/api/manager-penalties', 
                     penaltyMatrix: '/api/penalty-matrix',
                     attendance: '/api/all-attendance',
-                    leaves: '/api/leaves',
+                    leaves: '/',
                     locations: '/api/locations',
                     branches: '/api/branches',
                     jobs: '/api/jobs',
@@ -3791,102 +3927,100 @@ async function confirmTransferAction() {
         
         
         // ==================== محرك تصدير بيانات الموظفين (للأدمن فقط) ====================
-        function exportUsersToExcel() {
-            if (!allUsersData || allUsersData.length === 0) {
-                return alert("لا توجد بيانات موظفين لتصديرها!");
-            }
+       function exportUsersToExcel() {
+    if (!allUsersData || allUsersData.length === 0) {
+        return alert("لا توجد بيانات موظفين لتصديرها!");
+    }
 
-            // 1. تحديد العناوين (مع إضافة عمود إجمالي الراتب)
-            const headers = [
-                "الرقم الوظيفي", "الاسم", "رقم الهوية", "تاريخ انتهاء الهوية", "الجنسية", "الجنس",
-                "تاريخ الميلاد", "تاريخ الميلاد الهجري", "الجوال", "الايميل", "المنطقة", "المدينة", "العنوان الوطني",
-                "تاريخ الالتحاق", "الحالة الوظيفية", "الفرع", "القسم الرئيسي", "المسمى الوظيفي", "المرتبة", "المدير المباشر",
-                "ايام العمل", "الراتب الاساسي", "بدل السكن", "بدلات اخرى", "التامينات", "إجمالي الراتب", "اسم البنك", "الايبان",
-                "شركة التامين", "نوع التامين", "تاريخ انتهاء التامين", "كرت البلدية", "انتهاء كرت البلدية", "رسوم البلدية",
-                "اسم الطوارئ", "رقم الطوارئ", "صلة القرابة الطوارئ","رمز الشاغر"
-            ];       
-            const aoa = [headers]; // مصفوفة المصفوفات (Array of Arrays)
+    // 1. تحديد العناوين (تمت إضافة عمود اخر يوم عمل)
+    const headers = [
+        "الرقم الوظيفي", "الاسم", "رقم الهوية", "تاريخ انتهاء الهوية", "الجنسية", "الجنس",
+        "تاريخ الميلاد", "تاريخ الميلاد الهجري", "الجوال", "الايميل", "المنطقة", "المدينة", "العنوان الوطني",
+        "تاريخ الالتحاق", "الحالة الوظيفية", "اخر يوم عمل", "الفرع", "القسم الرئيسي", "المسمى الوظيفي", "المرتبة", "المدير المباشر",
+        "ايام العمل", "الراتب الاساسي", "بدل السكن", "بدلات اخرى", "التامينات", "إجمالي الراتب", "اسم البنك", "الايبان",
+        "شركة التامين", "نوع التامين", "تاريخ انتهاء التامين", "كرت البلدية", "انتهاء كرت البلدية", "رسوم البلدية",
+        "اسم الطوارئ", "رقم الطوارئ", "صلة القرابة الطوارئ","رمز الشاغر"
+    ];       
+    const aoa = [headers]; // مصفوفة المصفوفات (Array of Arrays)
 
 
-           allUsersData.forEach(u => {
-    // 🧠 تحويل الرواتب إلى أرقام فعلية لضمان صحة الجمع والطرح
-    const basic = Number(u.basicSalary) || 0;
-    const housing = Number(u.housingAllowance) || 0;
+    allUsersData.forEach(u => {
+        // 🧠 تحويل الرواتب إلى أرقام فعلية لضمان صحة الجمع والطرح
+        const basic = Number(u.basicSalary) || 0;
+        const housing = Number(u.housingAllowance) || 0;
+        
+        // 💡 نقطة تفتيش: إذا كان السيرفر يرسلها باسم مختلف، يمكنك إضافته هنا كخيار بديل
+        const other = Number(u.otherAllowance || u.otherAllowances) || 0; 
+        const gosi = Number(u.gosiFees) || 0;
+
+        // حساب إجمالي الراتب (الأساسي + السكن + بدلات أخرى - التأمينات)
+        const totalSalary = (basic + housing + other);
+
+        aoa.push([
+            u.username || '',
+            u.name || '',
+            u.idNumber || '',
+            u.idExpiry || '',
+            u.nationality || '',
+            u.gender || '',
+            u.dobG || '',
+            u.dobHijri || '',
+            u.phone || '',
+            u.email || '',
+            u.region || '',
+            u.city || '',
+            u.splAddress || u.nationalAddress || u.address || '', 
+            u.joinDate || '',
+            u.status || '',
+            u.lastWorkingDay || '', // 👈 🎯 تمت الإضافة هنا لتعكس آخر يوم عمل
+            u.branch || '',
+            u.primarySection || '',
+            u.jobTitle || '',
+            u.roleArabic || '',
+            u.directManager || '',
+            u.workingDays || '6',
+            basic,          // الراتب الأساسي
+            housing,        // بدل السكن
+            other,          // بدلات أخرى
+            gosi,           // التأمينات
+            totalSalary,    // 🔥 إجمالي الراتب (العمود الذي قمنا بحسابه)
+            u.bankName || '',
+            u.bankIban || '',
+            u.medicalIns || '',
+            u.insType || '',
+            u.insExpiry || '',
+            u.baladiyahCondition || '',
+            u.baladiyahValid || '',
+            u.baladiyahFees || '0',
+            u.emergencyName || '',
+            u.emergencyNumber || '',
+            u.emergencyRelation || '',
+            u.positionCode || '' // رمز الشاغر
+        ]);
+    });
+
+
+    // 3. بناء الإكسيل باستخدام SheetJS
+    const ws = XLSX.utils.aoa_to_sheet(aoa);
+
+    // هندسة عرض الأعمدة ليكون الملف أنيقاً
+    const wscols = [
+        {wch: 15}, {wch: 25}, {wch: 15}, {wch: 15}, {wch: 15}, {wch: 10}, 
+        {wch: 15}, {wch: 15}, {wch: 15}, {wch: 25}, {wch: 15}, {wch: 15}, {wch: 30},
+        {wch: 15}, {wch: 15}, {wch: 15} // أضفنا مساحة للعمود الجديد
+    ];
+    ws['!cols'] = wscols;
+
+    // توجيه الشيت من اليمين لليسار (RTL)
+    if(!ws['!views']) ws['!views'] = [];
+    ws['!views'].push({ rightToLeft: true });
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "قاعدة البيانات");
     
-    // 💡 نقطة تفتيش: إذا كان السيرفر يرسلها باسم مختلف، يمكنك إضافته هنا كخيار بديل
-    const other = Number(u.otherAllowance || u.otherAllowances) || 0; 
-    const gosi = Number(u.gosiFees) || 0;
-
-    // حساب إجمالي الراتب (الأساسي + السكن + بدلات أخرى - التأمينات)
-    const totalSalary = (basic + housing + other);
-
-    aoa.push([
-        u.username || '',
-        u.name || '',
-        u.idNumber || '',
-        u.idExpiry || '',
-        u.nationality || '',
-        u.gender || '',
-        u.dobG || '',
-        u.dobHijri || '',
-        u.phone || '',
-        u.email || '',
-        u.region || '',
-        u.city || '',
-        // 💡 نقطة تفتيش: التقط العنوان الوطني حتى لو اختلف اسمه من السيرفر
-        u.splAddress || u.nationalAddress || u.address || '', 
-        u.joinDate || '',
-        u.status || '',
-        u.branch || '',
-        u.primarySection || '',
-        u.jobTitle || '',
-        u.roleArabic || '',
-        u.directManager || '',
-        u.workingDays || '6',
-        basic,          // الراتب الأساسي
-        housing,        // بدل السكن
-        other,          // بدلات أخرى
-        gosi,           // التأمينات
-        totalSalary,    // 🔥 إجمالي الراتب (العمود الجديد الذي قمنا بحسابه)
-        u.bankName || '',
-        u.bankIban || '',
-        u.medicalIns || '',
-        u.insType || '',
-        u.insExpiry || '',
-        u.baladiyahCondition || '',
-        u.baladiyahValid || '',
-        u.baladiyahFees || '0',
-        u.emergencyName || '',
-        u.emergencyNumber || '',
-        u.emergencyRelation || '',
-        u.positionCode || '' // 👈 تمت الإضافة هنا
-    ]);
-            });
-
-
-            // 3. بناء الإكسيل باستخدام SheetJS
-            const ws = XLSX.utils.aoa_to_sheet(aoa);
-
-
-            // هندسة عرض الأعمدة ليكون الملف أنيقاً
-            const wscols = [
-                {wch: 15}, {wch: 25}, {wch: 15}, {wch: 15}, {wch: 15}, {wch: 10}, 
-                {wch: 15}, {wch: 15}, {wch: 15}, {wch: 25}, {wch: 15}, {wch: 15}, {wch: 30}
-            ];
-            ws['!cols'] = wscols;
-
-
-            // توجيه الشيت من اليمين لليسار (RTL)
-            if(!ws['!views']) ws['!views'] = [];
-            ws['!views'].push({ rightToLeft: true });
-
-
-            const wb = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(wb, ws, "قاعدة البيانات");
-            
-            const fileName = `بيانات_الموظفين_الكاملة_${new Date().toISOString().split('T')[0]}.xlsx`;
-            XLSX.writeFile(wb, fileName);
-        }
+    const fileName = `بيانات_الموظفين_الكاملة_${new Date().toISOString().split('T')[0]}.xlsx`;
+    XLSX.writeFile(wb, fileName);
+}
 // =======================================================================================
         // ==================== نظام رفع الطلب البسيط (مفلتر حسب الصلاحيات) ====================
         async function openTicketModal() { 
@@ -5654,49 +5788,49 @@ setInterval(silentWatcher, 30000);
 
 
         function renderAdminAttendanceTable(data) {
-            const tbody = document.getElementById('admin-attendance-table-body');
-            if(data.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; font-weight:bold; color:#e74c3c;">لا توجد سجلات مطابقة للفلاتر</td></tr>';
-                return;
-            }
+    const tbody = document.getElementById('admin-attendance-table-body');
+    if(data.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; font-weight:bold; color:#e74c3c;">لا توجد سجلات مطابقة للفلاتر</td></tr>';
+        return;
+    }
+
+    data.sort((a,b) => new Date(b.date) - new Date(a.date));
+
+    tbody.innerHTML = data.map(a => {
+        const user = allUsersData.find(u => u.username === a.username);
+        const branchName = user ? user.branch : 'غير محدد';
+        
+        const codeObj = attendanceCodes.find(c => c.code === a.code);
+        const statubel = codeObj ? codeObj.label : a.code;
+
+        let color = '#333';
+        if(a.code === 'D') color = '#27ae60';
+        else if(a.code === 'A' || a.code === 'LOP' || a.code === 'R') color = '#e74c3c';
+        else if(a.code === 'Off' || a.code === 'CP') color = '#7f8c8d';
+        else if(a.code === 'SL') color = '#2980b9';
+        else if(a.code === 'V' || a.code === 'E') color = '#d35400';
+        else if(a.code === 'T') color = '#f39c12';
+
+        // 🎯 تمت إضافة زر الحذف هنا 🗑️
+        return `<tr>
+            <td style="direction:ltr; text-align:right;">${a.date}</td>
+            <td style="font-weight:bold;">${a.username}</td>
+            <td>${a.name}</td>
+            <td>${branchName}</td>
+            <td style="font-weight:bold; color:${color};">${statubel}</td>
+            <td style="font-size:12px; color:#555; display:flex; justify-content:space-between; align-items:center;">
+                ${a.managerName} 
+                <div>
+                    <button onclick="openUrgentEditAtt('${a.username}', '${a.name}', '${a.date}', '${a.code}')" style="background:none; color:#3498db; border:none; cursor:pointer; margin-left:10px;" title="تعديل للضرورة"><i class="fas fa-edit"></i></button>
+                    <button onclick="deleteAttendanceRecord('${a.username}', '${a.date}', this)" style="background:none; color:#e74c3c; border:none; cursor:pointer;" title="حذف السجل نهائياً"><i class="fas fa-trash"></i></button>
+                </div>
+            </td>
+        </tr>`;
+    }).join('');
+}
 
 
-            data.sort((a,b) => new Date(b.date) - new Date(a.date));
-
-
-            tbody.innerHTML = data.map(a => {
-                const user = allUsersData.find(u => u.username === a.username);
-                const branchName = user ? user.branch : 'غير محدد';
-                
-                const codeObj = attendanceCodes.find(c => c.code === a.code);
-                const statubel = codeObj ? codeObj.label : a.code;
-
-
-                let color = '#333';
-                if(a.code === 'D') color = '#27ae60';
-                else if(a.code === 'A' || a.code === 'LOP' || a.code === 'R') color = '#e74c3c';
-                else if(a.code === 'Off' || a.code === 'CP') color = '#7f8c8d';
-                else if(a.code === 'SL') color = '#2980b9';
-                else if(a.code === 'V' || a.code === 'E') color = '#d35400';
-                else if(a.code === 'T') color = '#f39c12';
-
-
-                return `<tr>
-                    <td style="direction:ltr; text-align:right;">${a.date}</td>
-                    <td style="font-weight:bold;">${a.username}</td>
-                    <td>${a.name}</td>
-                    <td>${branchName}</td>
-                    <td style="font-weight:bold; color:${color};">${statubel}</td>
-                    <td style="font-size:12px; color:#555; display:flex; justify-content:space-between; align-items:center;">
-    ${a.managerName} 
-    <button onclick="openUrgentEditAtt('${a.username}', '${a.name}', '${a.date}', '${a.code}')" style="background:none; color:#3498db; border:none; cursor:pointer;" title="تعديل للضرورة"><i class="fas fa-edit"></i></button>
-</td>
-                </tr>`;
-            }).join('');
-        }
-
-
-       function exportAttendanceToCSV() { 
+function exportAttendanceToCSV() { 
     const fromDate = document.getElementById('att-filter-from').value;
     const toDate = document.getElementById('att-filter-to').value;
     const branch = document.getElementById('att-filter-branch').value;
@@ -5727,12 +5861,17 @@ setInterval(silentWatcher, 30000);
     // 1. استخراج التواريخ الفريدة وترتيبها تصاعدياً
     const uniqueDates = [...new Set(filtered.map(a => a.date))].sort();
 
-    // 2. تجميع بيانات الموظفين
+    // 2. تجميع بيانات الموظفين (مع التقاط تاريخ الالتحاق والفرع 🎯)
     const empMap = {};
     filtered.forEach(a => {
         if(!empMap[a.username]) {
             const user = allUsersData.find(u => u.username === a.username);
-            empMap[a.username] = { name: user ? user.name : a.name, records: {} };
+            empMap[a.username] = { 
+                name: user ? user.name : a.name, 
+                joinDate: user ? user.joinDate : 'غير مسجل', // 👈 التقاط تاريخ الالتحاق
+                branch: user ? user.branch : 'غير مسجل',     // 👈 التقاط الفرع
+                records: {} 
+            };
         }
         empMap[a.username].records[a.date] = a.code; 
     });
@@ -5748,13 +5887,17 @@ setInterval(silentWatcher, 30000);
     
     // إضافة "مجموع X" لكل كود في العناوين
     const summaryHeaders = summaryCodes.map(c => `مجموع ${c}`);
-    const headers = ['الرقم الوظيفي', 'اسم الموظف', ...uniqueDates, ...summaryHeaders];
+    
+    // 🎯 تحديث العناوين لتشمل الأعمدة الجديدة بعد الاسم مباشرة
+    const headers = ['الرقم الوظيفي', 'اسم الموظف', 'تاريخ الالتحاق', 'الفرع', ...uniqueDates, ...summaryHeaders];
     aoa.push(headers);
 
     // الصف الرابع وما بعده
     for (const username in empMap) {
         const empData = empMap[username];
-        const row = [username, empData.name];
+        
+        // 🎯 وضع البيانات في الصف بنفس ترتيب العناوين الجديد
+        const row = [username, empData.name, empData.joinDate || '', empData.branch || ''];
         
         // 🎯 عداد لتسجيل المجاميع لهذا الموظف
         const counts = { A: 0, D: 0, OFF: 0, V: 0, SL: 0, LOP: 0, R: 0, T: 0 };
@@ -5781,8 +5924,13 @@ setInterval(silentWatcher, 30000);
     // 4. توليد ملف الإكسيل باستخدام مكتبة SheetJS
     const ws = XLSX.utils.aoa_to_sheet(aoa);
 
-    // هندسة عرض الأعمدة
-    const wscols = [{wch: 15}, {wch: 30}]; // عرض عمود الرقم والاسم
+    // هندسة عرض الأعمدة (تمت إضافة مساحة للعمودين الجديدين 🎯)
+    const wscols = [
+        {wch: 15}, // الرقم الوظيفي
+        {wch: 30}, // الاسم
+        {wch: 15}, // تاريخ الالتحاق 👈
+        {wch: 15}  // الفرع 👈
+    ]; 
     uniqueDates.forEach(() => wscols.push({wch: 12})); // أعمدة التواريخ
     
     // 🎯 عرض أعمدة المجاميع (لتمييزها عن التواريخ نجعلها أصغر قليلاً)
@@ -6170,11 +6318,23 @@ async function renderPenaltiesDashboard(penalties) {
             if(view === 'admin-settings' && globalIsAdmin) renderLocationsMatrix();
         };
         // ==================== Tier 2: دوال مشرف الموارد البشرية ====================
-        // let hrAllRequests = [];
-       let currentHrTab = 'all'; 
-let currentHrStatusFilter = '';
+        // 🛡️ التكتيك الأول: استخدام var لمنع خطأ المنطقة الميتة (Temporal Dead Zone)
+//var hrAllRequests = []; 
+var currentHrTab = 'all'; 
+var currentHrStatusFilter = '';
+
+// 🛡️ التكتيك الثاني: قفل الأمان لمنع الطلقات المزدوجة
+var isAdminRequestsLoading = false;
 
 async function loadHrRequests() {
+    // صد أي استدعاء مزدوج
+    if (isAdminRequestsLoading) {
+        console.warn("🛡️ تم صد استدعاء مزدوج لدالة loadHrRequests!");
+        return;
+    }
+    
+    isAdminRequestsLoading = true;
+
     try {
         if (typeof allUsersData !== 'undefined' && allUsersData.length === 0) {
             try { allUsersData = await (await fetch('/api/users')).json(); } catch(e){}
@@ -6190,11 +6350,9 @@ async function loadHrRequests() {
             typeSel.innerHTML += reasonsArray.map(r => `<option value="${r}">${r}</option>`).join('');
         }
         
-        // 🌟 الذكاء التوجيهي (Smart Routing):
-        // تحديد المسار بناءً على صلاحية المستخدم
+        // 🌟 الذكاء التوجيهي (Smart Routing)
         const apiEndpoint = globalIsAdmin ? '/api/admin-mega-requests' : '/api/hr-operations';
 
-        // إرسال الطلب للمسار المناسب
         const response = await fetch(apiEndpoint, { 
             method: 'POST', 
             headers: {'Content-Type': 'application/json'}, 
@@ -6207,14 +6365,20 @@ async function loadHrRequests() {
 
         if (response.ok) {
             const result = await response.json();
-            // تأكدنا من استخراج التذاكر سواء أرسلها السيرفر كـ array مباشر أو داخل كائن {requests: ...}
             hrAllRequests = result.requests || result.data || result || [];
             console.log(globalIsAdmin ? "👑 بيانات الإدارة العليا الشاملة:" : "💼 بيانات الموارد البشرية المفلترة:", hrAllRequests);
         } else {
             hrAllRequests = [];
         }
         
-        const isHrSupervisor = globalIsAdmin || (typeof locationsArray !== 'undefined' && locationsArray.some(loc => String(loc.hrUsername) === String(currentUsername)));
+        const currentUser = JSON.parse(localStorage.getItem('currentUser')) || {};
+        const isBranchHrManager = (currentUser.roleArabic === 'مدير فرع' || currentUser.role === 'Manager') && 
+                                  (currentUser.department === 'الموارد البشرية' || currentUser.department === 'HR');
+        
+        const isHrSupervisor = globalIsAdmin || 
+                               isBranchHrManager || 
+                               (typeof locationsArray !== 'undefined' && locationsArray.some(loc => String(loc.hrUsername) === String(currentUsername)));
+        
         const btnAll = document.getElementById('btn-hr-tab-all');
         
         if(btnAll) {
@@ -6226,10 +6390,14 @@ async function loadHrRequests() {
             }
         }
 
-        // إرسال البيانات لدالة الرسم التي حصناها مسبقاً
+        // إرسال البيانات لدالة الرسم
         renderHrTable();
+        
     } catch(e) { 
-        console.error("Error loading HR requests:", e); 
+        console.error("❌ Error loading HR requests:", e); 
+        hrAllRequests = []; // ضمان عدم بقاء بيانات تالفة
+    } finally {
+        isAdminRequestsLoading = false; // 🔓 فتح الباب للطلبات القادمة
     }
 }
         
@@ -6251,15 +6419,21 @@ async function renderHrTable() {
         const safeUsersData = allUsersData || [];
         let filtered = hrAllRequests || [];
 
-        // 👑 التعرف على الإدارة العليا والموارد البشرية
+// 👑 التعرف على الإدارة العليا والموارد البشرية
         const currentUser = JSON.parse(localStorage.getItem('currentUser')) || {};
         
-        // 🎯 السماح لـ "موظف ادارة" برؤية التذاكر (ويمكن إضافة المزيد لاحقًا)
+        // 🎯 [الصلاحية الجديدة]: هل هو مدير فرع ويعمل في الموارد البشرية؟
+        // ملاحظة: تأكد من أن اسم حقل القسم لديك هو department، أو غيره حسب قاعدة بياناتك
+        const isBranchHrManager = (currentUser.roleArabic === 'مدير فرع' || currentUser.role === 'Manager') && 
+                                  (currentUser.department === 'الموارد البشرية' || currentUser.department === 'HR');
+
+        // 🎯 السماح لـ "موظف ادارة" أو "مدير فرع (موارد بشرية)" برؤية التذاكر بصلاحية شاملة
         const isAdminView = (typeof globalIsAdmin !== 'undefined' && globalIsAdmin === true) || 
                             currentUser.role === 'admin' || 
                             currentUser.roleArabic === 'ادمن' ||
                             currentUser.role === 'موظف ادارة' ||
-                            currentUser.roleArabic === 'موظف ادارة';
+                            currentUser.roleArabic === 'موظف ادارة' ||
+                            isBranchHrManager; // 👈 تم زرع الصلاحية الجديدة هنا!
 
         if (!isAdminView) { 
             const mySupervisedBranches = safeLocations
@@ -6921,20 +7095,20 @@ window.submitHrResolve = async function() {
             document.getElementById('print-forms-modal').style.display = 'flex';
         }
         function togglePrintFormInputs() {
-    const selectedForm = document.getElementById('print-form-type').value;
-    const dynamicInputsContainer = document.getElementById('print-dynamic-inputs');
+    const type = document.getElementById('print-form-type').value;
+    document.getElementById('print-dynamic-inputs').style.display = 'none';
     
-    // إخفاء جميع الحقول الديناميكية أولاً
-    document.getElementById('inputs-form-4').style.display = 'none';
-    document.getElementById('inputs-form-6').style.display = 'none';
-    document.getElementById('inputs-form-7').style.display = 'none';
-    
-    // إظهار الحاوية إذا كان الخيار 4 أو 6 أو 7
-    if (selectedForm === '4' || selectedForm === '6' || selectedForm === '7') {
-        dynamicInputsContainer.style.display = 'block';
-        document.getElementById('inputs-form-' + selectedForm).style.display = 'block';
-    } else {
-        dynamicInputsContainer.style.display = 'none';
+    // إخفاء جميع الحقول أولاً
+    ['4', '6', '7', '9'].forEach(id => {
+        const el = document.getElementById('inputs-form-' + id);
+        if(el) el.style.display = 'none';
+    });
+
+    // إظهار الحقل المطلوب
+    const target = document.getElementById('inputs-form-' + type);
+    if (target) {
+        document.getElementById('print-dynamic-inputs').style.display = 'block';
+        target.style.display = 'block';
     }
 }
 
@@ -6954,9 +7128,45 @@ window.submitHrResolve = async function() {
             const formType = document.getElementById('print-form-type').value;
             const user = allUsersData.find(u => u.username === username);
             if(!user) return;
-
-
             const btn = document.getElementById('btn-generate-form');
+
+            if (formType === '9') {
+        const termDate = document.getElementById('print-term-date').value;
+        if (!termDate) return alert("🛑 يرجى تحديد تاريخ آخر يوم عمل أولاً!");
+
+        const confirmTerm = confirm(`⚠️ هل أنت متأكد؟ سيتم تغيير حالة الموظف (${user.name}) إلى "Terminated" وتحديث تاريخ مغادرته في قاعدة البيانات.`);
+        if (!confirmTerm) return;
+
+        btn.innerText = "⏳ جاري تحديث بيانات الموظف...";
+        btn.disabled = true;
+
+        try {
+            // 📡 إرسال التحديث للسيرفر باستخدام المسار المعتمد لديك
+            const response = await fetch('/api/user-update', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    username: user.username,
+                    status: 'Terminated',
+                    lastWorkingDay: termDate,
+                    byUser: globalEmpName // الشخص الذي قام بالإجراء
+                })
+            });
+
+            const result = await response.json();
+            if (!result.success) throw new Error(result.message);
+
+            // تحديث البيانات محلياً لكي تظهر في النسخة المطبوعة فوراً
+            user.status = 'Terminated';
+            user.lastWorkingDay = termDate;
+            
+        } catch (error) {
+            alert("❌ فشل تحديث بيانات الموظف: " + error.message);
+            btn.innerText = "إصدار / تنفيذ";
+            btn.disabled = false;
+            return;
+        }
+    }
             btn.innerText = "⏳ جاري إصدار النموذج..."; btn.disabled = true;
 
 
@@ -7300,30 +7510,29 @@ window.submitHrResolve = async function() {
                     </div>
                 `;
             } else if (formType === '9') {
-                formTitle = "خطاب إنهاء خدمات (فترة التجربة) / Probation Termination";
-                fileName = `Termination_${user.username}`;
-                formContent = `
-                    <table style="width: 100%; border-collapse: collapse; font-size: 15px; margin: 0 auto; margin-bottom:40px;">
-                        <tbody>
-                            <tr style="border-bottom: 1px solid #eee;"><td style="padding:15px; font-weight:bold; background:#f9f9f9; width:30%; color:#555;">اسم الموظف</td><td style="padding:15px; font-weight:bold;">${user.name}</td></tr>
-                            <tr style="border-bottom: 1px solid #eee;"><td style="padding:15px; font-weight:bold; background:#f9f9f9; color:#555;">الرقم الوظيفي</td><td style="padding:15px; font-weight:bold; color:#d35400;">${user.username}</td></tr>
-                            <tr style="border-bottom: 1px solid #eee;"><td style="padding:15px; font-weight:bold; background:#f9f9f9; color:#555;">الفرع / الإدارة</td><td style="padding:15px; font-weight:bold;">${user.branch || '-'}</td></tr>
-                            <tr style="border-bottom: 1px solid #eee;"><td style="padding:15px; font-weight:bold; background:#f9f9f9; color:#555;">تاريخ اخر يوم عمل</td><td style="padding:15px; font-weight:bold;">${user.lastWorkingDay || '-'}</td></tr>
-                        </tbody>
-                    </table>
-                    <div style="background:#fdf2e9; padding:25px; border-right:4px solid #e74c3c; font-size:15px; line-height:2; text-align:justify; margin-bottom:60px;">
-                        المكرم / <strong>${user.name}</strong> المحترم،<br><br>
-                        بالإشارة إلى المادة (53) من نظام العمل السعودي، نفيدكم بالاستغناء عن خدماتكم وذلك لعدم تجاوزكم فترة التجربة، اعتباراً من تاريخ اخر يوم عمل أعلاه.<br><br>
-                        نأمل منكم التنسيق مع الرئيس المباشر لتسليم عهدتكم لاستكمال إجراءات المخالصة النظامية.<br><br>
-                        وتفضلوا بقبول فائق الاحترام والتقدير، ونتمنى لكم النجاح والتوفيق في وظيفة أخرى، مع أطيب التمنيات.
-                    </div>
-                    <div style="display: flex; justify-content: space-between; font-weight: bold; font-size: 14px;">
-                        <div style="text-align:center;">إدارة الموارد البشرية<br><br>_________________</div>
-                        <div style="text-align:center;">توقيع الموظف بالاستلام<br><br>_________________<br><br>التاريخ: _____ &nbsp;/&nbsp; _____ &nbsp;/&nbsp; _________ م</div>
-                    </div>
-                `;
-
-            } else if (formType === '10') {
+        formTitle = "خطاب إنهاء خدمات (فترة التجربة) / Probation Termination";
+        fileName = `Termination_${user.username}`;
+        formContent = `
+            <table style="width: 100%; border-collapse: collapse; font-size: 15px; margin: 0 auto; margin-bottom:40px;">
+                <tbody>
+                    <tr style="border-bottom: 1px solid #eee;"><td style="padding:15px; font-weight:bold; background:#f9f9f9; width:30%; color:#555;">اسم الموظف</td><td style="padding:15px; font-weight:bold;">${user.name}</td></tr>
+                    <tr style="border-bottom: 1px solid #eee;"><td style="padding:15px; font-weight:bold; background:#f9f9f9; color:#555;">الرقم الوظيفي</td><td style="padding:15px; font-weight:bold; color:#d35400;">${user.username}</td></tr>
+                    <tr style="border-bottom: 1px solid #eee;"><td style="padding:15px; font-weight:bold; background:#f9f9f9; color:#555;">الفرع / الإدارة</td><td style="padding:15px; font-weight:bold;">${user.branch || '-'}</td></tr>
+                    <tr style="border-bottom: 1px solid #eee;"><td style="padding:15px; font-weight:bold; background:#f9f9f9; color:#555;">تاريخ آخر يوم عمل</td><td style="padding:15px; font-weight:bold; color:#e74c3c;">${user.lastWorkingDay}</td></tr>
+                </tbody>
+            </table>
+            <div style="background:#fdf2e9; padding:25px; border-right:4px solid #e74c3c; font-size:15px; line-height:2; text-align:justify; margin-bottom:60px;">
+                المكرم / <strong>${user.name}</strong> المحترم،<br><br>
+                بالإشارة إلى المادة (53) من نظام العمل السعودي، نفيدكم بالاستغناء عن خدماتكم وذلك لعدم تجاوزكم فترة التجربة، اعتباراً من نهاية يوم العمل الموافق ( <strong>${user.lastWorkingDay}</strong> ).<br><br>
+                نأمل منكم التنسيق مع الرئيس المباشر لتسليم عهدتكم لاستكمال إجراءات المخالصة النظامية.<br><br>
+                وتفضلوا بقبول فائق الاحترام والتقدير، ونتمنى لكم النجاح والتوفيق في مسيرة مهنية أخرى.
+            </div>
+            <div style="display: flex; justify-content: space-between; font-weight: bold; font-size: 14px;">
+                <div style="text-align:center;">إدارة الموارد البشرية<br><br>_________________</div>
+                <div style="text-align:center;">توقيع الموظف بالاستلام<br><br>_________________<br><br>التاريخ: _____ / _____ / _________ م</div>
+            </div>
+        `;
+    } else if (formType === '10') {
                 formTitle = "خطة التوجيه والتدريب / Orientation & Training Plan";
                 fileName = `Orientation_${user.username}`;
                 const box = `<div style="display:inline-block; width:15px; height:15px; border:1px solid #333; margin-left:8px; vertical-align:middle;"></div>`;
@@ -7529,13 +7738,29 @@ window.submitHrResolve = async function() {
             }
         }
         async function deleteLeave(id, empName) {
-            if(!confirm(`⚠️ تحذير: هل أنت متأكد من حذف إجازة الموظف (${empName})؟\nهذا الإجراء سيقوم آلياً بـ:\n1. إرجاع أيام الإجازة في التحضير لتصبح (حاضر).\n2. إرجاع رصيد الإجازات المخصوم للموظف.`)) return;
-            
-            await fetch('/api/leave-delete', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({id, byUser: window.globalRealActor})});
+    if(!confirm(`⚠️ تحذير: هل أنت متأكد من حذف إجازة الموظف (${empName})؟\nهذا الإجراء سيقوم آلياً بـ:\n1. إرجاع أيام الإجازة في التحضير لتصبح (حاضر).\n2. إرجاع رصيد الإجازات المخصوم للموظف.`)) return;
+    
+    try {
+        const response = await fetch('/api/leave-delete', { 
+            method: 'POST', 
+            headers: { 'Content-Type': 'application/json' }, 
+            body: JSON.stringify({ id: id, byUser: window.globalRealActor || 'القيادة' })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
             alert('تم الحذف وإرجاع التحضير والرصيد بنجاح! 🗑️✅');
-            loadLeavesData(); // جلب البيانات الجديدة
-            loadAdminUsers(); // تحديث أرصدة الموظفين بالخلفية
+            if(typeof loadLeavesData === 'function') loadLeavesData(); 
+            if(typeof loadAdminUsers === 'function') loadAdminUsers(); 
+        } else {
+            alert(`❌ فشل الحذف: ${result.message}`);
         }
+    } catch (error) {
+        console.error("❌ خطأ في الاتصال:", error);
+        alert("❌ حدث خطأ في الاتصال بالسيرفر أثناء الحذف.");
+    }
+}
 
 
         function openEditLeave(id) {
@@ -7957,40 +8182,109 @@ window.submitHrResolve = async function() {
             btn.disabled = false;
             btn.style.background = '#d35400';
         }
-        let currentEOSReport = null;
+ let currentEOSReport = null;
 
+function openEosModal() {
+    document.getElementById('eos-input-area').style.display = 'block';
+    document.getElementById('eos-report-area').style.display = 'none';
+    document.querySelectorAll('#eos-input-area input').forEach(i => i.value = '');
+    if(document.getElementById('eos-rehire')) document.getElementById('eos-rehire').checked = true;
+    document.getElementById('eos-modal').style.display = 'flex';
+}
 
-        function openEosModal() {
-            document.getElementById('eos-input-area').style.display = 'block';
-            document.getElementById('eos-report-area').style.display = 'none';
-            document.querySelectorAll('#eos-input-area input').forEach(i => i.value = '');
-            if(document.getElementById('eos-rehire')) document.getElementById('eos-rehire').checked = true;
-            document.getElementById('eos-modal').style.display = 'flex';
+function quickEosModal(username, name) {
+    const user = allUsersData.find(u => u.username === username);
+    if (!user) return;
+
+    // 1. إعادة ضبط الشاشة (مسح المدخلات السابقة وفك الأقفال)
+    document.getElementById('eos-input-area').style.display = 'block';
+    document.getElementById('eos-report-area').style.display = 'none';
+    
+    document.getElementById('eos-username').value = username;
+    document.getElementById('eos-name').value = name;
+    document.getElementById('eos-last-day').value = '';
+    
+    // فك الأقفال الافتراضية
+    document.getElementById('eos-type').disabled = false;
+    document.getElementById('eos-last-day').disabled = false;
+    document.getElementById('eos-reason').disabled = false;
+    document.getElementById('eos-rehire').disabled = false;
+    document.getElementById('eos-notice').disabled = false;
+    document.getElementById('eos-rehire').checked = true;
+    document.getElementById('eos-notice').checked = false;
+
+    // 2. تحديث قائمة الأسباب لتناسب النوع الافتراضي (استقالة)
+    if (typeof updateEosReasons === 'function') updateEosReasons();
+
+    // 3. 📡 رادار الكشف: هل الموظف مغادر مسبقاً؟
+    const isAlreadyTerminated = (user.status === 'Resign' || user.status === 'Terminated' || user.isActive === false);
+
+    if (isAlreadyTerminated) {
+        alert(`⚠️ تنبيه: الموظف ( ${name} ) تم إنهاء خدماته مسبقاً في النظام!\nستظهر بيانات الإنهاء السابقة لإعادة توليد التقرير المالي.`);
+        
+        // تعبئة البيانات السابقة من ملف الموظف
+        document.getElementById('eos-type').value = user.termType || (user.status === 'Resign' ? 'استقالة' : 'استبعاد');
+        
+        // تحديث قائمة الأسباب قبل وضع السبب المحفوظ
+        if (typeof updateEosReasons === 'function') updateEosReasons();
+        
+        // إذا كان السبب مسجلاً في السيرفر، ضعه، وإلا اترك الأول
+        if (user.termReason) {
+            // محاولة تحديد السبب إذا كان موجوداً في القائمة المنسدلة
+            const reasonSelect = document.getElementById('eos-reason');
+            let optionExists = false;
+            for (let i = 0; i < reasonSelect.options.length; i++) {
+                if (reasonSelect.options[i].value === user.termReason) {
+                    optionExists = true; break;
+                }
+            }
+            // إذا لم يكن السبب موجوداً في القائمة الحالية (بسبب قديم مثلاً)، أضفه كخيار
+            if (!optionExists) {
+                const opt = document.createElement('option');
+                opt.value = user.termReason;
+                opt.text = user.termReason;
+                reasonSelect.add(opt);
+            }
+            reasonSelect.value = user.termReason;
         }
-        function quickEosModal(username, name) {
-            document.getElementById('eos-input-area').style.display = 'block';
-            document.getElementById('eos-report-area').style.display = 'none';
-            document.querySelectorAll('#eos-input-area input').forEach(i => i.value = '');
-            
-            // تعبئة البيانات آلياً
-            document.getElementById('eos-username').value = username;
-            document.getElementById('eos-name').value = name;
-            
-            if(document.getElementById('eos-rehire')) document.getElementById('eos-rehire').checked = true;
-            document.getElementById('eos-modal').style.display = 'flex';
+
+        // وضع آخر يوم عمل
+        if (user.lastWorkingDay) {
+            document.getElementById('eos-last-day').value = user.lastWorkingDay;
         }
 
+        // وضع حالة إعادة التوظيف وفترة الإشعار (إذا كانت محفوظة، وإلا نتركها كافتراضي)
+        document.getElementById('eos-rehire').checked = user.isRehireable !== false; // نفترض أنها true ما لم تكن false صراحة
+        document.getElementById('eos-notice').checked = user.workedNoticePeriod === true;
 
-        function fetchEosEmpName() {
-            const username = document.getElementById('eos-username').value.trim();
-            const user = allUsersData.find(u => u.username === username);
-            document.getElementById('eos-name').value = user ? user.name : 'موظف غير موجود!';
-        }
+        // 🔒 إقفال الحقول لمنع التلاعب
+        document.getElementById('eos-type').disabled = true;
+        document.getElementById('eos-last-day').disabled = true;
+        document.getElementById('eos-reason').disabled = true;
+        document.getElementById('eos-rehire').disabled = true;
+        document.getElementById('eos-notice').disabled = true;
+        
+        // تغيير نص الزر ليكون واضحاً أنه سيعيد توليد التقرير
+        document.querySelector('#eos-input-area button[onclick="submitEOS()"]').innerHTML = '<i class="fas fa-file-invoice-dollar"></i> إعادة توليد التقرير المالي والطباعة';
 
+    } else {
+        // الرد (False): الموظف نشط 
+        // ترك الحقول مفتوحة، وتغيير نص الزر للحالة الطبيعية
+        document.querySelector('#eos-input-area button[onclick="submitEOS()"]').innerHTML = '<i class="fas fa-file-invoice-dollar"></i> تنفيذ الإنهاء وتوليد تقرير الكميات';
+    }
 
-        // ==================== دوال إنهاء الخدمة (متصلة بنقل العهدة) ====================
+    // عرض النافذة
+    document.getElementById('eos-modal').style.display = 'flex';
+}
 
-// 1. الدالة الرئيسية (مؤمنة بالكامل)
+function fetchEosEmpName() {
+    const username = document.getElementById('eos-username').value.trim();
+    const user = allUsersData.find(u => u.username === username);
+    document.getElementById('eos-name').value = user ? user.name : 'موظف غير موجود!';
+}
+
+// ==================== دوال إنهاء الخدمة (متصلة بنقل العهدة) ====================
+
 async function submitEOS() {
     try {
         const payload = {
@@ -7998,14 +8292,17 @@ async function submitEOS() {
             lastWorkingDay: document.getElementById('eos-last-day').value,
             termType: document.getElementById('eos-type').value,
             termReason: document.getElementById('eos-reason').value.trim(),
-            isRehireable: document.getElementById('eos-rehire').checked, // 👈 التقاط الزر الأول
-            workedNoticePeriod: document.getElementById('eos-notice').checked, // 👈 التقاط الزر الثاني
-            byUser: window.globalRealActor
+            isRehireable: document.getElementById('eos-rehire').checked,
+            workedNoticePeriod: document.getElementById('eos-notice').checked,
+            byUser: window.globalRealActor || window.globalEmpName // إضافة دعم آمن
         };
 
         if(!payload.username || !payload.lastWorkingDay || !document.getElementById('eos-name').value) {
             return alert("يرجى إدخال الرقم الوظيفي وتاريخ آخر يوم عمل بشكل صحيح.");
         }
+
+        // 🛑 الجدار الأمني الصلب: التحقق النهائي قبل الإرسال للسيرفر
+        
 
         console.log("⏳ جاري فحص التابعين في السيرفر...");
         
@@ -8025,8 +8322,8 @@ async function submitEOS() {
 
         // إذا كان مديراً
         if (check.hasDependents) {
-            pendingAction = { type: 'eos', payload: payload };
-            document.getElementById('transfer-message').innerHTML = `هذا الموظف مسؤول عن <strong>${check.employeeCount} موظف</strong>.<br>الرجاء اختيار بديل لنقل العهدة قبل الإنهاء.`;
+            window.pendingAction = { type: 'eos', payload: payload };
+            document.getElementById('transfer-message').innerHTML = `هذا الموظف مسؤول عن <strong>${check.employeeCount || check.subordinatesCount} موظف</strong>.<br>الرجاء اختيار بديل لنقل العهدة قبل الإنهاء.`;
             populateManagersDropdown('', 't-manager', check.managerName); 
             
             document.getElementById('eos-modal').style.display = 'none'; 
@@ -8097,8 +8394,6 @@ async function runEOSFetch(payload) {
         alert("فشل الاتصال بالسيرفر أثناء الإنهاء 📡\nالسبب: " + error.message);
     }
 }
-
-const r = currentEOSReport;
 
         // ========================================================
         // 🚀 تكتيك الإسقاط المظلي لمكتبة الإكسيل (SheetJS)
@@ -8272,8 +8567,8 @@ const r = currentEOSReport;
                 alert("❌ حدث خطأ: " + res.message);
             }
         }
-        let currentLoadedPenalties = []; 
-        let currentFilteredPenalties = []; 
+        var currentLoadedPenalties = []; 
+        var currentFilteredPenalties = []; 
 
         async function loadManagerPenaltiesHistory() {
             const tbody = document.getElementById('manager-penalties-history-body');
@@ -8852,7 +9147,7 @@ function viewPenaltyDetails(ticketId) {
 
         // ==================== (HR) زر حذف المخالفة من الجدول ====================
         async function deletePenaltyTicket(ticketId) {
-            if (!confirm(`⚠️ تحذير خطير: هل أنت متأكد من حذف إشعار المخالفة (${ticketId}) نهائياً؟\nلا يمكن التراجع عن هذا الإجراء!`)) return;
+            if (!confirm(`⚠️ تحذير خطير: هل أنت متأكد من حذف إشعار المخالفة (${ticketId}) نهائياً؟\nلا يمكن ال عن هذا الإجراء!`)) return;
 
             try {
                 const response = await fetch('/api/delete-penalty', {
@@ -8873,8 +9168,8 @@ function viewPenaltyDetails(ticketId) {
         }
         // ==================== محرك تصحيح المخالفات (للموارد البشرية) ✏️ ====================
 // ==================== ✏️ محرك تصحيح المخالفات (نسخة SQL) ====================
-let currentEditingTicketId = null;
-
+var currentEditingTicketId = null; // 👈 تم نزع فتيل اللغم الثالث هنا
+        
 async function openHrEditTicketModal(ticketId) {
     const p = currentLoadedPenalties.find(x => x.id === ticketId);
     if(!p) return;
@@ -9074,7 +9369,7 @@ async function submitHrEditPenalty() {
 }
 
         // ==================== ⚖️ محرك الميزان (نسخة SQL) ====================
-let currentBalancingTicketId = null;
+var currentBalancingTicketId = null;
 
 async function openBalancePenaltyModal(ticketId) {
     const p = currentLoadedPenalties.find(x => x.id === ticketId);
@@ -9170,7 +9465,7 @@ async function openBalancePenaltyModal(ticketId) {
                 }
             } catch(e) { alert("❌ فشل الاتصال بالسيرفر."); }
         }
-        // ==================== 1. تشغيل الرادار وجلب التقرير (النسخة المتوافقة) ====================
+
         async function runAbsenceAnalysis() {
             const btn = document.getElementById('btn-run-absence-scan');
             const resultsDiv = document.getElementById('absence-scan-results');
@@ -9220,6 +9515,9 @@ async function openBalancePenaltyModal(ticketId) {
             btn.innerHTML = '<i class="fas fa-search"></i> تشغيل الفحص واستخراج التقرير';
             btn.disabled = false;
         }
+
+        
+      
 
         // ==================== 2. إصدار المخالفة الآلية (مع النصوص القانونية المخصصة) ====================
         async function quickHrAbsencePenalty(username, empName, type, daysVal, cycleStart, streakStart, prevWarningDate) {
@@ -9397,7 +9695,7 @@ async function openBalancePenaltyModal(ticketId) {
             cascadePenaltyForm(1);
         }
         // ==================== نظام إدارة المقابلات (ATS) ====================
-        let allCandidates = [];
+        var allCandidates = [];
 
     // 1. الخدعة الذكية: التحقق من الرابط عند تحميل الصفحة
         const originalOnload = window.onload;
@@ -9507,9 +9805,9 @@ async function openBalancePenaltyModal(ticketId) {
 
         // ==================== دوال الفلترة والتبويبات للمقابلات (ATS) ====================
         // ==================== دوال الفلترة والتبويبات للمقابلات والاحتياج ====================
-        let currentCandStatus = 'pending';
-        let branchTargets = {};
-        let vacantPositionsArray = []; // 🆕 متغير استراتيجي لتخزين الشواغر
+        var currentCandStatus = '';
+        var branchTargets = {};
+        var vacantPositionsArray = []; // 🆕 متغير استراتيجي لتخزين الشواغر
 
         function switchCandTab(status) {
             document.querySelectorAll('#interviews-view .tab-btn').forEach(b => b.classList.remove('active'));
@@ -9740,16 +10038,32 @@ function renderCandidatesGrid(filtered) {
         return;
     }
 
-    container.innerHTML = filtered.map(c => {
-        // استخدام createdAt
-        const dateStr = c.createdAt ? new Date(c.createdAt).toLocaleDateString('ar-SA') : 'غير محدد';
+    // 1. 🔄 فرز المرشحين من الأقدم (أول من قدم) إلى الأحدث
+    const sortedCandidates = filtered.sort((a, b) => {
+        const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+        const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+        return dateA - dateB; // ترتيب تصاعدي (الأقدم أولاً)
+    });
+
+    // 2. 🧮 رسم البطاقات مع الترقيم (استخدام index)
+    container.innerHTML = sortedCandidates.map((c, index) => {
+        
+        // 🕒 استخراج التاريخ والوقت بشكل أنيق
+        let dateTimeStr = 'غير محدد';
+        if (c.createdAt) {
+            const dateObj = new Date(c.createdAt);
+            const dateStr = dateObj.toLocaleDateString('ar-SA');
+            const timeStr = dateObj.toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' });
+            // دمج التاريخ مع الوقت بلون مختلف لإبرازه
+            dateTimeStr = `${dateStr} <span style="color:#e67e22; font-weight:bold; margin-right:8px; border-right:1px solid #ddd; padding-right:8px;"><i class="far fa-clock"></i> ${timeStr}</span>`;
+        }
         
         // 🔮 استخبارات الموظف السابق
         const historyBadge = c.isFormerEmployee 
             ? `<span style="background:#fdedec; color:#c0392b; padding:3px 8px; border-radius:4px; font-size:11px; font-weight:bold; border:1px solid #e74c3c;"><i class="fas fa-exclamation-triangle"></i> موظف سابق</span>` 
             : `<span style="background:#e8f8f5; color:#27ae60; padding:3px 8px; border-radius:4px; font-size:11px; font-weight:bold; border:1px solid #27ae60;"><i class="fas fa-seedling"></i> دماء جديدة</span>`;
 
-        // 📎 زر عرض السيرة الذاتية (يظهر دائماً إذا كان هناك ملف)
+        // 📎 زر عرض السيرة الذاتية
         const cvBtn = c.cvFile && c.cvFile.length > 50 ? `
             <button onclick="viewCandidateCV('${c.cvFile}')" style="background:#2980b9; color:white; border:none; padding:6px 10px; border-radius:5px; cursor:pointer; font-size:12px; font-weight:bold; margin-bottom: 10px; width: 100%; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
                 <i class="fas fa-paperclip"></i> عرض السيرة الذاتية
@@ -9780,19 +10094,31 @@ function renderCandidatesGrid(filtered) {
             `;
         }
 
+        // 🔢 شارة الترقيم الدائرية (تزيد بمقدار 1 مع كل مرشح)
+        const orderNumber = index + 1;
+
         return `
-            <div style="background:#fdfdfd; border:1px solid #eee; border-radius:8px; padding:15px; border-top:4px solid ${statusFilter==='accepted'?'#27ae60':(statusFilter==='rejected'?'#e74c3c':'#f39c12')};">
+            <div style="background:#fdfdfd; border:1px solid #eee; border-radius:8px; padding:15px; border-top:4px solid ${statusFilter==='accepted'?'#27ae60':(statusFilter==='rejected'?'#e74c3c':'#f39c12')}; position: relative;">
+                
                 <div style="display:flex; justify-content:space-between; align-items:flex-start;">
-                    <h4 style="margin:0 0 5px 0; color:#2c3e50;">${c.name}</h4>
+                    <h4 style="margin:0 0 5px 0; color:#2c3e50; display: flex; align-items: center;">
+                        <span style="background:#34495e; color:white; width:22px; height:22px; display:inline-flex; align-items:center; justify-content:center; border-radius:50%; font-size:11px; margin-left:8px; box-shadow:0 2px 4px rgba(0,0,0,0.2);">
+                            ${orderNumber}
+                        </span>
+                        ${c.name}
+                    </h4>
                     ${historyBadge}
                 </div>
+                
                 <div style="font-size:13px; color:#555; line-height:1.8; margin-bottom:15px; margin-top:10px;">
                     <strong><i class="fas fa-id-card"></i> الهوية:</strong> ${c.idNumber}<br>
                     <strong><i class="fas fa-briefcase"></i> الوظيفة:</strong> ${c.jobTitle}<br>
                     <strong><i class="fas fa-map-marker-alt"></i> المدينة:</strong> ${c.city}<br>
                     <strong><i class="fas fa-map-signs"></i> الحي:</strong> ${c.district || 'غير محدد'}<br>
                     <strong><i class="fas fa-phone"></i> الجوال:</strong> <span style="direction:ltr; display:inline-block;">${c.phone}</span><br>
-                    <span style="font-size:11px; color:#888;">تاريخ التقديم: ${dateStr}</span>
+                    <div style="margin-top: 8px; padding-top: 8px; border-top: 1px dashed #ddd; font-size: 12px;">
+                        <strong><i class="far fa-calendar-alt"></i> وقت التقديم:</strong> ${dateTimeStr}
+                    </div>
                 </div>
                 ${cvBtn}
                 ${actionsHtml}
@@ -10000,95 +10326,7 @@ async function magicJobOffer(name, idNumber, jobTitle, city, phone) {
             
             setTimeout(() => { printWindow.print(); }, 500);
         }
-window.viewRequestDetails = async function(reqId) {
-    try {
-        const cleanId = String(reqId).replace(/[^a-zA-Z0-9\-]/g, '');
-        console.log("🕵️‍♂️ جاري البحث عن الطلب النظيف:", cleanId);
 
-        let req = null;
-
-        // البحث بمرونة باستخدام id أو ticketId
-        const findReq = (arr) => arr.find(r => 
-            String(r.id).replace(/[^a-zA-Z0-9\-]/g, '') === cleanId || 
-            String(r.ticketId).replace(/[^a-zA-Z0-9\-]/g, '') === cleanId
-        );
-
-        if (typeof hrAllRequests !== 'undefined' && Array.isArray(hrAllRequests)) req = findReq(hrAllRequests);
-        if (!req && typeof allAdminRequestsData !== 'undefined' && Array.isArray(allAdminRequestsData)) req = findReq(allAdminRequestsData);
-        if (!req && typeof hrOpsRequests !== 'undefined' && Array.isArray(hrOpsRequests)) req = findReq(hrOpsRequests);
-        if (!req) {
-            console.log("🌐 لم نجده محلياً، جاري السحب من السيرفر مباشرة...");
-            const response = await fetch('/api/all-requests');
-            if (response.ok) {
-                const dbRequests = await response.json();
-                req = findReq(dbRequests);
-            }
-        }
-
-        if (!req) {
-            alert("❌ فشل العثور على الطلب رقم: " + cleanId + " (قد يكون محذوفاً من السيرفر).");
-            return;
-        }
-
-        console.log("✅ تم العثور على الطلب بنجاح!");
-
-        const empComment = req.details && req.details.trim() !== '' ? req.details : 'لا توجد تفاصيل إضافية مسجلة.';
-        const actualMgrComment = req.escalationComment || req.managerComment || req.comment || '';
-        let mgrCommentHtml = actualMgrComment.trim() !== '' ? actualMgrComment : (req.isManagerForm ? '<span style="color:#7f8c8d; font-style:italic;">هذا الطلب تم رفعه من الإدارة مباشرة.</span>' : '<span style="color:#7f8c8d;">لم يقم المدير بكتابة تعليق.</span>');
-        
-        const supervisorComment = req.supervisorAssignComment || '<span style="color:#7f8c8d;">-</span>';
-        const finalHrComment = req.hrComment || '<span style="color:#7f8c8d;">لم يتم الإنجاز بعد.</span>';
-
-        let historyHtml = '<div style="margin-top:15px; padding-top:15px; border-top:1px solid #eee;"><strong style="color:#8e44ad;"><i class="fas fa-history"></i> السجل الزمني للطلب:</strong><ul style="padding-right: 20px; font-size:13px; color:#555; line-height:1.8;">';
-        if(req.history && req.history.length > 0) {
-            req.history.forEach(h => {
-                let hComment = h.comment ? `<br><span style="color:#3498db; font-size:12px;">💬 تعليق: ${h.comment}</span>` : (h.note ? `<br><span style="color:#3498db; font-size:12px;">💬 تعليق: ${h.note}</span>` : '');
-                historyHtml += `<li><strong>${h.date}:</strong> ${h.action} ${hComment}</li>`;
-            });
-        } else {
-            historyHtml += `<li>لا يوجد سجل زمني محفوظ.</li>`;
-        }
-        historyHtml += '</ul></div>';
-
-        const modalBody = document.getElementById('request-details-body');
-        const modal = document.getElementById('request-details-modal');
-
-        if(modalBody && modal) {
-            modalBody.innerHTML = `
-                <div style="background:#f9f9f9; padding:15px; border-radius:8px; border:1px solid #ddd; margin-bottom:15px; font-size:14px;">
-                    <div style="margin-bottom:8px; border-bottom:1px dashed #ccc; padding-bottom:8px;"><strong>صاحب الطلب:</strong> <span style="color:#2c3e50;">${req.empName} (${req.empUsername || req.senderId})</span></div>
-                    <div style="margin-bottom:8px; border-bottom:1px dashed #ccc; padding-bottom:8px;"><strong>نوع الطلب:</strong> <span style="color:#d35400; font-weight:bold;">${req.reason || req.type}</span></div>
-                    <div><strong>تاريخ الرفع:</strong> <span style="direction:ltr; display:inline-block;">${req.date || req.createdAt || req.timestamp || '-'}</span></div>
-                </div>
-
-                <div style="margin-bottom:15px;">
-                    <strong style="color:#2980b9;"><i class="fas fa-comment-dots"></i> تفاصيل الموظف:</strong>
-                    <div style="background:#f4f6f6; padding:12px; border-radius:5px; border-right:4px solid #3498db; margin-top:5px; white-space:pre-wrap; font-size:14px; border:1px solid #e1e8ed;">${empComment}</div>
-                </div>
-
-                <div style="margin-bottom:15px;">
-                    <strong style="color:#c0392b;"><i class="fas fa-user-tie"></i> تعليق الإدارة:</strong>
-                    <div style="background:#fdedec; padding:12px; border-radius:5px; border-right:4px solid #e74c3c; margin-top:5px; white-space:pre-wrap; font-size:14px; border:1px solid #f5b7b1;">${mgrCommentHtml}</div>
-                </div>
-                
-                <div style="display:flex; gap:10px;">
-                    <div style="flex:1; background:#f4ecf7; padding:12px; border-radius:5px; border-right:4px solid #8e44ad; border:1px solid #d2b4de;">
-                        <strong style="color:#8e44ad; font-size:12px;"><i class="fas fa-user-shield"></i> توجيه مشرف الموارد:</strong><br>
-                        <span style="font-size:13px; color:#333;">${supervisorComment}</span>
-                    </div>
-                    <div style="flex:1; background:#eafaf1; padding:12px; border-radius:5px; border-right:4px solid #27ae60; border:1px solid #a9dfbf;">
-                        <strong style="color:#27ae60; font-size:12px;"><i class="fas fa-check-double"></i> حل الموظف المُعالج:</strong><br>
-                        <span style="font-size:13px; color:#333;">${finalHrComment}</span>
-                    </div>
-                </div>
-                ${historyHtml}
-            `;
-            modal.style.display = 'flex';
-        }
-    } catch (error) {
-        console.error("❌ خطأ برمجي داخلي:", error);
-    }
-};
         // ==================== 🛠️ محرك استدعاء بيانات شاشة الإعدادات (النسخة الشاملة) ====================
         // هذا المحرك يضمن تحميل كافة البيانات المخفية بمجرد دخول الإدمن لشاشة الإعدادات
         
@@ -11248,8 +11486,8 @@ window.exitGhostMode = function() {
  // ==================== 📊 محرك تقارير الطلبات (للإدارة والموارد) ====================
 
 
-let allAdminRequestsData = [];
-let hrAllRequests = [];
+var allAdminRequestsData = [];
+var hrAllRequests = [];
 
 // ======================================================================
 // 🚜 محرك التجميع العبقري (Scatter-Gather) للإدارة العليا
@@ -11424,11 +11662,13 @@ function renderAdminRequestsTable(data) {
             
             <td style="direction:rtl;">${durationHtml}</td>
             
-            <td style="text-align:center;">
-                <button onclick="viewRequestDetails('${trueId}')" style="background:#3498db; color:white; border:none; padding:5px 10px; border-radius:4px; cursor:pointer; font-size:11px; font-weight:bold;">
+            <td style="text-align:center; white-space:nowrap;">
+                <button onclick="viewRequestDetails('${trueId}')" style="background:#3498db; color:white; border:none; padding:5px 10px; border-radius:4px; cursor:pointer; font-size:11px; font-weight:bold; margin-left:4px;">
                     <i class="fas fa-eye"></i> التفاصيل
                 </button>
-                <button onclick="openAdminRequestControl('${r.ticketId}', '${r.status}', '${r.hrComment}')">تعديل</button>
+                <button onclick="window.openAdminRequestControl('${trueId}')" style="background:#f39c12; color:white; border:none; padding:5px 10px; border-radius:4px; cursor:pointer; font-size:11px; font-weight:bold;">
+                    <i class="fas fa-edit"></i> تعديل
+                </button>
             </td>
             <td style="text-align:center; background:#fdfaed;">${stars}</td>
         </tr>
@@ -11678,39 +11918,67 @@ function openAdminRequestControl(ticketId, currentStatus, currentHrComment) {
     document.getElementById('admin-request-modal').style.display = 'block';
 }
 
-// 2. إطلاق أمر التحديث
+// ==========================================
+// ==========================================
+// 🛡️ دالة تنفيذ الأوامر السيادية المدرعة (الطريقة الكلاسيكية)
+// ==========================================
 async function submitAdminRequestUpdate() {
-    const newStatus = document.getElementById('admin-modal-status').value;
-    const adminComment = document.getElementById('admin-modal-comment').value.trim();
-    
-    if ((newStatus === 'rejected' || newStatus === 'resolved') && !adminComment) {
-        return alert("⚠️ يرجى كتابة تعليق يوضح سبب الرفض أو الحل للموظف.");
-    }
-
     try {
+        // 1. 🎯 استخراج رقم التذكرة من اللوحة السيادية مباشرة
+        const ticketIdElement = document.getElementById('admin-modal-ticket-id');
+        const ticketId = ticketIdElement ? ticketIdElement.innerText.trim() : '';
+
+        const newStatus = document.getElementById('admin-modal-status').value;
+        const adminComment = document.getElementById('admin-modal-comment').value.trim();
+        
+        // تأمين أولي
+        if (!ticketId) {
+            alert("⚠️ خلل في النظام: تعذر قراءة رقم الطلب من اللوحة. يرجى إغلاقها والمحاولة مجدداً.");
+            return;
+        }
+
+        if ((newStatus === 'rejected' || newStatus === 'resolved') && !adminComment) {
+            alert("⚠️ يرجى كتابة تعليق يوضح سبب الرفض أو الحل للموظف.");
+            return;
+        }
+
+        // حماية لمتغير اسم الأدمن (حتى لا ينهار إذا لم يكن معرفاً)
+        const safeAdminName = (typeof globalEmpName !== 'undefined' && globalEmpName) ? globalEmpName : 'الإدارة العليا';
+
+        console.log(`🚀 جاري إرسال التحديث للطلب ${ticketId} بالحالة ${newStatus}...`);
+
         const response = await fetch('/api/admin-update-request', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                ticketId: currentAdminTicketId,
+                ticketId: ticketId, // 👈 الذخيرة الصحيحة
                 status: newStatus,
                 hrComment: adminComment,
-                adminName: globalEmpName || 'الإدارة العليا' // اسم الإدمن الذي ينفذ الأمر
+                adminName: safeAdminName 
             })
         });
 
         const result = await response.json();
         
         if (result.success) {
+            // إغلاق اللوحة السيادية
             document.getElementById('admin-request-modal').style.display = 'none';
             alert("✅ تم تنفيذ أمر الإدارة العليا بنجاح!");
-            // تحديث الشاشة المركزية للإدمن
-            if(typeof loadAdminMegaRequests === 'function') loadAdminMegaRequests();
+            
+            // 🔄 تحديث الرادار (الجدول) ليعكس التغييرات فوراً
+            if (typeof loadAdminMegaRequests === 'function') {
+                loadAdminMegaRequests();
+            } else if (typeof loadAdminReport === 'function') {
+                loadAdminReport(); 
+            } else if (typeof loadHrRequests === 'function') {
+                loadHrRequests(); 
+            }
         } else {
-            alert("❌ فشل التحديث: " + result.message);
+            alert("❌ فشل التحديث: " + (result.message || 'خطأ غير معروف من السيرفر.'));
         }
     } catch (error) {
-        alert("❌ حدث خطأ في الاتصال بقاعدة البيانات.");
+        console.error("❌ خطأ في الاتصال:", error);
+        alert("❌ حدث خطأ في الاتصال بقاعدة البيانات. تأكد من اتصال الشبكة.");
     }
 }
 function updateFileName(input) {
@@ -12204,16 +12472,44 @@ document.addEventListener('DOMContentLoaded', updateEosReasons);
 // 🚀 نظام بوابة عمليات الموارد البشرية
 // =========================================================
 
-let hrOpsRequests = [];
-let currentHrOpsTab = 'all';
+// 🛡️ التكتيك الأول: استخدام var بدلاً من let لقتل خطأ الـ (Initialization)
+var hrOpsRequests = []; 
+var currentHrOpsTab = 'all';
 
-// 1. جلب البيانات من السيرفر
+// 🛡️ التكتيك الثاني: قفل الأمان لمنع الطلقات المزدوجة (Race Condition)
+var isHrOpsLoading = false; 
+
 async function loadHrOperations() {
+    // 🛡️ تأمين خطوط الإمداد: التأكد من وجود بيانات الموظفين (لجلب الفروع)
+    if (typeof allUsersData === 'undefined' || !Array.isArray(allUsersData) || allUsersData.length === 0) {
+        try {
+            console.log("📡 جاري إرسال طائرة استطلاع لجلب بيانات الموظفين والفروع...");
+            const usersRes = await fetch('/api/users');
+            if (usersRes.ok) {
+                const usersJson = await usersRes.json();
+                // تفكيك الرد الذكي: سواء كان السيرفر يرسلها مباشرة أو داخل users أو data
+                const extractedData = usersJson.users || usersJson.data || usersJson;
+                
+                // التأكد من أنها مصفوفة وتخزينها في المتغير العام
+                allUsersData = Array.isArray(extractedData) ? extractedData : [];
+                window.allUsersData = allUsersData; // توثيقها في القيادة العليا
+                
+                console.log(`✅ عادت طائرة الاستطلاع بنجاح! تم تحميل ${allUsersData.length} ملف موظف.`);
+            }
+        } catch (e) {
+            console.error("❌ فشل طائرة الاستطلاع في جلب بيانات الموظفين:", e);
+        }
+    }
+    // إذا كانت الدالة تعمل حالياً، تجاهل أي طلب جديد حتى تنتهي
+    if (isHrOpsLoading) {
+        console.warn("🛡️ تم صد استدعاء مزدوج للدالة!");
+        return; 
+    }
+    
+    isHrOpsLoading = true; // إغلاق الباب
+
     try {
         console.log("⏳ [1] جاري تحميل طلبات الموارد البشرية...");
-        console.log("⏳ [2] currentUsername:", currentUsername);
-        console.log("⏳ [3] globalRoleArabic:", globalRoleArabic);
-        console.log("⏳ [4] globalIsAdmin:", globalIsAdmin);
         
         const response = await fetch('/api/hr-operations', {
             method: 'POST',
@@ -12225,29 +12521,18 @@ async function loadHrOperations() {
             })
         });
 
-        console.log("⏳ [5] حالة الاستجابة (status):", response.status);
-        
         if (response.ok) {
             const result = await response.json();
             console.log("📦 [6] الرد من السيرفر:", result);
-            console.log("📦 [7] result.success:", result.success);
             
             if (result.success) {
+                // الهجوم المباشر وتخزين البيانات بأمان
                 hrOpsRequests = result.requests || result.data || result || [];
                 console.log(`✅ [8] تم تحميل ${hrOpsRequests.length} طلب بنجاح`);
-                
-                // عرض أول طلب كمثال
-                if (hrOpsRequests.length > 0) {
-                    console.log("📋 [9] مثال لأول طلب:", hrOpsRequests[0]);
-                } else {
-                    console.warn("⚠️ [10] لا توجد طلبات في البيانات");
-                }
             } else {
-                console.error("❌ [11] السيرفر أعاد success: false");
                 hrOpsRequests = [];
             }
         } else {
-            console.error("⚠️ [12] فشل في جلب البيانات - كود الخطأ:", response.status);
             hrOpsRequests = [];
         }
 
@@ -12258,113 +12543,163 @@ async function loadHrOperations() {
         console.error("❌ [14] خطأ في تحميل طلبات الموارد:", error);
         hrOpsRequests = [];
         renderHrOpsTable();
+    } finally {
+        // 🔓 فتح الباب لطلبات جديدة بعد انتهاء العملية (سواء نجحت أو فشلت)
+        isHrOpsLoading = false; 
     }
 }
 
-// 4. رسم الجدول المدرع (النسخة المصححة)
-window.renderHrOpsTable = function() {
-    const tbody = document.getElementById('hr-ops-table-body');
-    if (!tbody) {
-        console.warn("⚠️ لم يتم العثور على عنصر الجدول hr-ops-table-body");
-        return;
-    }
-
-    // تطبيق الفلاتر
-    let filtered = [...hrOpsRequests];
-    const empQ = document.getElementById('hrops-filter-emp')?.value.trim().toLowerCase() || '';
-    const statusQ = document.getElementById('hrops-filter-status')?.value || 'all';
-
-    if (currentHrOpsTab === 'mine') {
-        filtered = filtered.filter(r => String(r.assignedHrEmp) === String(currentUsername));
-    }
-    if (statusQ !== 'all') {
-        filtered = filtered.filter(r => r.status === statusQ);
-    }
-    if (empQ) {
-        filtered = filtered.filter(r => {
-            const searchUsername = String(r.empUsername || r.username || '').toLowerCase();
-            const searchName = String(r.empName || '').toLowerCase();
-            return searchUsername.includes(empQ) || searchName.includes(empQ);
-        });
-    }
-
-    if (filtered.length === 0) {
-        tbody.innerHTML = `
-            <tr>
-                <td colspan="8" style="text-align:center; padding: 40px; font-weight: bold; color: #777;">
-                    <i class="fas fa-folder-open fa-3x" style="color:#ddd; margin-bottom:15px; display:block;"></i>
-                    لا توجد طلبات لعرضها
-                </td>
-            </tr>
-        `;
-        return;
-    }
-
-    // رسم الصفوف
-    tbody.innerHTML = filtered.map(r => {
-        const trueId = r.ticketId || r.id;
-        const safeDate = (r.date || r.createdAt || new Date().toISOString()).split(',')[0];
-        const safeReason = r.reason || r.type || 'طلب عام';
-        const targetUsername = String(r.empUsername || r.username || '');
+// 4. رسم الجدول المدرع (النسخة العسكرية الفائقة - مع عمود المنطقة)
+function renderHrOpsTable() {
+    try {
+        console.log("🛠️ [A] بدء تشغيل دالة الرسم...");
+        const tbody = document.getElementById('hr-ops-table-body');
         
-        // 🏷️ شارات الحالة
-        let badge = '';
-        if (r.status === 'escalated') badge = '<span class="status-badge" style="background:#e74c3c;">جديد 🔴</span>';
-        else if (r.status === 'hr_assigned') badge = '<span class="status-badge" style="background:#f39c12;">تحت الإجراء ⏳</span>';
-        else if (r.status === 'resolved') badge = '<span class="status-badge" style="background:#3498db;">للاعتماد 🔄</span>';
-        else if (r.status === 'completed') badge = '<span class="status-badge" style="background:#27ae60;">مغلق ✅</span>';
-        else if (r.status === 'pending') badge = '<span class="status-badge" style="background:#95a5a6;">عند المدير ⏳</span>';
-        else badge = `<span class="status-badge" style="background:#9b59b6;">${r.status}</span>`;
+        if (!tbody) {
+            console.error("❌ [B] لغم قاتل: لم يتم العثور على الجدول hr-ops-table-body في شاشة الـ HTML!");
+            return;
+        }
 
-       // 📎 المرفق (تم تصحيح الزر ليرسل رقم التذكرة trueId فقط)
-        let attachmentLink = '<span style="color:#ccc; font-size:11px;">لا يوجد</span>';
-        if (r.attachment && r.attachment.trim() !== '') {
-            const attachStr = typeof r.attachment === 'string' ? r.attachment : JSON.stringify(r.attachment);
-            if (attachStr.trim().startsWith('{')) {
-                // 🚀 السطر المصحح: إرسال trueId بدلاً من البيانات المشفرة
-                attachmentLink = `<button onclick="window.downloadVirtualAttachment('${trueId}')" style="background:#27ae60; color:white; border:none; padding:4px 8px; border-radius:4px; font-size:11px; font-weight:bold; cursor:pointer;"><i class="fas fa-file-excel"></i> إكسيل التصفية</button>`;
-            } else {
-                attachmentLink = `<a href="${attachStr}" target="_blank" style="color:#2980b9; font-weight:bold; font-size:12px;"><i class="fas fa-paperclip"></i> المرفق</a>`;
+        // حماية البيانات 
+        let filtered = Array.isArray(hrOpsRequests) ? [...hrOpsRequests] : [];
+        console.log("🛠️ [C] عدد الطلبات الواردة للرسم:", filtered.length);
+
+        const empInput = document.getElementById('hrops-filter-emp');
+        const empQ = empInput ? empInput.value.trim().toLowerCase() : '';
+        
+        const statusSelect = document.getElementById('hrops-filter-status');
+        const statusQ = statusSelect ? statusSelect.value : 'all';
+
+        const safeCurrentUsername = typeof currentUsername !== 'undefined' ? currentUsername : (window.currentUsername || '');
+
+        // تطبيق الفلاتر
+        if (typeof currentHrOpsTab !== 'undefined' && currentHrOpsTab === 'mine') {
+            filtered = filtered.filter(r => String(r.assignedHrEmp) === String(safeCurrentUsername));
+        }
+        if (statusQ !== 'all') {
+            filtered = filtered.filter(r => r.status === statusQ);
+        }
+        if (empQ) {
+            filtered = filtered.filter(r => {
+                const searchUsername = String(r.empUsername || r.username || '').toLowerCase();
+                const searchName = String(r.empName || '').toLowerCase();
+                return searchUsername.includes(empQ) || searchName.includes(empQ);
+            });
+        }
+
+        if (filtered.length === 0) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="9" style="text-align:center; padding: 40px; font-weight: bold; color: #777;">
+                        <i class="fas fa-folder-open fa-3x" style="color:#ddd; margin-bottom:15px; display:block;"></i>
+                        لا توجد طلبات لعرضها
+                    </td>
+                </tr>
+            `;
+            return;
+        }
+
+        // رسم الصفوف 
+        const rowsHtml = filtered.map((r, index) => {
+            try {
+                const trueId = r.ticketId || r.id || 'N/A';
+                
+                // التاريخ
+                const dateVal = r.date || r.createdAt || new Date().toISOString();
+                const safeDate = String(dateVal).split('T')[0].split(',')[0]; 
+                
+                const safeReason = r.reason || r.type || 'طلب عام';
+                const targetUsername = String(r.empUsername || r.username || '');
+                
+                // 📍 استخبارات متقاطعة: البحث عن فرع الموظف في قاعدة بيانات المستخدمين
+                let foundBranch = '';
+                if (typeof allUsersData !== 'undefined' && Array.isArray(allUsersData)) {
+                    // نبحث عن الموظف باستخدام اسم المستخدم (empUsername) أو رقمه
+                    const empRecord = allUsersData.find(u => 
+                        String(u.username) === String(r.empUsername) || 
+                        String(u.id) === String(r.employeeId)
+                    );
+                    
+                    if (empRecord) {
+                        foundBranch = empRecord.branch || empRecord.region || empRecord.location || empRecord.city || '';
+                    }
+                }
+                
+                // إذا وجدناه في سجلات الموظفين نستخدمه، وإلا نحاول البحث في الطلب كاحتياط، وإلا "غير محدد"
+                const safeBranch = foundBranch || r.branch || r.region || r.location || '<span style="color:#aaa; font-size:10px;">غير محدد</span>';
+
+                // 🏷️ شارات الحالة
+                let badge = '';
+                if (r.status === 'escalated') badge = '<span class="status-badge" style="background:#e74c3c;">جديد 🔴</span>';
+                else if (r.status === 'hr_assigned') badge = '<span class="status-badge" style="background:#f39c12;">تحت الإجراء ⏳</span>';
+                else if (r.status === 'resolved') badge = '<span class="status-badge" style="background:#3498db;">للاعتماد 🔄</span>';
+                else if (r.status === 'completed') badge = '<span class="status-badge" style="background:#27ae60;">مغلق ✅</span>';
+                else if (r.status === 'pending') badge = '<span class="status-badge" style="background:#95a5a6;">عند المدير ⏳</span>';
+                else badge = `<span class="status-badge" style="background:#9b59b6;">${r.status}</span>`;
+
+                // 📎 المرفق
+                let attachmentLink = '<span style="color:#ccc; font-size:11px;">لا يوجد</span>';
+                if (r.attachment && String(r.attachment).trim() !== '') {
+                    const attachStr = typeof r.attachment === 'string' ? r.attachment : JSON.stringify(r.attachment);
+                    if (attachStr.trim().startsWith('{')) {
+                        attachmentLink = `<button onclick="window.downloadVirtualAttachment('${trueId}')" style="background:#27ae60; color:white; border:none; padding:4px 8px; border-radius:4px; font-size:11px; font-weight:bold; cursor:pointer;"><i class="fas fa-file-excel"></i> تصفية</button>`;
+                    } else {
+                        attachmentLink = `<a href="${attachStr}" target="_blank" style="color:#2980b9; font-weight:bold; font-size:12px;"><i class="fas fa-paperclip"></i> المرفق</a>`;
+                    }
+                }
+
+                // ⚙️ أزرار الإجراءات
+                let actions = `
+                    <button onclick="viewRequestDetails('${trueId}')" class="action-btn view-btn" style="background:#3498db; color:white; border:none; padding:5px 8px; border-radius:4px; cursor:pointer;" title="عرض التفاصيل">
+                        <i class="fas fa-eye"></i>
+                    </button>
+                `;
+                
+                if (r.status === 'escalated') {
+                    actions += `
+                        <button onclick="openHrAssignModal('${trueId}')" class="action-btn" style="background:#27ae60; color:white; border:none; padding:5px 8px; border-radius:4px; margin-right:4px; cursor:pointer;" title="تعيين لموظف موارد">
+                            <i class="fas fa-user-check"></i>
+                        </button>
+                        <button onclick="openHrRejectModal('${trueId}')" class="action-btn" style="background:#e74c3c; color:white; border:none; padding:5px 8px; border-radius:4px; margin-right:4px; cursor:pointer;" title="رفض الطلب">
+                            <i class="fas fa-times-circle"></i>
+                        </button>
+                    `;
+                } else if (r.status === 'hr_assigned' && String(r.assignedHrEmp) === String(safeCurrentUsername)) {
+                    actions += `
+                        <button onclick="window.openHrResolveModal('${trueId}')" class="action-btn" style="background:#27ae60; color:white; border:none; padding:5px 8px; border-radius:4px; margin-right:4px; cursor:pointer;" title="إنجاز الطلب">
+                            <i class="fas fa-check-double"></i>
+                        </button>
+                    `;
+                }
+
+                let assignedName = r.assignedHrEmp || '<span style="color:#e74c3c; font-size:11px;">لم يُعين</span>';
+
+                // إضافة العمود الجديد هنا (العمود الرابع)
+                return `<tr>
+                    <td style="font-size:11px; font-weight:bold; color:#555;">${String(trueId).replace('REQ-', '')}</td>
+                    <td style="font-size:12px;">${safeDate}</td>
+                    <td><strong>${r.empName || 'غير متوفر'}</strong><br><span style="font-size:10px; color:#888;">${targetUsername}</span></td>
+                    <td style="font-size:12px; font-weight:bold; color:#2980b9;">${safeBranch}</td> <td style="font-weight:bold; color:#8e44ad;">${safeReason}</td>
+                    <td>${attachmentLink}</td> <td>${badge}</td>
+                    <td style="font-size:12px;">${assignedName}</td>
+                    <td style="text-align:center; white-space:nowrap; gap:4px; display:flex; justify-content:center;">${actions}</td>
+                </tr>`;
+                
+            } catch (rowError) {
+                console.error(`❌ [D] خطأ أثناء معالجة الطلب رقم ${index}:`, rowError);
+                return `<tr><td colspan="9" style="color:red; text-align:center;">خطأ تقني في تحميل هذا الصف</td></tr>`;
             }
-        }
+        }).join('');
 
-        // ⚙️ أزرار الإجراءات
-        let actions = `
-            <button onclick="viewRequestDetails('${trueId}')" class="action-btn view-btn" title="عرض التفاصيل">
-                <i class="fas fa-eye"></i>
-            </button>
-        `;
-        
-        if (r.status === 'escalated') {
-            actions += `
-                <button onclick="openHrAssignModal('${trueId}')" class="action-btn" style="color:#27ae60;" title="تعيين لموظف موارد">
-                    <i class="fas fa-user-check"></i>
-                </button>
-                <button onclick="openHrRejectModal('${trueId}')" class="action-btn" style="color:#e74c3c;" title="رفض الطلب">
-                    <i class="fas fa-times-circle"></i>
-                </button>
-            `;
-        } else if (r.status === 'hr_assigned' && String(r.assignedHrEmp) === String(currentUsername)) {
-            actions += `
-                <button onclick="window.openHrResolveModal('${trueId}')" class="action-btn" style="color:#27ae60;" title="إنجاز الطلب">
-                    <i class="fas fa-check-double"></i>
-                </button>
-            `;
-        }
+        tbody.innerHTML = rowsHtml;
+        console.log("✅ [E] تمت عملية الرسم بنجاح!");
 
-        let assignedName = r.assignedHrEmp || '<span style="color:#e74c3c; font-size:11px;">لم يُعين</span>';
-
-        return `<tr>
-            <td style="font-size:11px; font-weight:bold; color:#555;">${String(trueId).replace('REQ-', '')}</td>
-            <td style="font-size:12px;">${safeDate}</td>
-            <td><strong>${r.empName || 'غير متوفر'}</strong><br><span style="font-size:10px; color:#888;">${targetUsername}</span></td>
-            <td style="font-weight:bold; color:#8e44ad;">${safeReason}</td>
-            <td>${attachmentLink}</td> <td>${badge}</td>
-            <td style="font-size:12px;">${assignedName}</td>
-            <td style="text-align:center; white-space:nowrap;">${actions}</td>
-        </tr>`;
-    }).join('');
-};
+    } catch (error) {
+        console.error("❌ [F] خطأ كارثي أوقف الدالة بالكامل:", error);
+        const tbody = document.getElementById('hr-ops-table-body');
+        if(tbody) tbody.innerHTML = `<tr><td colspan="9" style="text-align:center; color:red; padding:20px;">حدث خطأ أثناء رسم الجدول: ${error.message}</td></tr>`;
+    }
+}
 
 // 3. تبديل التبويبات
 function switchHrOpsTab(tab) {
@@ -12494,6 +12829,76 @@ window.fireExcelMissile = function(reportData) {
 <script src="https://cdn.jsdelivr.net/npm/driver.js@1.0.1/dist/driver.js.iife.js"></script>
 
 <script>
+    // ==========================================
+// 🚦 شرطي المرور: نظام التوجيه للروابط العامة
+// ==========================================
+document.addEventListener("DOMContentLoaded", () => {
+    // 1. قراءة الرابط للبحث عن كلمة careers=true
+    const urlParams = new URLSearchParams(window.location.search);
+    const isCareersPage = urlParams.get('careers') === 'true';
+
+    if (isCareersPage) {
+        // 2. إخفاء كل شيء آخر في النظام (شاشة الدخول، الداشبورد الرئيسي، إلخ)
+        // قم بتغيير هذه الـ IDs لتطابق أسماء الحاويات لديك إذا كانت مختلفة
+        const loginScreen = document.getElementById('login-container'); 
+        const mainApp = document.getElementById('main-app'); 
+        
+        if (loginScreen) loginScreen.style.display = 'none';
+        if (mainApp) mainApp.style.display = 'none';
+
+        // 3. إظهار بوابة التوظيف (يجب أن تكون flex لكي يعمل التوسيط)
+        const careersPortal = document.getElementById('public-careers-portal');
+        if (careersPortal) {
+            careersPortal.style.display = 'flex'; 
+            
+            // استدعاء دالة لتعبئة قوائم المدن والوظائف
+            populateCareersDropdowns();
+        }
+    }
+});
+
+// ==========================================
+// 🛠️ دوال مساعدة لتعمل واجهة التوظيف بنعومة
+// ==========================================
+
+// دالة تحديث اسم الملف عند إرفاق السيرة الذاتية (التي طلبتها في الـ HTML)
+function updateFileName(input) {
+    const statusSpan = document.getElementById('cv-status');
+    if (input.files && input.files.length > 0) {
+        statusSpan.innerHTML = `<i class="fas fa-check-circle"></i> تم إرفاق: ${input.files[0].name}`;
+        statusSpan.style.color = "#27ae60"; // تحويل اللون للأخضر دلالة على النجاح
+        input.parentElement.querySelector('button').style.borderColor = "#27ae60";
+    } else {
+        statusSpan.innerHTML = `اضغط لرفع الملف (CV)`;
+        statusSpan.style.color = "#3498db";
+        input.parentElement.querySelector('button').style.borderColor = "#3498db";
+    }
+}
+
+// دالة لتعبئة قوائم الوظائف والمدن (قم بتعديل الخيارات حسب احتياجك)
+function populateCareersDropdowns() {
+    const jobSelect = document.getElementById('cand-job');
+    const citySelect = document.getElementById('cand-city');
+
+    if (jobSelect && jobSelect.options.length === 0) {
+        jobSelect.innerHTML = `
+            <option value="">-- اختر الوظيفة --</option>
+            <option value="كاشير">كاشير</option>
+            <option value="بائع">بائع / مصفف أرفف</option>
+            <option value="حارس أمن">حارس أمن</option>
+            <option value="خدمة عملاء">خدمة عملاء</option>
+        `;
+    }
+
+    if (citySelect && citySelect.options.length === 0) {
+        citySelect.innerHTML = `
+            <option value="">-- اختر المدينة --</option>
+            <option value="الرياض">الرياض</option>
+            <option value="جدة">جدة</option>
+            <option value="الدمام">الدمام</option>
+        `;
+    }
+}
 const masterTourSteps = [
     { id: '#theme-icon', roles: ['all'], popover: { title: '🌙 الوضع الداكن', description: 'بإمكانك التغيير إلى الوضع الداكن عبر النقر هنا لتجربة مريحة للعين.' } },
     { id: '#prayer-times-card', roles: ['all'], popover: { title: '🕌 وقت الصلاة', description: 'موعد الصلاة القادمة حسب مدينة العمل الخاصة بك مع عداد تنازلي.' } },
@@ -12543,6 +12948,256 @@ window.launchSmartTour = function(userRole) {
         setTimeout(() => { driverObj.drive(); }, 500);
     }
 };
+
+    // ========================================================
+// 1. الدالة المحدثة لفتح الملف الشامل (تم إصلاح رادار المخالفات)
+// ========================================================
+async function openMegaProfile(username) {
+    const user = allUsersData.find(u => u.username === username);
+    if (!user) return alert("🛑 الهدف غير موجود في الرادار!");
+
+    const modal = document.getElementById('mega-profile-modal');
+    const bodyDiv = document.getElementById('mega-profile-body');
+    
+    document.getElementById('mega-header-name').innerText = `${user.name} (${user.username})`;
+    modal.style.display = 'flex';
+    
+    bodyDiv.innerHTML = `<div style="text-align:center; padding:60px;"><i class="fas fa-radar fa-spin fa-3x" style="color:#3498db;"></i><h3 style="color:#555; margin-top:20px;">جاري سحب البيانات الاستخباراتية...</h3></div>`;
+
+    try {
+        const [penaltiesRes, leavesRes, attRes] = await Promise.all([
+            fetch('/api/manager-penalties', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ role: 'admin', roleArabic: 'ادمن' }) }),
+            fetch('/api/leaves'),
+            fetch('/api/all-attendance')
+        ]);
+
+        const allPenalties = await penaltiesRes.json();
+        const allLeaves = await leavesRes.json();
+        const allAtt = await attRes.json();
+
+        // 🎯 إصلاح الرادار: الفلترة المزدوجة لاصطياد المخالفة سواء كانت بالنظام القديم أو Prisma SQL
+        const myPenalties = allPenalties.filter(p => {
+            const targetUsername = p.empUsername || (p.employee ? p.employee.username : null);
+            return String(targetUsername).trim() === String(username).trim() && p.status !== 'مرفوضة';
+        });
+        
+        const myLeaves = allLeaves.filter(l => String(l.username).trim() === String(username).trim());
+        const mySL = allAtt.filter(a => String(a.username).trim() === String(username).trim() && a.code === 'SL');
+
+        // العمليات الحسابية
+        const totalDeductedDays = myPenalties.reduce((sum, p) => sum + (parseFloat(p.appliedPenalty) || 0), 0);
+        const totalSL = mySL.length;
+        const totalSalary = (parseFloat(user.basicSalary) || 0) + (parseFloat(user.housingAllowance) || 0) + (parseFloat(user.otherAllowance) || 0);
+
+        // أسلوب تصميم البطاقات (Cards)
+        const cardStyle = "background: white; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); padding: 15px; margin-bottom: 20px; border-top: 3px solid #3498db;";
+        const titleStyle = "color: #2c3e50; border-bottom: 1px solid #eee; padding-bottom: 10px; margin-top: 0; font-size: 16px;";
+        const gridStyle = "display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; font-size: 14px;";
+        const itemStyle = "background: #f9f9f9; padding: 10px; border-radius: 5px; border-right: 3px solid #bdc3c7;";
+
+        const lastWorkingDayHtml = (user.status === 'in Duty' || user.status === 'In Duty' || user.status === 'نشط') 
+            ? '' 
+            : `<div style="${itemStyle} border-color: #e74c3c;"><strong>آخر يوم عمل:</strong> <br><span style="color:#e74c3c; font-weight:bold;">${user.lastWorkingDay || 'غير مسجل'}</span></div>`;
+
+        const leavesHistoryHtml = myLeaves.length > 0 
+            ? myLeaves.map(l => `<div style="background:#e8f8f5; padding:8px; margin-bottom:5px; border-radius:4px; font-size:13px; border: 1px solid #c8e6c9;">🌴 ${l.type} | من: ${l.startDate} إلى: ${l.endDate} (${l.duration} أيام)</div>`).join('')
+            : '<div style="color:#777; font-size:13px;">لا توجد إجازات سابقة.</div>';
+
+        const penaltiesHistoryHtml = myPenalties.length > 0
+            ? myPenalties.map(p => `<div style="background:#fdedec; padding:8px; margin-bottom:5px; border-radius:4px; font-size:13px; border: 1px solid #fadbd8;">⚠️ ${p.violationName} | التاريخ: ${p.violationDate} | العقوبة: ${p.displayPenalty}</div>`).join('')
+            : '<div style="color:#777; font-size:13px;">سجل الموظف نظيف.</div>';
+
+        const slHistoryHtml = mySL.length > 0
+            ? mySL.map(s => `<div style="background:#eaf2f8; padding:8px; margin-bottom:5px; border-radius:4px; font-size:13px; border: 1px solid #d4e6f1;">💊 إجازة مرضية | التاريخ: ${s.date}</div>`).join('')
+            : '<div style="color:#777; font-size:13px;">لا توجد إجازات مرضية.</div>';
+
+        bodyDiv.innerHTML = `
+            <div style="${cardStyle} border-color: #34495e;">
+                <h3 style="${titleStyle}"><i class="fas fa-user"></i> البيانات الشخصية</h3>
+                <div style="${gridStyle}">
+                    <div style="${itemStyle}"><strong>الاسم:</strong> <br>${user.name}</div>
+                    <div style="${itemStyle}"><strong>رقم الهوية:</strong> <br>${user.idNumber || '-'}</div>
+                    <div style="${itemStyle}"><strong>الجنسية:</strong> <br>${user.nationality || '-'}</div>
+                    <div style="${itemStyle}"><strong>الجنس:</strong> <br>${user.gender || '-'}</div>
+                    <div style="${itemStyle}"><strong>الميلاد (م):</strong> <br>${user.dobG || '-'}</div>
+                    <div style="${itemStyle}"><strong>الميلاد (هـ):</strong> <br>${user.dobHijri || '-'}</div>
+                    <div style="${itemStyle}"><strong>الجوال:</strong> <br><span style="direction:ltr; display:inline-block;">${user.phone || '-'}</span></div>
+                    <div style="${itemStyle}"><strong>الإيميل:</strong> <br>${user.email || '-'}</div>
+                    <div style="${itemStyle}"><strong>المنطقة:</strong> <br>${user.region || '-'}</div>
+                    <div style="${itemStyle}"><strong>المدينة:</strong> <br>${user.city || '-'}</div>
+                    <div style="${itemStyle} grid-column: span 2;"><strong>العنوان الوطني:</strong> <br>${user.splAddress || '-'}</div>
+                </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                <div style="${cardStyle} border-color: #2980b9;">
+                    <h3 style="${titleStyle}"><i class="fas fa-briefcase"></i> البيانات الوظيفية</h3>
+                    <div style="${gridStyle}">
+                        <div style="${itemStyle}"><strong>الحالة الوظيفية:</strong> <br>${user.status}</div>
+                        ${lastWorkingDayHtml}
+                        <div style="${itemStyle}"><strong>تاريخ الالتحاق:</strong> <br>${user.joinDate || '-'}</div>
+                        <div style="${itemStyle}"><strong>الفرع:</strong> <br>${user.branch || '-'}</div>
+                        <div style="${itemStyle}"><strong>القسم الرئيسي:</strong> <br>${user.primarySection || '-'}</div>
+                        <div style="${itemStyle}"><strong>المسمى الوظيفي:</strong> <br>${user.jobTitle || '-'}</div>
+                        <div style="${itemStyle}"><strong>المدير المباشر:</strong> <br>${user.directManager || '-'}</div>
+                        <div style="${itemStyle}"><strong>أيام العمل:</strong> <br>${user.workingDays || '6'}</div>
+                        <div style="${itemStyle}"><strong>رمز الشاغر:</strong> <br>${user.positionCode || '-'}</div>
+                    </div>
+                </div>
+
+                <div style="${cardStyle} border-color: #d35400;">
+                    <h3 style="${titleStyle}"><i class="fas fa-money-bill-wave"></i> البيانات المالية والتأمينات</h3>
+                    <div style="${gridStyle}">
+                        <div style="${itemStyle}"><strong>الأساسي:</strong> <br>${user.basicSalary || '0'}</div>
+                        <div style="${itemStyle}"><strong>بدل السكن:</strong> <br>${user.housingAllowance || '0'}</div>
+                        <div style="${itemStyle}"><strong>بدلات أخرى:</strong> <br>${user.otherAllowance || '0'}</div>
+                        <div style="${itemStyle} border-color:#27ae60; background:#eafaf1;"><strong>الإجمالي:</strong> <br><span style="color:#27ae60; font-weight:bold;">${totalSalary}</span></div>
+                        <div style="${itemStyle} border-color:#e74c3c;"><strong>خصم التأمينات:</strong> <br>${user.gosiFees || '0'}</div>
+                        <div style="${itemStyle}"><strong>البنك:</strong> <br>${user.bankName || '-'}</div>
+                        <div style="${itemStyle} grid-column: span 2;"><strong>الآيبان:</strong> <br><span style="direction:ltr; display:inline-block;">${user.bankIban || '-'}</span></div>
+                    </div>
+                    
+                    <h4 style="margin:15px 0 10px 0; font-size:14px; border-bottom:1px dashed #ccc; padding-bottom:5px;">الرعاية الطبية والبلدية</h4>
+                    <div style="${gridStyle}">
+                        <div style="${itemStyle}"><strong>شركة التأمين:</strong> <br>${user.medicalIns || '-'}</div>
+                        <div style="${itemStyle}"><strong>نوعه:</strong> <br>${user.insType || '-'}</div>
+                        <div style="${itemStyle}"><strong>انتهائه:</strong> <br>${user.insExpiry || '-'}</div>
+                        <div style="${itemStyle}"><strong>البلدية:</strong> <br>${user.baladiyahCondition || '-'}</div>
+                        <div style="${itemStyle}"><strong>انتهائها:</strong> <br>${user.baladiyahValid || '-'}</div>
+                        <div style="${itemStyle}"><strong>رسومها:</strong> <br>${user.baladiyahFees || '0'}</div>
+                    </div>
+                </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 20px;">
+                <div style="${cardStyle} border-color: #f39c12; margin-bottom: 0;">
+                    <h3 style="${titleStyle}"><i class="fas fa-phone-alt"></i> الطوارئ</h3>
+                    <div style="${gridStyle} grid-template-columns: 1fr;">
+                        <div style="${itemStyle}"><strong>اسم الطوارئ:</strong> <br>${user.emergencyName || '-'}</div>
+                        <div style="${itemStyle}"><strong>رقم الطوارئ:</strong> <br>${user.emergencyNumber || '-'}</div>
+                        <div style="${itemStyle}"><strong>صلة القرابة:</strong> <br>${user.emergencyRelation || '-'}</div>
+                    </div>
+                </div>
+
+                <div style="${cardStyle} border-color: #8e44ad; margin-bottom: 0;">
+                    <h3 style="${titleStyle}"><i class="fas fa-chart-line"></i> السجل التاريخي (الإجازات والمخالفات)</h3>
+                    
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 15px;">
+                        
+                        <div style="border:1px solid #ccc; border-radius:5px; padding:15px; background:#fff; display:flex; flex-direction:column;">
+                            <h4 style="margin:0 0 15px 0; color:#27ae60; font-size:14px; border-bottom:1px solid #eee; padding-bottom:8px;">
+                                <i class="fas fa-umbrella-beach"></i> سجل الإجازات
+                            </h4>
+                            <div style="display:flex; justify-content:space-between; font-size:12px; margin-bottom:15px; background:#f9f9f9; padding:8px; border-radius:4px;">
+                                <span>المستحق: <b>${user.leaveCredit || 0}</b></span>
+                                <span>المستخدم: <b style="color:#e74c3c;">${user.usedLeaves || 0}</b></span>
+                                <span>المتبقي: <b style="color:#2980b9;">${user.leaveBalance || 0}</b></span>
+                            </div>
+                            <div style="max-height:350px; overflow-y:auto; padding-right:5px; flex-grow:1;">
+                                ${leavesHistoryHtml}
+                            </div>
+                        </div>
+
+                        <div style="border:1px solid #ccc; border-radius:5px; padding:15px; background:#fff; display:flex; flex-direction:column;">
+                            <h4 style="margin:0 0 15px 0; color:#e74c3c; font-size:14px; border-bottom:1px solid #eee; padding-bottom:8px;">
+                                <i class="fas fa-exclamation-triangle"></i> المخالفات (خصم: ${totalDeductedDays} يوم)
+                            </h4>
+                            <div style="max-height:350px; overflow-y:auto; padding-right:5px; flex-grow:1;">
+                                ${penaltiesHistoryHtml}
+                            </div>
+                        </div>
+
+                        <div style="border:1px solid #ccc; border-radius:5px; padding:15px; background:#fff; display:flex; flex-direction:column;">
+                            <h4 style="margin:0 0 15px 0; color:#2980b9; font-size:14px; border-bottom:1px solid #eee; padding-bottom:8px;">
+                                <i class="fas fa-briefcase-medical"></i> الإجازات المرضية (العدد: ${totalSL})
+                            </h4>
+                            <div style="max-height:350px; overflow-y:auto; padding-right:5px; flex-grow:1;">
+                                ${slHistoryHtml}
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+        `;
+
+    } catch (error) {
+        console.error(error);
+        bodyDiv.innerHTML = `<div style="text-align:center; padding:50px; color:#e74c3c;"><i class="fas fa-exclamation-triangle fa-3x"></i><h3>فشل الاتصال بقواعد البيانات. يرجى المحاولة لاحقاً.</h3></div>`;
+    }
+}
+
+// ========================================================
+// 2. دالة الطباعة الاحترافية للملف الشامل 🖨️
+// ========================================================
+function printMegaProfile() {
+    const printContent = document.getElementById('mega-profile-body').innerHTML;
+    const empNameAndId = document.getElementById('mega-header-name').innerText;
+    
+    const printWindow = window.open('', '', 'width=1000,height=800');
+    
+    // تصميم الورقة للطباعة (نزيل الخلفيات الداكنة ونجعلها بيضاء رسمية)
+    printWindow.document.write(`
+        <html dir="rtl" lang="ar">
+        <head>
+            <title>التقرير الشامل - ${empNameAndId}</title>
+            <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700&display=swap" rel="stylesheet">
+            <style>
+                body { 
+                    font-family: 'Tajawal', sans-serif; 
+                    background: #fff; 
+                    color: #000; 
+                    margin: 0; 
+                    padding: 30px; 
+                    direction: rtl;
+                }
+                /* إعدادات سحرية لطباعة نظيفة */
+                @media print {
+                    body { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+                    /* منع الجداول والبطاقات من الانقسام بين صفحتين */
+                    div[style*="border-radius: 8px"] { page-break-inside: avoid; border: 1px solid #ccc !important; box-shadow: none !important; }
+                }
+                
+                .report-header {
+                    text-align: center;
+                    margin-bottom: 30px;
+                    border-bottom: 3px solid #2c3e50;
+                    padding-bottom: 15px;
+                }
+                .report-header h1 { color: #2c3e50; margin: 0 0 10px 0; font-size: 28px; }
+                .report-header h2 { color: #7f8c8d; margin: 0; font-size: 18px; }
+                .report-header p { color: #95a5a6; font-size: 14px; margin-top: 10px; }
+                
+                /* تعديل الجريد ليكون مناسباً للورق */
+                div[style*="display: grid"] { 
+                    gap: 10px !important; 
+                }
+            </style>
+        </head>
+        <body>
+            <div class="report-header">
+                <h1>التقرير الإداري الشامل للموظف</h1>
+                <h2>${empNameAndId}</h2>
+                <p>تاريخ ووقت الإصدار: ${new Date().toLocaleString('ar-SA')} | مُصدر التقرير: ${globalEmpName || 'النظام'}</p>
+            </div>
+            
+            ${printContent}
+            
+            <div style="margin-top: 50px; border-top: 1px dashed #ccc; padding-top: 20px; text-align: center; font-size: 14px; color: #777;">
+                تم استخراج هذا التقرير آلياً من نظام إدارة الموارد البشرية - ALWAFA
+            </div>
+        </body>
+        </html>
+    `);
+    
+    printWindow.document.close();
+    printWindow.focus();
+    
+    // إعطاء المتصفح 800 جزء من الثانية لترتيب الورقة وتحميل الخطوط
+    setTimeout(() => {
+        printWindow.print();
+    }, 800);
+}
     // 🧨 دالة إعدام الكود الخاطئ
 async function deleteInvalidPosition(positionCode, btnElement) {
     const isConfirmed = confirm(`⚠️ تحذير أمني!\nهل أنت متأكد من تدمير رمز الشاغر (${positionCode}) نهائياً؟\nاستخدم هذا الزر فقط للأكواد الخاطئة أو الوهمية.`);
@@ -12587,6 +13242,407 @@ async function deleteInvalidPosition(positionCode, btnElement) {
         btnElement.innerHTML = originalHtml;
         btnElement.disabled = false;
     }
+}
+    // ==========================================
+// 🛡️ ذخيرة الأزرار: عرض التفاصيل والتعديل
+// ==========================================
+
+
+
+// ==========================================
+// 🛡️ دالة فتح اللوحة السيادية (تعديل الطلب)
+// ==========================================
+async function openAdminRequestControl(reqId) {
+    try {
+        const cleanId = String(reqId).replace(/[^a-zA-Z0-9\-]/g, '');
+        console.log("⚙️ جاري البحث عن الطلب لفتح لوحة التحكم:", cleanId);
+
+        let req = null;
+
+        // رادار البحث المرن
+        const findReq = (arr) => arr.find(r => 
+            String(r.id).replace(/[^a-zA-Z0-9\-]/g, '') === cleanId || 
+            String(r.ticketId).replace(/[^a-zA-Z0-9\-]/g, '') === cleanId
+        );
+
+        // البحث في القواعد المؤمنة
+        if (window.hrAllRequests && Array.isArray(window.hrAllRequests)) req = findReq(window.hrAllRequests);
+        if (!req && window.allAdminRequestsData && Array.isArray(window.allAdminRequestsData)) req = findReq(window.allAdminRequestsData);
+        if (!req && typeof hrOpsRequests !== 'undefined' && Array.isArray(hrOpsRequests)) req = findReq(hrOpsRequests);
+        
+        if (!req) {
+            console.log("🌐 جاري السحب من السيرفر للتعديل...");
+            const response = await fetch('/api/all-requests');
+            if (response.ok) {
+                const dbRequests = await response.json();
+                const dataArray = dbRequests.requests || dbRequests.data || dbRequests || [];
+                req = findReq(dataArray);
+            }
+        }
+
+        if (!req) {
+            alert("❌ فشل العثور على الطلب للتعديل!");
+            return;
+        }
+
+        // 🎯 تفعيل اللوحة السيادية وتعبئتها بالبيانات
+        const modal = document.getElementById('admin-request-modal');
+        if (modal) {
+            // 1. زرع رقم التذكرة في اللوحة
+            document.getElementById('admin-modal-ticket-id').innerText = req.ticketId || req.id;
+            
+            // 2. تحديد الحالة الحالية في القائمة المنسدلة
+            const statusSelect = document.getElementById('admin-modal-status');
+            if (statusSelect) {
+                // إذا كانت الحالة غير موجودة في الخيارات، اجعلها pending افتراضياً
+                statusSelect.value = req.status || 'pending'; 
+            }
+            
+            // 3. سحب التعليق السابق (إن وجد)
+            const commentBox = document.getElementById('admin-modal-comment');
+            if (commentBox) {
+                commentBox.value = req.hrComment || req.escalationComment || req.managerComment || '';
+            }
+
+            // 4. إظهار اللوحة بأناقة
+            modal.style.display = 'flex'; // استخدم 'block' إذا كان التصميم الخاص بك يتطلب ذلك
+            
+            console.log("✅ تم تجهيز اللوحة السيادية للطلب:", cleanId);
+        } else {
+            console.error("❌ لم يتم العثور على كود الـ HTML الخاص باللوحة (admin-request-modal)!");
+        }
+
+    } catch (error) {
+        console.error("❌ خطأ برمجي أثناء فتح اللوحة:", error);
+    }
+}
+
+    // ==========================================
+// 🛡️ دالة التفاصيل المدرعة (بالطريقة الكلاسيكية)
+// ==========================================
+async function viewRequestDetails(reqId) {
+    try {
+        const cleanId = String(reqId).replace(/[^a-zA-Z0-9\-]/g, '');
+        console.log("🕵️‍♂️ جاري البحث عن الطلب النظيف:", cleanId);
+
+        let req = null;
+
+        // البحث بمرونة
+        const findReq = (arr) => arr.find(r => 
+            String(r.id).replace(/[^a-zA-Z0-9\-]/g, '') === cleanId || 
+            String(r.ticketId).replace(/[^a-zA-Z0-9\-]/g, '') === cleanId
+        );
+
+        // استخدام المتغيرات العامة مباشرة
+        if (window.hrAllRequests && Array.isArray(window.hrAllRequests)) req = findReq(window.hrAllRequests);
+        if (!req && window.allAdminRequestsData && Array.isArray(window.allAdminRequestsData)) req = findReq(window.allAdminRequestsData);
+        if (!req && typeof hrOpsRequests !== 'undefined' && Array.isArray(hrOpsRequests)) req = findReq(hrOpsRequests);
+        
+        if (!req) {
+            console.log("🌐 لم نجده محلياً، جاري السحب من السيرفر مباشرة...");
+            const response = await fetch('/api/all-requests');
+            if (response.ok) {
+                const dbRequests = await response.json();
+                const dataArray = dbRequests.requests || dbRequests.data || dbRequests || [];
+                req = findReq(dataArray);
+            }
+        }
+
+        if (!req) {
+            alert("❌ فشل العثور على الطلب رقم: " + cleanId + " (قد يكون محذوفاً من السيرفر).");
+            return;
+        }
+
+        console.log("✅ تم العثور على الطلب بنجاح!");
+
+        const empComment = req.details && req.details.trim() !== '' ? req.details : 'لا توجد تفاصيل إضافية مسجلة.';
+        const actualMgrComment = req.escalationComment || req.managerComment || req.comment || '';
+        let mgrCommentHtml = actualMgrComment.trim() !== '' ? actualMgrComment : (req.isManagerForm ? '<span style="color:#7f8c8d; font-style:italic;">هذا الطلب تم رفعه من الإدارة مباشرة.</span>' : '<span style="color:#7f8c8d;">لم يقم المدير بكتابة تعليق.</span>');
+        
+        const supervisorComment = req.supervisorAssignComment || '<span style="color:#7f8c8d;">-</span>';
+        const finalHrComment = req.hrComment || '<span style="color:#7f8c8d;">لم يتم الإنجاز بعد.</span>';
+
+        let historyHtml = '<div style="margin-top:15px; padding-top:15px; border-top:1px solid #eee;"><strong style="color:#8e44ad;"><i class="fas fa-history"></i> السجل الزمني للطلب:</strong><ul style="padding-right: 20px; font-size:13px; color:#555; line-height:1.8;">';
+        
+        let safeHistory = [];
+        if (req.history) {
+            if (typeof req.history === 'string') {
+                try { safeHistory = JSON.parse(req.history); } catch(e) {}
+            } else if (Array.isArray(req.history)) {
+                safeHistory = req.history;
+            }
+        }
+
+        if(safeHistory.length > 0) {
+            safeHistory.forEach(h => {
+                let hComment = h.comment ? `<br><span style="color:#3498db; font-size:12px;">💬 تعليق: ${h.comment}</span>` : (h.note ? `<br><span style="color:#3498db; font-size:12px;">💬 تعليق: ${h.note}</span>` : '');
+                historyHtml += `<li><strong>${h.date}:</strong> ${h.action} ${hComment}</li>`;
+            });
+        } else {
+            historyHtml += `<li>لا يوجد سجل زمني محفوظ.</li>`;
+        }
+        historyHtml += '</ul></div>';
+
+        const modalBody = document.getElementById('request-details-body');
+        const modal = document.getElementById('request-details-modal');
+
+        if(modalBody && modal) {
+            modalBody.innerHTML = `
+                <div style="background:#f9f9f9; padding:15px; border-radius:8px; border:1px solid #ddd; margin-bottom:15px; font-size:14px;">
+                    <div style="margin-bottom:8px; border-bottom:1px dashed #ccc; padding-bottom:8px;"><strong>صاحب الطلب:</strong> <span style="color:#2c3e50;">${req.empName || '-'} (${req.empUsername || req.senderId || '-'})</span></div>
+                    <div style="margin-bottom:8px; border-bottom:1px dashed #ccc; padding-bottom:8px;"><strong>نوع الطلب:</strong> <span style="color:#d35400; font-weight:bold;">${req.reason || req.type || '-'}</span></div>
+                    <div><strong>تاريخ الرفع:</strong> <span style="direction:ltr; display:inline-block;">${req.date || req.createdAt || req.timestamp || '-'}</span></div>
+                </div>
+
+                <div style="margin-bottom:15px;">
+                    <strong style="color:#2980b9;"><i class="fas fa-comment-dots"></i> تفاصيل الموظف:</strong>
+                    <div style="background:#f4f6f6; padding:12px; border-radius:5px; border-right:4px solid #3498db; margin-top:5px; white-space:pre-wrap; font-size:14px; border:1px solid #e1e8ed;">${empComment}</div>
+                </div>
+
+                <div style="margin-bottom:15px;">
+                    <strong style="color:#c0392b;"><i class="fas fa-user-tie"></i> تعليق الإدارة:</strong>
+                    <div style="background:#fdedec; padding:12px; border-radius:5px; border-right:4px solid #e74c3c; margin-top:5px; white-space:pre-wrap; font-size:14px; border:1px solid #f5b7b1;">${mgrCommentHtml}</div>
+                </div>
+                
+                <div style="display:flex; gap:10px;">
+                    <div style="flex:1; background:#f4ecf7; padding:12px; border-radius:5px; border-right:4px solid #8e44ad; border:1px solid #d2b4de;">
+                        <strong style="color:#8e44ad; font-size:12px;"><i class="fas fa-user-shield"></i> توجيه مشرف الموارد:</strong><br>
+                        <span style="font-size:13px; color:#333;">${supervisorComment}</span>
+                    </div>
+                    <div style="flex:1; background:#eafaf1; padding:12px; border-radius:5px; border-right:4px solid #27ae60; border:1px solid #a9dfbf;">
+                        <strong style="color:#27ae60; font-size:12px;"><i class="fas fa-check-double"></i> حل الموظف المُعالج:</strong><br>
+                        <span style="font-size:13px; color:#333;">${finalHrComment}</span>
+                    </div>
+                </div>
+                ${historyHtml}
+            `;
+            modal.style.display = 'flex';
+        } else {
+            console.error("❌ واجهة الـ Modal غير موجودة في الـ HTML!");
+        }
+    } catch (error) {
+        console.error("❌ خطأ برمجي داخلي:", error);
+    }
+}
+    // دالة التبديل بين تقارير غرفة العمليات
+function switchReportTab(event, tabId) {
+    // إخفاء كل التبويبات
+    const panes = document.querySelectorAll('.report-pane');
+    panes.forEach(p => p.style.display = 'none');
+
+    // إزالة اللون والخط من كل الأزرار
+    const buttons = document.querySelectorAll('.report-tab-btn');
+    buttons.forEach(b => {
+        b.style.color = '#777';
+        b.style.borderBottom = 'none';
+        b.classList.remove('active');
+    });
+
+    // إظهار التبويب المطلوب
+    document.getElementById(tabId).style.display = 'block';
+
+    // تلوين الزر المضغوط باللون المناسب
+    const activeColor = tabId === 'general-stats-tab' ? '#2980b9' : '#8e44ad';
+    event.currentTarget.style.color = activeColor;
+    event.currentTarget.style.borderBottom = `3px solid ${activeColor}`;
+    event.currentTarget.classList.add('active');
+}
+  // ==========================================
+// 🔴 رادار الجسور وأنماط الغياب المريبة
+// ==========================================
+async function analyzeAttendancePatterns() {
+    const btn = document.querySelector('button[onclick="analyzeAttendancePatterns()"]');
+    const resultsArea = document.getElementById('patterns-results-area');
+    const originalText = btn.innerHTML;
+
+    // 1. قراءة الفلاتر السيادية (نفس فلاتر الميجا داشبورد)
+    const y = document.getElementById('dash-year').value;
+    const pType = document.getElementById('dash-period-type').value;
+    const pDetail = document.getElementById('dash-period-detail') ? document.getElementById('dash-period-detail').value : '1';
+    const regionF = document.getElementById('dash-region').value;
+    const branchF = document.getElementById('dash-branch').value;
+
+    btn.innerHTML = '<i class="fas fa-radar fa-spin"></i> جاري المسح بالرادار...';
+    btn.disabled = true;
+    resultsArea.innerHTML = '<p style="text-align:center; padding:40px; color:#7f8c8d;"><i class="fas fa-spinner fa-spin fa-2x"></i><br><br>جاري تحليل آلاف السجلات لاكتشاف الجسور...</p>';
+
+    try {
+        // 2. إطلاق طائرة الاستطلاع (طلب للسيرفر)
+        const response = await fetch('/api/analyze-patterns', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+                year: y, periodType: pType, periodDetail: pDetail, 
+                region: regionF, branch: branchF 
+            })
+        });
+
+        const res = await response.json();
+
+        if (res.success) {
+            if (res.data.length === 0) {
+                resultsArea.innerHTML = `<div style="text-align:center; padding:30px; background:#eafaf1; color:#27ae60; border-radius:8px; border:1px solid #2ecc71;">
+                    <i class="fas fa-shield-check fa-3x" style="margin-bottom:15px;"></i>
+                    <h3 style="margin:0;">لا يوجد تلاعب!</h3>
+                    <p>جميع سجلات الموظفين للفترة المحددة خالية من أنماط تمديد الإجازات.</p>
+                </div>`;
+                return;
+            }
+
+            // 3. رسم جدول الاصطياد
+            let tableHtml = `
+            <div style="overflow-x: auto;">
+                <table class="styled-table" style="width: 100%; text-align: right; font-size: 13px;">
+                    <thead style="background: #2c3e50; color: white;">
+                        <tr>
+                            <th>الموظف</th>
+                            <th>الفرع</th>
+                            <th style="text-align:center;">🔴 النمط الخطر<br><span style="font-size:10px; font-weight:normal;">(غياب قبل وبعد)</span></th>
+                            <th style="text-align:center;">🟠 نمط غياب<br><span style="font-size:10px; font-weight:normal;">(غياب طرف واحد)</span></th>
+                            <th style="text-align:center;">🟡 نمط مرضي<br><span style="font-size:10px; font-weight:normal;">(مرضي طرف واحد)</span></th>
+                            <th>التفاصيل (التواريخ)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+
+            res.data.forEach(emp => {
+                // تلوين الصف بالخفيف إذا كان خطيراً جداً
+                const bgAlert = emp.dangerCount > 0 ? 'background: #fdedec;' : '';
+                
+                // تجميع التواريخ المكتشفة كأدلة إدانة
+                let evidenceHtml = emp.evidences.map(ev => {
+                let badge = '';
+                if(ev.type === 'danger') badge = '<span style="background:#e74c3c; color:white; padding:2px 5px; border-radius:3px; font-size:10px;">نمط خطر</span>';
+                else if(ev.type === 'absence') badge = '<span style="background:#e67e22; color:white; padding:2px 5px; border-radius:3px; font-size:10px;">نمط غياب</span>';
+                else badge = '<span style="background:#f1c40f; color:#333; padding:2px 5px; border-radius:3px; font-size:10px;">نمط مرضي</span>';
+                
+                return `<div style="margin-bottom:6px; font-size:11px; border-bottom:1px solid #eee; padding-bottom:4px;">
+                    ${badge} <br>
+                    <strong style="color:#2c3e50;">المرجع:</strong> ${ev.anchorType} (${ev.blockStart})
+                    <br><span style="color:#777; font-size:10px;">قبلي: [${ev.beforeCode || '-'}] | بعدي: [${ev.afterCode || '-'}]</span>
+                </div>`;
+                }).join('');
+
+                tableHtml += `
+                <tr style="${bgAlert}">
+                    <td><strong>${emp.name}</strong><br><span style="font-size:10px; color:#777;">${emp.username}</span></td>
+                    <td>${emp.branch || '-'}</td>
+                    <td style="text-align:center; font-weight:bold; font-size:16px; color:#c0392b;">${emp.dangerCount > 0 ? emp.dangerCount : '-'}</td>
+                    <td style="text-align:center; font-weight:bold; font-size:16px; color:#d35400;">${emp.absenceCount > 0 ? emp.absenceCount : '-'}</td>
+                    <td style="text-align:center; font-weight:bold; font-size:16px; color:#f39c12;">${emp.sickCount > 0 ? emp.sickCount : '-'}</td>
+                    <td style="max-width: 250px; overflow-y: auto;">${evidenceHtml}</td>
+                    <td style="text-align:center;">
+                        <button onclick='printEmployeeBridgeReport(${JSON.stringify(emp)})' 
+                                style="background:#2c3e50; color:white; border:none; padding:8px 12px; border-radius:5px; cursor:pointer; font-size:12px;" 
+                                title="طباعة تقرير الإدانة">
+                            <i class="fas fa-print"></i> طباعة التقرير
+                        </button>
+                    </td>
+                </tr>`;
+            });
+
+            tableHtml += `</tbody></table></div>`;
+            resultsArea.innerHTML = tableHtml;
+
+        } else {
+            resultsArea.innerHTML = `<p style="color:red; text-align:center;">❌ حدث خطأ: ${res.message}</p>`;
+        }
+
+    } catch (e) {
+        console.error(e);
+        resultsArea.innerHTML = `<p style="color:red; text-align:center;">❌ فشل الاتصال بالسيرفر أثناء تشغيل الرادار.</p>`;
+    } finally {
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+    }
+}
+ function printEmployeeBridgeReport(emp) {
+    const printWindow = window.open('', '_blank', 'width=900,height=800');
+    
+    // تجهيز تفاصيل الأدلة للطباعة
+    const evidenceRows = emp.evidences.map(ev => `
+        <tr>
+            <td style="padding:10px; border:1px solid #ddd;">${ev.type === 'danger' ? '🔴 نمط خطر' : (ev.type === 'absence' ? '🟠 نمط غياب' : '🟡 نمط مرضي')}</td>
+            <td style="padding:10px; border:1px solid #ddd;">${ev.anchorType}</td>
+            <td style="padding:10px; border:1px solid #ddd;">${ev.blockStart}</td>
+            <td style="padding:10px; border:1px solid #ddd; direction:ltr;">[${ev.beforeCode || '-'}] قبل | بعد [${ev.afterCode || '-'}]</td>
+        </tr>
+    `).join('');
+
+    printWindow.document.write(`
+        <html dir="rtl">
+        <head>
+            <title>تقرير انضباط - ${emp.name}</title>
+            <style>
+                body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 40px; color: #333; }
+                .header { text-align: center; border-bottom: 2px solid #2c3e50; padding-bottom: 20px; margin-bottom: 30px; }
+                .info-table { width: 100%; margin-bottom: 30px; border-collapse: collapse; }
+                .info-table td { padding: 10px; border: 1px solid #eee; }
+                .violation-summary { display: flex; justify-content: space-around; background: #f9f9f9; padding: 20px; border-radius: 10px; margin-bottom: 30px; }
+                .stat-box { text-align: center; }
+                .stat-box span { display: block; font-size: 24px; font-weight: bold; color: #c0392b; }
+                table.details { width: 100%; border-collapse: collapse; margin-top: 20px; }
+                table.details th { background: #f2f2f2; padding: 12px; border: 1px solid #ddd; text-align: right; }
+                .footer { margin-top: 50px; display: flex; justify-content: space-between; font-weight: bold; }
+                @media print { .no-print { display: none; } }
+            </style>
+        </head>
+        <body>
+            <div class="header">
+                <h1>ِALWAFA Hypermarket</h1>
+                <h3>تقرير تحليل أنماط الغياب </h3>
+                <p>تاريخ استخراج التقرير: ${new Date().toLocaleDateString('ar-SA')}</p>
+            </div>
+
+            <table class="info-table">
+                <tr>
+                    <td width="150"><strong>اسم الموظف:</strong></td>
+                    <td>${emp.name}</td>
+                    <td width="150"><strong>الرقم الوظيفي:</strong></td>
+                    <td>${emp.username}</td>
+                </tr>
+                <tr>
+                    <td><strong>الفرع / المنطقة:</strong></td>
+                    <td colspan="3">${emp.branch || 'غير محدد'}</td>
+                </tr>
+            </table>
+
+            <div class="violation-summary">
+                <div class="stat-box"><span>${emp.dangerCount}</span>النمط الخطر</div>
+                <div class="stat-box"><span>${emp.absenceCount}</span>نمط الغياب</div>
+                <div class="stat-box"><span>${emp.sickCount}</span>نمط الإجازات المرضية</div>
+            </div>
+
+            <h4>تفاصيل الحالات المرصودة:</h4>
+            <table class="details">
+                <thead>
+                    <tr>
+                        <th>النوع</th>
+                        <th>نوع يوم الارتكاز</th>
+                        <th>تاريخ البدء</th>
+                        <th>أكواد التحضير المحيطة</th>
+                    </tr>
+                </thead>
+                <tbody>${evidenceRows}</tbody>
+            </table>
+
+            <div style="margin-top:30px; font-size:13px; color:#666;">
+                * ملاحظة: يتم رصد هذه الأنماط آلياً بناءً على سجلات التحضير المعتمدة في النظام.
+            </div>
+
+            <div class="footer">
+                <div>توقيع الموظف: ............................</div>
+                <div>اعتماد الموارد البشرية: ............................</div>
+            </div>
+
+            <div class="no-print" style="margin-top:40px; text-align:center;">
+                <button onclick="window.print()" style="padding:10px 30px; background:#27ae60; color:white; border:none; border-radius:5px; cursor:pointer; font-weight:bold;">إرسال إلى الطابعة</button>
+            </div>
+        </body>
+        </html>
+    `);
+    printWindow.document.close();
 }
     
 </script>
