@@ -10560,7 +10560,7 @@ function exportUsersToExcela() {
             console.log("📡 جاري طلب بيانات الموظفين من الخادم...");
             try { 
                 // ⚠️ استبدل '/api/employees' بالمسار الصحيح لديك إذا كان مختلفاً
-                const res = await fetch('/api/employees'); 
+                const res = await fetch('/api/users'); 
                 const data = await res.json();
                 // دعم ذكي للردود (سواء كانت مصفوفة مباشرة أو بداخل كائن)
                 allUsersData = data.data || data.employees || data || []; 
