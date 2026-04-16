@@ -11688,8 +11688,8 @@ function pingLastActivity() {
     }
 }  
         // متغيرات لحفظ بيانات الطلب النشط وقت المعالجة
-let currentMissingRecord = null;
-let missingRecordsData = [];
+var currentMissingRecord = null;
+var missingRecordsData = [];
 
 // 1. دالة جلب النواقص من السيرفر
 async function loadMissingAttendance() {
