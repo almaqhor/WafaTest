@@ -2461,19 +2461,40 @@
 
 
         async function checkLogin() {
-            const user = document.getElementById('username').value.trim(), pass = document.getElementById('password').value;
-            if(!user || !pass) return; document.querySelector('.login-btn').innerText = "جاري التحقق..."; document.getElementById('login-error').style.display = 'none';
-            try {
-const res = await fetch('https://wafatest-production.up.railway.app/auth/v1/login', { 
-    method: 'POST', 
-    headers:{'Content-Type':'application/json'}, 
-    body: JSON.stringify({username:user, password:pass}) 
-});                const data = await res.json();
-                if(res.ok && data.success) { currentUsername = data.username; localStorage.setItem('wafaUser', JSON.stringify(data)); setupDashboard(data); } 
-                else { document.getElementById('login-error').innerText = data.message || "بيانات غير صحيحة!"; document.getElementById('login-error').style.display = 'block'; }
-            } catch(e) { document.getElementById('login-error').innerText = "خطأ بالسيرفر!"; document.getElementById('login-error').style.display = 'block'; } 
-            finally { document.querySelector('.login-btn').innerText = "تسجيل الدخول"; }
+    const user = document.getElementById('username').value.trim();
+    const pass = document.getElementById('password').value;
+    
+    if(!user || !pass) return; 
+    
+    document.querySelector('.login-btn').innerText = "جاري التحقق..."; 
+    document.getElementById('login-error').style.display = 'none';
+    
+    try {
+        // 🚀 السحر هنا: إزالة الدومين والاكتفاء بالمسار النسبي
+        const res = await fetch('/auth/v1/login', { 
+            method: 'POST', 
+            headers: {'Content-Type':'application/json'}, 
+            body: JSON.stringify({username:user, password:pass}) 
+        });                
+        
+        const data = await res.json();
+        
+        if(res.ok && data.success) { 
+            currentUsername = data.username; 
+            localStorage.setItem('wafaUser', JSON.stringify(data)); 
+            setupDashboard(data); 
+        } else { 
+            document.getElementById('login-error').innerText = data.message || "بيانات غير صحيحة!"; 
+            document.getElementById('login-error').style.display = 'block'; 
         }
+    } catch(e) { 
+        console.error(e);
+        document.getElementById('login-error').innerText = "خطأ بالاتصال بالسيرفر!"; 
+        document.getElementById('login-error').style.display = 'block'; 
+    } finally { 
+        document.querySelector('.login-btn').innerText = "تسجيل الدخول"; 
+    }
+}
         // ==================== دوال الثيم الداكن ====================
         function toggleTheme() {
             document.body.classList.toggle('dark-mode');
