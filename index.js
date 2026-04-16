@@ -615,38 +615,20 @@ app.post('/api/user-add', async (req, res) => {
 
         // 4. الضربة الثانية: تسكين الموظف الجديد على الشاغر (إذا تم إدخال رمز شاغر)
         if (positionCodeToAssign && positionCodeToAssign.trim() !== '') {
-    const cleanCode = positionCodeToAssign.trim();
-    // تحويل الـ ID إلى رقم (في حال كانت قاعدة البيانات تطلبه كرقم Integer) لتجنب الخداع البصري
-    const empId = Number(newUser.id) || newUser.id; 
-
-    // 1. الاستطلاع: هل يمتلك الموظف شاغراً مسبقاً في قاعدة البيانات؟
-    const existingPosition = await prisma.sapPosition.findUnique({
-        where: { employeeId: empId }
+    await prisma.sapPosition.upsert({
+        where: { employeeId: newUser.id }, // 👈 التكتيك الجديد: نبحث عن الموظف وليس الرمز
+        update: { 
+            positionCode: positionCodeToAssign.trim(), // 👈 نُحدّث الرمز هنا
+            jobTitle: newUser.jobTitle || 'غير محدد',
+            branch: newUser.branch || 'غير محدد'
+        },
+        create: {
+            employeeId: newUser.id,
+            positionCode: positionCodeToAssign.trim(),
+            jobTitle: newUser.jobTitle || 'غير محدد',
+            branch: newUser.branch || 'غير محدد'
+        }
     });
-
-    if (existingPosition) {
-        // 2. الهجوم الأول (التحديث): إذا كان لديه سجل، نُحدث رمزه فقط
-        await prisma.sapPosition.update({
-            where: { employeeId: empId },
-            data: { 
-                positionCode: cleanCode,
-                jobTitle: newUser.jobTitle || 'غير محدد',
-                branch: newUser.branch || 'غير محدد'
-            }
-        });
-        console.log("✅ تم تحديث رمز الشاغر بنجاح.");
-    } else {
-        // 3. الهجوم الثاني (الإنشاء): إذا لم يكن لديه أي سجل، ننشئ له سجلاً جديداً
-        await prisma.sapPosition.create({
-            data: {
-                employeeId: empId,
-                positionCode: cleanCode,
-                jobTitle: newUser.jobTitle || 'غير محدد',
-                branch: newUser.branch || 'غير محدد'
-            }
-        });
-        console.log("✅ تم إنشاء رمز شاغر جديد بنجاح.");
-    }
 }
 
         console.log(`✅ تم إضافة الموظف الجديد: ${username}`);
@@ -2682,15 +2664,14 @@ app.post('/api/recalculate-leaves', async (req, res) => {
     }
 });
 // ======================================================================
-// ======================================================================
 // 🗑️ 3. مسار حذف الإجازة (SQL) - مع التراجع الآلي عن التحضير والرصيد
 // ======================================================================
 app.post('/api/leave-delete', async (req, res) => {
     try {
         const { id, byUser } = req.body;
-        const leaveId = parseInt(id); // تحويل الـ ID إلى رقم لأن SQL يتعامل بالأرقام
+        const leaveId = parseInt(id); 
         
-        // 1. جلب الإجازة مع بيانات الموظف
+        // 1. جلب الإجازة للتحقق
         const leave = await prisma.leave.findUnique({ 
             where: { id: leaveId },
             include: { employee: true }
@@ -2699,51 +2680,67 @@ app.post('/api/leave-delete', async (req, res) => {
         if (!leave) return res.json({ success: false, message: 'الإجازة غير موجودة في قاعدة البيانات' });
 
         const emp = leave.employee;
+        
+        // تجهيز مصفوفة العمليات لقاعدة البيانات (لضمان التنفيذ ككتلة واحدة)
+        const prismaOperations = [];
 
-        // 2. التراجع عن التحضير (إرجاع الأيام من V إلى D)
+        // 2. معالجة أيام التحضير بتوقيت السعودية الآمن
         let start = new Date(leave.startDate);
         for (let i = 0; i < leave.duration; i++) {
             let curr = new Date(start); 
             curr.setDate(curr.getDate() + i);
-            let prismaDate = toPrismaDate(curr.toISOString()); // المترجم الذكي
+            
+            // استخراج التاريخ بصيغة YYYY-MM-DD بتوقيت السعودية الآمن
+            const localDateString = curr.toLocaleDateString('en-CA', { timeZone: 'Asia/Riyadh' });
+            let prismaDate = typeof toPrismaDate === 'function' ? toPrismaDate(localDateString) : localDateString; 
             
             const attRecord = await prisma.attendance.findFirst({
                 where: { date: prismaDate, employeeId: emp.id }
             });
 
+            // 💥 التكتيك الجديد: مسح السجل من جذوره بدلاً من تفريغه
             if (attRecord && attRecord.code === 'V') {
-                await prisma.attendance.update({
-                    where: { id: attRecord.id },
-                    data: { code: 'D', note: 'نظام (تراجع عن إجازة)', timestamp: new Date().toISOString() }
-                });
+                prismaOperations.push(
+                    prisma.attendance.delete({
+                        where: { id: attRecord.id }
+                    })
+                );
             }
         }
 
-        // 3. التراجع عن الرصيد المستخدم (فقط إذا كانت إجازة سنوية)
+        // 3. التراجع عن الرصيد المستخدم (فقط للإجازات السنوية)
         if (leave.type === 'سنوية') {
             const newUsed = Math.max(0, (emp.usedLeaves || 0) - leave.duration);
             const newBalance = parseFloat(((emp.leaveCredit || 0) - newUsed).toFixed(3));
             
-            await prisma.employee.update({
-                where: { id: emp.id },
-                data: { usedLeaves: newUsed, leaveBalance: newBalance }
-            });
+            prismaOperations.push(
+                prisma.employee.update({
+                    where: { id: emp.id },
+                    data: { usedLeaves: newUsed, leaveBalance: newBalance }
+                })
+            );
         }
 
-        // 4. حذف سجل الإجازة نهائياً وتسجيل الرقابة
-        await prisma.leave.delete({ where: { id: leaveId } });
+        // 4. عملية حذف الإجازة نهائياً
+        prismaOperations.push(
+            prisma.leave.delete({ where: { id: leaveId } })
+        );
 
+        // 🚀 إطلاق جميع العمليات معاً بضربة واحدة (درع الـ Transaction)
+        await prisma.$transaction(prismaOperations);
+
+        // 5. التوثيق الأمني
         if (typeof safeLogAudit === 'function') {
-            safeLogAudit(byUser, 'حذف إجازة', emp.username, `إلغاء إجازة ${leave.type} (${leave.duration} أيام)`);
+            safeLogAudit(byUser, 'حذف إجازة', emp.username, `إلغاء إجازة ${leave.type} (${leave.duration} أيام) ومسح التحضير المرتبط بها`);
         }
 
         res.json({ success: true });
+
     } catch (error) {
         console.error("❌ خطأ في حذف الإجازة:", error);
-        res.json({ success: false, message: "حدث خطأ أثناء الحذف." });
+        res.status(500).json({ success: false, message: "حدث خطأ داخلي في السيرفر أثناء عملية الحذف والتراجع." });
     }
 });
-
 // ======================================================================
 // ✏️ 4. مسار تعديل الإجازة (SQL) - يمسح الأيام القديمة ويطبق الجديدة
 // ======================================================================
@@ -3262,6 +3259,53 @@ app.post('/api/urgent-edit-attendance', async (req, res) => {
     }
 });
 
+
+// ======================================================================
+// 🗑️ مسار حذف سجل التحضير نهائياً (SQL Version)
+// ======================================================================
+app.post('/api/delete-attendance', async (req, res) => {
+    try {
+        const { username, date, byUser } = req.body;
+
+        if (!username || !date) {
+            return res.json({ success: false, message: "بيانات الحذف ناقصة." });
+        }
+
+        // 1. العثور على الموظف (لجلب الـ ID الخاص به)
+        const employee = await prisma.employee.findUnique({
+            where: { username: String(username) }
+        });
+
+        if (!employee) return res.json({ success: false, message: "لم يتم العثور على الموظف." });
+
+        // ترويض التاريخ للبحث الدقيق
+        const strictDate = new Date(date + 'T00:00:00Z');
+
+        // 2. 💣 تنفيذ أمر الحذف مباشرة باستخدام deleteMany (لأننا نبحث بـ ID وتاريخ، وهو ليس حقلاً فريداً unique)
+        const deleteResult = await prisma.attendance.deleteMany({
+            where: {
+                employeeId: employee.id,
+                date: strictDate
+            }
+        });
+
+        if (deleteResult.count === 0) {
+            return res.json({ success: false, message: "السجل غير موجود أو تم حذفه مسبقاً." });
+        }
+
+        // 3. توثيق استخباراتي (Audit Log)
+        if (typeof safeLogAudit === 'function') {
+            safeLogAudit(byUser || 'مدير النظام', 'حذف تحضير', employee.name, `تم مسح تحضير يوم (${date}) نهائياً`);
+        }
+
+        res.json({ success: true, message: "تم إعدام السجل بنجاح." });
+
+    } catch (error) {
+        console.error("❌ خطأ في حذف التحضير (SQL):", error);
+        res.json({ success: false, message: "حدث خطأ داخلي أثناء محاولة الحذف." });
+    }
+});
+
 // ======================================================================
 // 🏰 1. حصن التحضير اليومي (النسخة المتوافقة مع هيكل SQL الجديد)
 // ======================================================================
@@ -3742,6 +3786,7 @@ app.post('/api/delete-penalty', async (req, res) => {
 
 
 
+// ==================== (HR) محرك تحليل الغيابات المطور (V3) حسب المادة 80 ====================
 // ======================================================================
 // 📊 محرك تحليل الغيابات المطور (المادة 80) - نسخة Prisma SQL 🚀
 // ======================================================================
@@ -4578,22 +4623,37 @@ app.post('/api/admin-update-request', async (req, res) => {
 
         if (!ticketId) return res.json({ success: false, message: 'رقم التذكرة مفقود' });
 
-        // ⚡ السحر هنا: البحث المزدوج الذكي (عبر id أو ticketId)
-        const numericId = parseInt(ticketId.toString().replace('REQ-', '')); // استخراج الرقم الصافي في حال كان هناك حروف
+        // 1. ⚡ السحر المُدرّع: البحث المزدوج الذكي (مع صمام الأمان)
+        const cleanTicketId = String(ticketId).trim();
+        const numericId = parseInt(cleanTicketId.replace('REQ-', ''), 10);
+        
+        // 🛡️ صمام الأمان: الحد الأقصى لرقم INT4 في SQL هو 2147483647
+        // لن نبحث في الـ ID التسلسلي إلا إذا كان الرقم منطقياً وصغيراً
+        const isSafeForSqlInt = !isNaN(numericId) && numericId > 0 && numericId <= 2147483647;
         
         const ticket = await prisma.requestTicket.findFirst({
             where: {
                 OR: [
-                    { ticketId: String(ticketId) },
-                    ...(isNaN(numericId) ? [] : [{ id: numericId }]) // البحث بالـ ID الداخلي إن وجد
+                    { ticketId: cleanTicketId }, // البحث الدائم في حقل النص الآمن
+                    ...(isSafeForSqlInt ? [{ id: numericId }] : []) // إضافة البحث بالرقم التسلسلي فقط إذا كان آمناً
                 ]
             }
         });
 
         if (!ticket) return res.json({ success: false, message: 'التذكرة غير موجودة في السجلات' });
 
-        // 2. تحديث سجل التاريخ (History Array)
-        let history = ticket.history ? JSON.parse(ticket.history) : [];
+        // 2. تحديث سجل التاريخ (History Array) مع درع حماية
+        let history = [];
+        if (ticket.history) {
+            try {
+                history = JSON.parse(ticket.history);
+                if (!Array.isArray(history)) history = [];
+            } catch (e) {
+                console.warn(`⚠️ تعذر قراءة السجل القديم للتذكرة ${ticket.id}، سيتم بدء سجل جديد.`);
+                history = [];
+            }
+        }
+
         history.push({
             date: new Date().toLocaleString('ar-SA', { timeZone: 'Asia/Riyadh' }),
             action: `تدخل إداري: تغيير الحالة إلى (${status})`,
@@ -4609,6 +4669,7 @@ app.post('/api/admin-update-request', async (req, res) => {
 
         if (hrComment) updateData.hrComment = hrComment;
 
+        // تسجيل تاريخ الإغلاق إذا كانت الحالة نهائية
         if (status === 'resolved' || status === 'completed' || status === 'rejected') {
             updateData.resolveDate = new Date().toLocaleString('en-CA', { timeZone: 'Asia/Riyadh' });
         }
@@ -4619,7 +4680,7 @@ app.post('/api/admin-update-request', async (req, res) => {
             data: updateData
         });
 
-        // توثيق أمني
+        // توثيق أمني (في سجلات النظام إن وجدت)
         if (typeof safeLogAudit === 'function') {
             safeLogAudit(adminName || 'الإدمن', 'تحديث طلب سيادي', `تم تحديث الطلب الداخلي ${ticket.id} إلى ${status}`, 'SQL System');
         }
@@ -5012,4 +5073,175 @@ app.post('/api/delete-sap-position', async (req, res) => {
         res.json({ success: false, message: "حدث خطأ داخلي أثناء محاولة التدمير." });
     }
 });
+
+app.post('/api/analyze-patterns', async (req, res) => {
+    try {
+        console.log("🚀 إطلاق رادار كشف الجسور (Bridge Patterns)...");
+        const { year, periodType, periodDetail, region, branch } = req.body;
+
+        // 1. حساب النطاق الزمني بناءً على الفلاتر
+        const y = parseInt(year) || new Date().getFullYear();
+        const pDetail = parseInt(periodDetail) || 1;
+        
+        let mStart, mEnd;
+        if (periodType === 'month') { mStart = new Date(y, pDetail - 1, 1); mEnd = new Date(y, pDetail, 0); }
+        else if (periodType === 'quarter') { mStart = new Date(y, (pDetail - 1) * 3, 1); mEnd = new Date(y, pDetail * 3, 0); }
+        else if (periodType === 'half') { mStart = new Date(y, (pDetail - 1) * 6, 1); mEnd = new Date(y, pDetail * 6, 0); }
+        else { mStart = new Date(y, 0, 1); mEnd = new Date(y, 11, 31); }
+
+        // 🛡️ تكتيك العازل: نوسع البحث 7 أيام للخلف والأمام لنرى حواف الإجازات
+        const queryStart = new Date(mStart); queryStart.setDate(queryStart.getDate() - 7);
+        const queryEnd = new Date(mEnd); queryEnd.setDate(queryEnd.getDate() + 7);
+
+        // 2. جلب الموظفين (بجميع حالاتهم كما طلبت)
+        const empWhere = {};
+        if (region) empWhere.region = region;
+        if (branch) empWhere.branch = branch;
+        
+        const employees = await prisma.employee.findMany({ where: empWhere });
+        const empIds = employees.map(e => e.id);
+
+        if (empIds.length === 0) return res.json({ success: true, data: [] });
+
+        // 3. جلب جميع التحضيرات في النطاق الموسع
+        const attendance = await prisma.attendance.findMany({
+            where: {
+                employeeId: { in: empIds },
+                date: { gte: queryStart, lte: queryEnd }
+            },
+            orderBy: { date: 'asc' }
+        });
+
+        // تصنيفات الأكواد للرادار
+        const anchorCodes = ['OFF', 'V', 'E', 'CP','Off']; // 👈 تم إضافة OFF و CP
+        const absCodes = ['A', 'LOP'];
+        const slCode = ['SL'];
+        const triggerCodes = [...absCodes, ...slCode]; // A, LOP, SL
+
+        const finalReport = [];
+
+        // 4. خوارزمية الاصطياد لكل موظف
+        for (const emp of employees) {
+            const userAtt = attendance.filter(a => a.employeeId === emp.id);
+            if (userAtt.length === 0) continue;
+
+            // بناء خريطة (Map) للتواريخ لسرعة البحث (YYYY-MM-DD -> code)
+            const dateMap = new Map();
+            userAtt.forEach(a => {
+                const d = new Date(a.date).toISOString().split('T')[0];
+                dateMap.set(d, a.code);
+            });
+
+            let dangerCount = 0;
+            let absenceCount = 0;
+            let sickCount = 0;
+            let evidences = [];
+
+            // تجميع الكتل المريحة (Anchor Blocks)
+            let blocks = [];
+            let inBlock = false;
+            let currentBlock = null;
+
+            userAtt.forEach(a => {
+                const dStr = new Date(a.date).toISOString().split('T')[0];
+                const isAnchor = anchorCodes.includes(a.code);
+
+                if (isAnchor && !inBlock) {
+                    inBlock = true;
+                    currentBlock = { start: new Date(a.date), end: new Date(a.date), startStr: dStr };
+                } else if (isAnchor && inBlock) {
+                    currentBlock.end = new Date(a.date);
+                } else if (!isAnchor && inBlock) {
+                    blocks.push(currentBlock);
+                    inBlock = false;
+                }
+            });
+            if (inBlock) blocks.push(currentBlock); // إغلاق آخر كتلة إن وجدت
+
+            // 5. فحص كل كتلة وتطبيق "قواعد الاشتباك"
+            blocks.forEach(block => {
+                // التأكد من أن الكتلة (أو جزء منها) يقع داخل الفترة المطلوبة (لا العازل)
+                if (block.start > mEnd || block.end < mStart) return;
+                    // تحديد نوع اليوم المرجعي (أول يوم في الكتلة)
+                const anchorTypeCode = dateMap.get(block.startStr); 
+                let anchorLabel = '';
+                if (anchorTypeCode === 'Off') anchorLabel = 'راحة أسبوعية';
+                else if (anchorTypeCode === 'CP') anchorLabel = 'يوم تعويض';
+                else if (anchorTypeCode === 'V') anchorLabel = 'إجازة سنوية';
+                else if (anchorTypeCode === 'E') anchorLabel = 'عطلة رسمية/عيد';
+                // تحديد اليوم الذي يسبق الكتلة مباشرة
+                const dayBefore = new Date(block.start);
+                dayBefore.setDate(dayBefore.getDate() - 1);
+                const beforeStr = dayBefore.toISOString().split('T')[0];
+                const codeBefore = dateMap.get(beforeStr) || null;
+
+                // تحديد اليوم الذي يلي الكتلة مباشرة
+                const dayAfter = new Date(block.end);
+                dayAfter.setDate(dayAfter.getDate() + 1);
+                const afterStr = dayAfter.toISOString().split('T')[0];
+                const codeAfter = dateMap.get(afterStr) || null;
+
+                // تطبيق الشروط بالترتيب (Mutually Exclusive)
+                const isBeforeTrigger = triggerCodes.includes(codeBefore);
+                const isAfterTrigger = triggerCodes.includes(codeAfter);
+
+                let detectedType = null;
+
+                // 🔴 الشرط الأول: النمط الخطر
+                if (isBeforeTrigger && isAfterTrigger) {
+                    dangerCount++;
+                    detectedType = 'danger';
+                } 
+                // 🟠 الشرط الثاني: نمط غياب فردي
+                else if (absCodes.includes(codeBefore) || absCodes.includes(codeAfter)) {
+                    absenceCount++;
+                    detectedType = 'absence';
+                } 
+                // 🟡 الشرط الثالث: نمط مرضي فردي
+                else if (slCode.includes(codeBefore) || slCode.includes(codeAfter)) {
+                    sickCount++;
+                    detectedType = 'sick';
+                }
+
+                // تسجيل دليل الإدانة إذا تم اكتشاف تلاعب
+                if (detectedType) {
+                evidences.push({
+                    type: detectedType,
+                    blockStart: block.startStr,
+                    anchorType: anchorLabel, // 👈 إرسال نوع اليوم للواجهة
+                    beforeCode: codeBefore,
+                    afterCode: codeAfter
+                });
+                }
+            });
+
+            // إذا كان الموظف لديه أي تلاعب، نضيفه للتقرير النهائي
+            if (dangerCount > 0 || absenceCount > 0 || sickCount > 0) {
+                finalReport.push({
+                    username: emp.username,
+                    name: emp.name,
+                    branch: emp.branch,
+                    dangerCount,
+                    absenceCount,
+                    sickCount,
+                    evidences
+                });
+            }
+        }
+
+        // 6. الترتيب العسكري: الأخطر يظهر في الأعلى (ترتيب تنازلي حسب الخطورة ثم الغياب ثم المرضي)
+        finalReport.sort((a, b) => {
+            if (b.dangerCount !== a.dangerCount) return b.dangerCount - a.dangerCount;
+            if (b.absenceCount !== a.absenceCount) return b.absenceCount - a.absenceCount;
+            return b.sickCount - a.sickCount;
+        });
+
+        res.json({ success: true, data: finalReport });
+
+    } catch (error) {
+        console.error("❌ خطأ في محرك الجسور:", error);
+        res.status(500).json({ success: false, message: error.message });
+    }
+});
+
 app.listen(process.env.PORT || 3000, '0.0.0.0', () => console.log(`🚀 السيرفر يعمل بنظام الرقابة الذكي والآمن!`));
