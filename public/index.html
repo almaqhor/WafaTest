@@ -413,6 +413,30 @@
                             <i class="fas fa-coffee"></i> طباعة جدول فترات الراحة
                         </button>
                     </div>
+                        <div style="background: linear-gradient(to left, #f4fdf8, #ffffff); border: 1px solid #27ae60; border-right: 5px solid #27ae60; padding: 15px; border-radius: 8px; display: flex; align-items: flex-end; gap: 15px; margin-bottom: 20px; flex-wrap: wrap;">
+    
+    <div style="color: #27ae60; display: flex; align-items: center; gap: 10px; margin-left: 10px;">
+        <i class="fas fa-file-excel fa-2x"></i>
+        <div>
+            <h4 style="margin: 0; font-size: 14px;">مستخرج التعويضات (CP)</h4>
+            <span style="font-size: 11px; color: #7f8c8d;">تصدير مباشر لبرنامج Excel</span>
+        </div>
+    </div>
+
+    <div>
+        <label style="font-size: 12px; font-weight: bold; color: #555;">من تاريخ:</label>
+        <input type="date" id="cp-export-from" class="comment-input" style="margin:0; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+    </div>
+    
+    <div>
+        <label style="font-size: 12px; font-weight: bold; color: #555;">إلى تاريخ:</label>
+        <input type="date" id="cp-export-to" class="comment-input" style="margin:0; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+    </div>
+
+    <button onclick="exportCPToExcel()" style="background: #27ae60; color: white; border: none; padding: 9px 20px; border-radius: 5px; font-weight: bold; cursor: pointer; box-shadow: 0 4px 6px rgba(39, 174, 96, 0.2); transition: 0.3s;">
+        <i class="fas fa-download"></i> تصدير الملف
+    </button>
+</div>
                         <div class="tabs-header" style="border-bottom: 2px solid #27ae60;">
                             <button class="tab-btn active" id="btn-tab-daily" onclick="switchAttTab('daily')"><i class="fas fa-calendar-day"></i> التحضير اليومي</button>
                             <button class="tab-btn" id="btn-tab-pending" onclick="switchAttTab('pending')" style="color:#e74c3c;"><i class="fas fa-exclamation-circle"></i> معالجة الحالات المعلقة (T)</button>
@@ -13652,6 +13676,66 @@ async function analyzeAttendancePatterns() {
         </html>
     `);
     printWindow.document.close();
+}
+    // ==========================================
+// ==========================================
+// 📊 محرك تصدير أيام التعويض (CP) إلى إكسل XLSX
+// ==========================================
+function exportCPToExcel() {
+    const fromDate = document.getElementById('cp-export-from').value;
+    const toDate = document.getElementById('cp-export-to').value;
+
+    if (!fromDate || !toDate) {
+        alert("⚠️ يرجى تحديد نطاق التاريخ أولاً.");
+        return;
+    }
+
+    const targetBranch = document.getElementById('dash-branch') ? document.getElementById('dash-branch').value : getSafeManagerBranch();
+    const rows = [];
+
+    // 1. تجميع البيانات وتجهيزها
+    allAttendanceData.forEach(att => {
+        const code = att.code ? att.code.toUpperCase() : '';
+        if (code !== 'CP') return;
+
+        const recordDate = new Date(att.date).toISOString().split('T')[0];
+        if (recordDate >= fromDate && recordDate <= toDate) {
+            const user = allUsersData.find(u => String(u.username) === String(att.username));
+            
+            if (targetBranch && targetBranch !== '' && targetBranch !== 'الشركة') {
+                if (!user || user.branch !== targetBranch) return;
+            }
+
+            // إضافة الصف بالترتيب المطلوب
+            rows.push({
+                "الرقم الوظيفي": user ? user.username : att.username,
+                "الاسم": user ? user.name : 'غير محدد',
+                "التاريخ": recordDate,
+                "ملاحظة": "" // عمود فارغ كما طلبت
+            });
+        }
+    });
+
+    if (rows.length === 0) {
+        alert("📉 لا توجد بيانات تعويض (CP) في هذه الفترة.");
+        return;
+    }
+
+    // 2. إنشاء كتاب عمل (Workbook) وورقة عمل (Worksheet)
+    const worksheet = XLSX.utils.json_to_sheet(rows);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "التعويضات");
+
+    // 3. ضبط اتجاه الصفحة ليكون من اليمين لليسار (RTL) لدعم العربية
+    if(!worksheet['!cols']) worksheet['!cols'] = [];
+    worksheet['!ref'] = XLSX.utils.encode_range({s: {c:0, r:0}, e: {c:3, r:rows.length}});
+    worksheet['!views'] = [{RTL: true}]; // جعل الشيت يفتح من اليمين لليسار
+
+    // 4. تسمية الملف وتصديره
+    const branchLabel = targetBranch || "عام";
+    const fileName = `تعويضات_فرع_${branchLabel}_${fromDate}_إلى_${toDate}.xlsx`;
+    
+    XLSX.writeFile(workbook, fileName);
 }
     
 </script>
