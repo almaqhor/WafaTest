@@ -13678,52 +13678,63 @@ async function analyzeAttendancePatterns() {
     printWindow.document.close();
 }
 
-// ==========================================
-// 📊 محرك تصدير أيام التعويض (CP) إلى إكسل XLSX (النسخة المدرعة)
-// ==========================================
 async function exportCPToExcel() {
     const fromDate = document.getElementById('cp-export-from').value;
     const toDate = document.getElementById('cp-export-to').value;
-    const targetBranch = document.getElementById('dash-branch') ? document.getElementById('dash-branch').value : getSafeManagerBranch();
+    
+    // 🛡️ نقطة التفتيش السيادية: تحديد الفرع بناءً على الصلاحية
+    let targetBranch = '';
+    const isManager = isUserDashboardManager(); // الدالة التي صممناها سابقاً
+
+    if (isManager) {
+        // إذا كان مدير فرع: يتم إجباره على فرعه المسجل في حسابه فقط
+        targetBranch = getSafeManagerBranch(); 
+        console.log(`📡 وضع التقييد: تم حصر التصدير لفرعك فقط: ${targetBranch}`);
+    } else {
+        // إذا كان آدمن أو موارد: يسمح له باستخدام الفلتر المنسدل (أو كل الفروع إذا تركه فارغاً)
+        const branchFilter = document.getElementById('dash-branch');
+        targetBranch = branchFilter ? branchFilter.value : '';
+        console.log(`📡 وضع الصلاحية المطلقة: التصدير لفرع: ${targetBranch || 'كامل الشركة'}`);
+    }
 
     if (!fromDate || !toDate) {
         alert("⚠️ يرجى تحديد التاريخ أولاً.");
         return;
     }
 
-    // إظهار علامة تحميل على الزر
     const btn = event.target;
     const originalText = btn.innerHTML;
-    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري جلب البيانات...';
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري استخراج بيانات فرعك...';
     btn.disabled = true;
 
     try {
-        // 1. طلب البيانات "الطازجة" من السيرفر
         const response = await fetch('/api/fetch-cp-report', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ fromDate, toDate, branch: targetBranch })
+            body: JSON.stringify({ 
+                fromDate, 
+                toDate, 
+                branch: targetBranch // إرسال الفرع المقيد أو المختار
+            })
         });
 
         const res = await response.json();
 
         if (res.success && res.data.length > 0) {
-            // 2. معالجة الملف عبر SheetJS (التي أضفناها مسبقاً)
             const worksheet = XLSX.utils.json_to_sheet(res.data);
             const workbook = XLSX.utils.book_new();
             XLSX.utils.book_append_sheet(workbook, worksheet, "التعويضات");
-
-            // ضبط الاتجاه للعربية (RTL)
             worksheet['!views'] = [{RTL: true}];
-
+            
+            // اسم الملف يظهر فيه اسم الفرع لضمان الوضوح
             const fileName = `تعويضات_${targetBranch || 'عام'}_${fromDate}_إلى_${toDate}.xlsx`;
             XLSX.writeFile(workbook, fileName);
         } else {
-            alert("📉 لا توجد بيانات تعويض مسجلة لهذه الفترة.");
+            alert(isManager ? `📉 لا توجد سجلات تعويض لفرعك (${targetBranch}) في هذه الفترة.` : "📉 لا توجد بيانات تعويض مسجلة لهذه الفترة.");
         }
     } catch (error) {
         console.error(error);
-        alert("❌ فشل الاتصال بالسيرفر لاستخراج التقرير.");
+        alert("❌ فشل الاتصال بالسيرفر.");
     } finally {
         btn.innerHTML = originalText;
         btn.disabled = false;
