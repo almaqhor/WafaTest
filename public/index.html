@@ -10542,49 +10542,68 @@ function exportUsersToExcela() {
         // ==================== محرك رادار الإجازات المستحقة ====================
 
         // دالة التبديل بين التبويبات (محدثة لجلب الفروع من قاعدة البيانات الجغرافية)
-        async function switchLeaveTabs(tab) {
-            document.getElementById('btn-lv-tab-entry').classList.toggle('active', tab === 'entry');
-            document.getElementById('btn-lv-tab-radar').classList.toggle('active', tab === 'radar');
-            document.getElementById('leave-tab-entry').style.display = tab === 'entry' ? 'block' : 'none';
-            document.getElementById('leave-tab-radar').style.display = tab === 'radar' ? 'block' : 'none';
-            
-            if(tab === 'radar') {
-                // ضبط تاريخ اليوم كافتراضي
-                if(!document.getElementById('radar-base-date').value) {
-                    const todayStr = new Date(new Date().getTime() - (new Date().getTimezoneOffset() * 60000)).toISOString().split('T')[0];
-                    document.getElementById('radar-base-date').value = todayStr;
-                }
-                
-                // 🚀 السحر هنا: جلب الفروع من الداتا بيس الجغرافية (locationsArray) بذكاء
-                const radarBranchSelect = document.getElementById('radar-branch');
-                if(radarBranchSelect.options.length <= 1) {
-                    // التأكد من جلب المواقع من السيرفر إذا لم تكن محملة
-                    if (typeof locationsArray === 'undefined' || locationsArray.length === 0) {
-                        try { locationsArray = await (await fetch('/api/locations')).json(); } catch(e){}
-                    }
-                    
-                    // دمج الفروع من locations و branches للحماية المزدوجة (بحيث لا يسقط أي فرع)
-                    let allPossibleBranches = [];
-                    if (typeof locationsArray !== 'undefined') allPossibleBranches.push(...locationsArray.map(loc => loc.branch));
-                    if (typeof branchesArray !== 'undefined') allPossibleBranches.push(...branchesArray);
-                    
-                    // تنظيف المصفوفة: إزالة التكرار والأسماء الفارغة
-                    const uniqueBranches = [...new Set(allPossibleBranches)].filter(b => b && b.trim() !== '');
-                    
-                    // حقن الفروع النظيفة في القائمة المنسدلة
-                    radarBranchSelect.innerHTML = '<option value="">كل الفروع</option>' + 
-                        uniqueBranches.map(b => `<option value="${b}">${b}</option>`).join('');
-                }
-
-                // تعبئة الوظائف
-                if(document.getElementById('radar-job').options.length <= 1 && typeof jobsArray !== 'undefined') {
-                    document.getElementById('radar-job').innerHTML = '<option value="">كل الوظائف</option>' + 
-                        jobsArray.map(j => `<option value="${j}">${j}</option>`).join('');
-                }
-                
-                runLeaveRadar();
-            }
+       async function switchLeaveTabs(tab) {
+    document.getElementById('btn-lv-tab-entry').classList.toggle('active', tab === 'entry');
+    document.getElementById('btn-lv-tab-radar').classList.toggle('active', tab === 'radar');
+    document.getElementById('leave-tab-entry').style.display = tab === 'entry' ? 'block' : 'none';
+    document.getElementById('leave-tab-radar').style.display = tab === 'radar' ? 'block' : 'none';
+    
+    if(tab === 'radar') {
+        // ضبط تاريخ اليوم كافتراضي
+        if(!document.getElementById('radar-base-date').value) {
+            const todayStr = new Date(new Date().getTime() - (new Date().getTimezoneOffset() * 60000)).toISOString().split('T')[0];
+            document.getElementById('radar-base-date').value = todayStr;
         }
+
+        // 🚀 السلاح الجديد: طلب الإمدادات فوراً إذا كانت الذاكرة فارغة
+        if (typeof allUsersData === 'undefined' || allUsersData.length === 0) {
+            console.log("📡 جاري طلب بيانات الموظفين من الخادم...");
+            try { 
+                // ⚠️ استبدل '/api/employees' بالمسار الصحيح لديك إذا كان مختلفاً
+                const res = await fetch('/api/employees'); 
+                const data = await res.json();
+                // دعم ذكي للردود (سواء كانت مصفوفة مباشرة أو بداخل كائن)
+                allUsersData = data.data || data.employees || data || []; 
+            } catch(e) { console.error("❌ فشل جلب الموظفين", e); }
+        }
+
+        if (typeof allLeavesData === 'undefined' || allLeavesData.length === 0) {
+            console.log("📡 جاري طلب بيانات الإجازات من الخادم...");
+            try { 
+                // ⚠️ استبدل '/api/leaves' بالمسار الصحيح لديك
+                const res = await fetch('/api/leaves'); 
+                const data = await res.json();
+                allLeavesData = data.data || data.leaves || data || []; 
+            } catch(e) { console.error("❌ فشل جلب الإجازات", e); }
+        }
+        
+        // جلب الفروع من الداتا بيس الجغرافية بذكاء
+        const radarBranchSelect = document.getElementById('radar-branch');
+        if(radarBranchSelect.options.length <= 1) {
+            if (typeof locationsArray === 'undefined' || locationsArray.length === 0) {
+                try { locationsArray = await (await fetch('/api/locations')).json(); } catch(e){}
+            }
+            
+            let allPossibleBranches = [];
+            if (typeof locationsArray !== 'undefined') allPossibleBranches.push(...locationsArray.map(loc => loc.branch));
+            if (typeof branchesArray !== 'undefined') allPossibleBranches.push(...branchesArray);
+            
+            const uniqueBranches = [...new Set(allPossibleBranches)].filter(b => b && b.trim() !== '');
+            
+            radarBranchSelect.innerHTML = '<option value="">كل الفروع</option>' + 
+                uniqueBranches.map(b => `<option value="${b}">${b}</option>`).join('');
+        }
+
+        // تعبئة الوظائف
+        if(document.getElementById('radar-job').options.length <= 1 && typeof jobsArray !== 'undefined') {
+            document.getElementById('radar-job').innerHTML = '<option value="">كل الوظائف</option>' + 
+                jobsArray.map(j => `<option value="${j}">${j}</option>`).join('');
+        }
+        
+        // تشغيل الرادار بعد ضمان وجود الإمدادات
+        runLeaveRadar();
+    }
+}
 
 // المحرك الأساسي (النسخة المدرعة ذاتية الانتظار)
 function runLeaveRadar(retryCount = 0) {
