@@ -13677,65 +13677,57 @@ async function analyzeAttendancePatterns() {
     `);
     printWindow.document.close();
 }
-    // ==========================================
+
 // ==========================================
-// 📊 محرك تصدير أيام التعويض (CP) إلى إكسل XLSX
+// 📊 محرك تصدير أيام التعويض (CP) إلى إكسل XLSX (النسخة المدرعة)
 // ==========================================
-function exportCPToExcel() {
+async function exportCPToExcel() {
     const fromDate = document.getElementById('cp-export-from').value;
     const toDate = document.getElementById('cp-export-to').value;
+    const targetBranch = document.getElementById('dash-branch') ? document.getElementById('dash-branch').value : getSafeManagerBranch();
 
     if (!fromDate || !toDate) {
-        alert("⚠️ يرجى تحديد نطاق التاريخ أولاً.");
+        alert("⚠️ يرجى تحديد التاريخ أولاً.");
         return;
     }
 
-    const targetBranch = document.getElementById('dash-branch') ? document.getElementById('dash-branch').value : getSafeManagerBranch();
-    const rows = [];
+    // إظهار علامة تحميل على الزر
+    const btn = event.target;
+    const originalText = btn.innerHTML;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري جلب البيانات...';
+    btn.disabled = true;
 
-    // 1. تجميع البيانات وتجهيزها
-    allAttendanceData.forEach(att => {
-        const code = att.code ? att.code.toUpperCase() : '';
-        if (code !== 'CP') return;
+    try {
+        // 1. طلب البيانات "الطازجة" من السيرفر
+        const response = await fetch('/api/fetch-cp-report', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ fromDate, toDate, branch: targetBranch })
+        });
 
-        const recordDate = new Date(att.date).toISOString().split('T')[0];
-        if (recordDate >= fromDate && recordDate <= toDate) {
-            const user = allUsersData.find(u => String(u.username) === String(att.username));
-            
-            if (targetBranch && targetBranch !== '' && targetBranch !== 'الشركة') {
-                if (!user || user.branch !== targetBranch) return;
-            }
+        const res = await response.json();
 
-            // إضافة الصف بالترتيب المطلوب
-            rows.push({
-                "الرقم الوظيفي": user ? user.username : att.username,
-                "الاسم": user ? user.name : 'غير محدد',
-                "التاريخ": recordDate,
-                "ملاحظة": "" // عمود فارغ كما طلبت
-            });
+        if (res.success && res.data.length > 0) {
+            // 2. معالجة الملف عبر SheetJS (التي أضفناها مسبقاً)
+            const worksheet = XLSX.utils.json_to_sheet(res.data);
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, "التعويضات");
+
+            // ضبط الاتجاه للعربية (RTL)
+            worksheet['!views'] = [{RTL: true}];
+
+            const fileName = `تعويضات_${targetBranch || 'عام'}_${fromDate}_إلى_${toDate}.xlsx`;
+            XLSX.writeFile(workbook, fileName);
+        } else {
+            alert("📉 لا توجد بيانات تعويض مسجلة لهذه الفترة.");
         }
-    });
-
-    if (rows.length === 0) {
-        alert("📉 لا توجد بيانات تعويض (CP) في هذه الفترة.");
-        return;
+    } catch (error) {
+        console.error(error);
+        alert("❌ فشل الاتصال بالسيرفر لاستخراج التقرير.");
+    } finally {
+        btn.innerHTML = originalText;
+        btn.disabled = false;
     }
-
-    // 2. إنشاء كتاب عمل (Workbook) وورقة عمل (Worksheet)
-    const worksheet = XLSX.utils.json_to_sheet(rows);
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, "التعويضات");
-
-    // 3. ضبط اتجاه الصفحة ليكون من اليمين لليسار (RTL) لدعم العربية
-    if(!worksheet['!cols']) worksheet['!cols'] = [];
-    worksheet['!ref'] = XLSX.utils.encode_range({s: {c:0, r:0}, e: {c:3, r:rows.length}});
-    worksheet['!views'] = [{RTL: true}]; // جعل الشيت يفتح من اليمين لليسار
-
-    // 4. تسمية الملف وتصديره
-    const branchLabel = targetBranch || "عام";
-    const fileName = `تعويضات_فرع_${branchLabel}_${fromDate}_إلى_${toDate}.xlsx`;
-    
-    XLSX.writeFile(workbook, fileName);
 }
     
 </script>
