@@ -5243,5 +5243,55 @@ app.post('/api/analyze-patterns', async (req, res) => {
         res.status(500).json({ success: false, message: error.message });
     }
 });
+// 🚀 مسار قناص سجلات التعويض (CP) للفرع والفترة المحددة
+app.post('/api/fetch-cp-report', async (req, res) => {
+    try {
+        const { fromDate, toDate, branch } = req.body;
+
+        // 1. إعداد شرط البحث
+        const whereClause = {
+            code: { in: ['CP', 'cp'] }, // البحث عن كود التعويض
+            date: {
+                gte: new Date(fromDate),
+                lte: new Date(toDate)
+            }
+        };
+
+        // 2. إذا كان البحث لفرع محدد (وليس للشركة كاملة)
+        if (branch && branch !== '' && branch !== 'الشركة') {
+            whereClause.employee = { branch: branch };
+        }
+
+        // 3. تنفيذ الاستعلام المباشر من قاعدة البيانات
+        const cpRecords = await prisma.attendance.findMany({
+            where: whereClause,
+            include: {
+                employee: {
+                    select: {
+                        username: true,
+                        name: true,
+                        branch: true
+                    }
+                }
+            },
+            orderBy: { date: 'asc' }
+        });
+
+        // 4. تنسيق البيانات لتناسب ملف الإكسل
+        const report = cpRecords.map(rec => ({
+            "الرقم الوظيفي": rec.employee.username,
+            "الاسم": rec.employee.name,
+            "التاريخ": new Date(rec.date).toISOString().split('T')[0],
+            "الفرع": rec.employee.branch,
+            "ملاحظة": ""
+        }));
+
+        res.json({ success: true, data: report });
+
+    } catch (error) {
+        console.error("❌ خطأ في استخراج تقرير CP:", error);
+        res.status(500).json({ success: false, message: error.message });
+    }
+});
 
 app.listen(process.env.PORT || 3000, '0.0.0.0', () => console.log(`🚀 السيرفر يعمل بنظام الرقابة الذكي والآمن!`));
