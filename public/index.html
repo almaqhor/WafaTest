@@ -11457,12 +11457,19 @@ async function loadManagerHealthCard() {
     }
 }
         
-// ==================== 👻 محرك وضع الشبح (Ghost Mode) ====================
-window.impersonateUser = function(targetUsername) {
+
+// 👻 نظام التخفي (Ghost Mode) - دوال سيادية مرفوعة بالـ Hoisting
+// ==========================================
+
+function impersonateUser(targetUsername) {
     if(!confirm('سيتم تحويلك لواجهة الموظف المحددة.\nيمكنك العودة لحسابك الإداري من خلال الزر الأحمر أعلى الشاشة.\nهل تريد المتابعة؟')) return;
     
+    // تأكد من وجود allUsersData في الذاكرة (كما عدلناها سابقاً لتكون var)
     const targetUser = allUsersData.find(u => String(u.username) === String(targetUsername));
-    if(!targetUser) return;
+    if(!targetUser) {
+        alert("❌ لم يتم العثور على بيانات الموظف المستهدف.");
+        return;
+    }
     
     // 1. حفظ حساب الآدمن أو الموارد الحالي في الذاكرة السرية
     localStorage.setItem('wafaAdminGhostToken', localStorage.getItem('wafaUser'));
@@ -11472,17 +11479,19 @@ window.impersonateUser = function(targetUsername) {
     
     // 3. إعادة تحميل الصفحة لفتحها بصلاحيات الموظف
     location.reload();
-};
+}
 
-window.exitGhostMode = function() {
+function exitGhostMode() {
     // استرجاع حساب الآدمن
     const originalAdmin = localStorage.getItem('wafaAdminGhostToken');
     if (originalAdmin) {
         localStorage.setItem('wafaUser', originalAdmin);
         localStorage.removeItem('wafaAdminGhostToken');
         location.reload();
+    } else {
+        alert("❌ لا يوجد جلسة إدارية للعودة إليها!");
     }
-};
+}
  // ==================== 📊 محرك تقارير الطلبات (للإدارة والموارد) ====================
 
 
