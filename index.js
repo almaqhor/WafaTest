@@ -4060,7 +4060,7 @@ app.get('/api/candidates', async (req, res) => {
         console.log("📡 جاري جلب قائمة المرشحين (النسخة الخفيفة)...");
         
         const candidates = await prisma.candidate.findMany({
-            // 🚀 السر هنا: نختار الحقول الخفيفة فقط ونتجاهل حقل cvFile الثقيل
+            // 🚀 السر هنا: نكتب فقط الحقول التي نريدها، ونتجاهل ذكر cvFile تماماً
             select: {
                 id: true,
                 candidateId: true,
@@ -4074,19 +4074,16 @@ app.get('/api/candidates', async (req, res) => {
                 status: true,
                 createdAt: true,
                 isFormerEmployee: true,
-                hrComment: true,
-                // بدلاً من جلب الملف الكامل، نطلب فقط معرفة ما إذا كان الحقل فارغاً أم لا
-                cvFile: false 
+                hrComment: true
+                // تم إزالة سطر cvFile: false من هنا
             },
             orderBy: { createdAt: 'asc' }
         });
 
-        // بما أننا لم نجلب الملف، سنضيف متغيراً وهمياً للواجهة الأمامية لكي ترسم الزر
+        // إضافة المتغير الوهمي للواجهة الأمامية
         const lightweightCandidates = candidates.map(c => ({
             ...c,
-            // نفترض أن لديه سيرة ذاتية إذا لم نقم بجلبه (سنعالجه في خطوة لاحقة)
-            // أو إذا كنت تستخدم Prisma بشكل متقدم يمكنك التحقق من طول الحقل
-            hasCv: true 
+            hasCv: true // نعطي إشارة للواجهة لترسم زر "جلب وعرض السيرة"
         }));
 
         res.json(lightweightCandidates);
