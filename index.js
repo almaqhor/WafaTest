@@ -4054,13 +4054,15 @@ app.post('/api/submit-candidate', async (req, res) => {
     }
 });
 
-// 2. جلب المرشحين لغرفة عمليات الموارد البشرية
+// ==========================================
+// 1. مسار جلب كل المرشحين (النسخة السريعة والخفيفة)
+// ==========================================
 app.get('/api/candidates', async (req, res) => {
     try {
         console.log("📡 جاري جلب قائمة المرشحين (النسخة الخفيفة)...");
         
-        const candidates = await prisma.candidate.findMany({
-            // 🚀 السر هنا: نكتب فقط الحقول التي نريدها، ونتجاهل ذكر cvFile تماماً
+        // 🚀 تم توجيه الرادار للجدول الصحيح: recruitment
+        const candidates = await prisma.recruitment.findMany({
             select: {
                 id: true,
                 candidateId: true,
@@ -4075,15 +4077,13 @@ app.get('/api/candidates', async (req, res) => {
                 createdAt: true,
                 isFormerEmployee: true,
                 hrComment: true
-                // تم إزالة سطر cvFile: false من هنا
             },
             orderBy: { createdAt: 'asc' }
         });
 
-        // إضافة المتغير الوهمي للواجهة الأمامية
         const lightweightCandidates = candidates.map(c => ({
             ...c,
-            hasCv: true // نعطي إشارة للواجهة لترسم زر "جلب وعرض السيرة"
+            hasCv: true 
         }));
 
         res.json(lightweightCandidates);
@@ -4092,12 +4092,16 @@ app.get('/api/candidates', async (req, res) => {
         res.status(500).json({ success: false, message: "حدث خطأ في الخادم" });
     }
 });
-// مسار قناص لجلب ملف سيرة ذاتية واحد عند الطلب
+
+// ==========================================
+// 2. مسار القناص: جلب السيرة الذاتية لمرشح واحد فقط
+// ==========================================
 app.get('/api/candidate-cv/:id', async (req, res) => {
     try {
-        const cand = await prisma.candidate.findUnique({
+        // 🚀 تم توجيه الرادار للجدول الصحيح: recruitment
+        const cand = await prisma.recruitment.findUnique({
             where: { candidateId: req.params.id },
-            select: { cvFile: true } // نجلب الملف الثقيل لهذا الشخص فقط
+            select: { cvFile: true } 
         });
 
         if (cand && cand.cvFile) {
@@ -4106,6 +4110,7 @@ app.get('/api/candidate-cv/:id', async (req, res) => {
             res.json({ success: false, message: "لا يوجد ملف" });
         }
     } catch (error) {
+        console.error("❌ خطأ في جلب السيرة الذاتية:", error);
         res.status(500).json({ success: false });
     }
 });
