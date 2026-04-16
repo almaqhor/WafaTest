@@ -5248,19 +5248,19 @@ app.post('/api/fetch-cp-report', async (req, res) => {
     try {
         const { fromDate, toDate, branch } = req.body;
 
-        // 1. إعداد شرط البحث
-        const whereClause = {
-            code: { in: ['CP', 'cp'] }, // البحث عن كود التعويض
-            date: {
-                gte: new Date(fromDate),
-                lte: new Date(toDate)
-            }
-        };
+        // التذكير بمنطق السيرفر (تأكد أنك أضفت شرط الفرع كما يلي)
+const whereClause = {
+    code: { in: ['CP', 'cp'] },
+    date: {
+        gte: new Date(fromDate),
+        lte: new Date(toDate)
+    }
+};
 
-        // 2. إذا كان البحث لفرع محدد (وليس للشركة كاملة)
-        if (branch && branch !== '' && branch !== 'الشركة') {
-            whereClause.employee = { branch: branch };
-        }
+// لا يطبق فلتر الموظف إلا إذا كان هناك فرع محدد مرسل من الواجهة
+if (branch && branch !== '' && branch !== 'الشركة') {
+    whereClause.employee = { branch: branch };
+}
 
         // 3. تنفيذ الاستعلام المباشر من قاعدة البيانات
         const cpRecords = await prisma.attendance.findMany({
